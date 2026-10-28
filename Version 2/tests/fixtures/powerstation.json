@@ -1,3 +1,0 @@
-{
- "d": "[{\"Station\": \"Station A\", \"Fuel\": \"Gas \", \"Capacity (MW)\": 1000}, {\"Station\": \"Station B\", \"Fuel\": \"Gas\", \"Capacity (MW)\": 500.5}, {\"Station\": \"Station C\", \"Fuel\": \"Coal\", \"Capacity (MW)\": 2100}, {\"Station\": \"Station D\", \"Fuel\": \"Solar\", \"Capacity (MW)\": 50}]"
-}

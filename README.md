@@ -8,25 +8,66 @@
 
 [![Open the site](https://img.shields.io/badge/OPEN%20THE%20SITE-darren38.github.io-2ea44f?style=for-the-badge)](https://darren38.github.io/gso-data-archive/)
 
-<a href="https://darren38.github.io/gso-data-archive/"><img src="Version%203/docs/screenshot.jpg" alt="The Solar page of GSO Grid Archive showing seven days of solar generation against system demand. The picture uses the site's watermarked demonstration data, not GSO readings. Click to open the site." width="820"></a>
+<a href="https://darren38.github.io/gso-data-archive/"><img src="docs/screenshot.jpg" alt="The Solar page of GSO Grid Archive showing seven days of solar generation against system demand, with daily peak, energy and ramp figures. Click to open the site." width="820"></a>
 
 </div>
 
-The site goes live after the one-time setup in [Version 3 → Publishing the site](Version%203/README.md#publishing-the-site-one-time).
-Until the first real GSO readings arrive it shows watermarked **demonstration data**.
+## What it is
 
-## Versions
+- **Solar first**, straight from [GSO's Solar page](https://www.gso.org.my/SystemData/Solar.aspx): grid (transmission) solar, distribution solar, and NEM, FiT and SELCO rooftop solar (GSO's own estimates), with GSO's solar forecast to compare against. Plus daily peaks and when they happened, energy per day, how fast output rises and falls, solar's share of demand, and day / week / month / year comparisons.
+- **Every large solar farm**: live output and capacity of the 60 or so solar farms on GSO's solar map, with state, region and grid or distribution connection.
+- **The rest of the grid too**: system demand, generation by fuel (coal, gas, hydro, solar, co-generation, oil), other renewables, total generation, system availability, installed capacity, battery storage (BESS) charge and discharge, and the links to Thailand and Singapore.
+- **Nothing is ever lost or overwritten**: if GSO changes a reading later, the new value is shown and the old one is kept. Gaps stay gaps. A missing reading is never shown as zero.
+- **Collects by itself, often**: new readings about every 2–3 minutes. Several of GSO's pages only show *today*, so collecting all day long is what builds the history.
+- **The page updates itself**: an open page checks for new readings every minute and redraws in place, keeping your dates, settings and scroll position. Your chosen view is kept in the page address, so a link shows exactly what you see.
+- **No server, no database service**: GitHub Actions collects and GitHub Pages hosts the site, the same way as Tech Comparison Hub. The archive is one file carried from run to run, published with the site, and copied to a GitHub Release every day.
+- **Download anything**: CSV for any chart, monthly CSV files, and the whole archive as one SQLite file.
+- **Works everywhere**: phones from 320 px to big screens, light and dark, all times in Malaysia time (MYT).
 
-Each big update gets its own folder, and older versions are kept as they were.
+## How current is it?
 
-| Version | What it is |
+| Part | Updated |
 |---|---|
-| [Version 3](Version%203/README.md) | **Current.** New readings about every 2–3 minutes, pages that refresh themselves every minute, your view kept in the address, and a round of bug fixes found by clicking through everything |
-| [Version 2](Version%202/README.md) | Runs entirely on GitHub (Actions + Pages, no server or database service), daily backups to a GitHub Release, site check-up after every update, downloadable archive |
-| [Version 1](Version%201/README.md) | First release: collector, archive with full revision history, solar-first dashboard, tests. Needed your own server or database to keep collecting |
+| Solar (grid, distribution, rooftop estimates), forecast, solar farms, BESS, availability | About every 2–3 minutes. GSO publishes these every 10 minutes, for today only |
+| Generation by fuel, system demand | About every 2–3 minutes (every 10 minutes at GSO); yesterday is re-checked every hour for corrections; missed days are fetched again automatically |
+| Tie-lines | About every 2–3 minutes (every 30 minutes at GSO) |
+| Installed capacity | Once a day |
+| Backup of the whole archive | Once a day, to the `archive-backups` release |
+| An open page | Checks for new readings every minute and updates itself |
+| The site itself | Every visit checks for newer files, so an update shows on the next refresh |
 
-What changed and when: [CHANGELOG.md](CHANGELOG.md).
+GitHub sometimes starts scheduled runs late. For the pages that take a date, nothing is lost, because each
+request returns the whole day. For the today-only pages, a long GitHub delay late in the evening could miss the
+last few readings of that day. The site's **Auto** label shows the collection interval measured from recent runs.
 
-## Licence
+## Where the data comes from
 
-Code: [MIT](LICENSE). Data: Grid System Operator (GSO) / Tenaga Nasional Berhad. Independent project, not affiliated with GSO or TNB.
+Every address used was checked first-hand from GitHub's servers on 28 October 2026, and each value's meaning was
+taken from GSO's own page scripts (see [what is known and how](docs/SOURCE_INVESTIGATION.md)). The site's Status
+page shows when each source last worked. GSO doesn't publish system-constraints data, so that page says so instead
+of guessing. Collection is on; to pause it, set the repository variable `GSO_LIVE_ENABLED` to `false`
+(Settings → Secrets and variables → Actions → Variables). GSO's terms of use apply to the data. Another project
+reports they require TNB's written consent to download or store it, so it's worth checking them on gso.org.my.
+
+## Run it locally
+
+Needs Python 3.11 or newer.
+
+```bash
+pip install -r requirements.txt
+python -m gso_archive seed-demo
+DATABASE_URL="sqlite:///$PWD/data/demo.sqlite3" python -m gso_archive serve
+```
+
+Then open http://127.0.0.1:8000. That shows *demonstration* data, clearly marked on every page. Run the tests
+with `python -m pytest`. Other commands: `collect`, `schedule`, `backfill --start YYYY-MM-DD`, `status`, `probe`
+(look at GSO's pages), `backup`, `restore-portable`. All are run as `python -m gso_archive <command>`.
+
+More: [design and data model](docs/ARCHITECTURE.md) · [deployment](docs/DEPLOYMENT.md) · [backups](docs/BACKUP_RESTORE.md) ·
+[status and next steps](docs/STATUS.md) · [what changed and when](CHANGELOG.md)
+
+## Credits and licence
+
+The code is under the [MIT licence](LICENSE). The data belongs to the Grid System Operator (GSO) / Tenaga Nasional
+Berhad. This is an independent archive, not affiliated with or endorsed by GSO or TNB. Charts use
+[Apache ECharts](https://echarts.apache.org/) (Apache 2.0, included in `web/vendor`).

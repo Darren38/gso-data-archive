@@ -1,5 +1,18 @@
 # Changelog
 
+## 28 October 2026 (fourth update) — GSO Grid Archive 4.0
+
+Real data from GSO's Solar page and home page, checked first-hand.
+
+- GitHub's servers can reach gso.org.my, so the archive now looks at GSO's pages directly. A check runs after each push and once a day and writes down which data addresses each page uses. Every address the archive uses has now been seen working, and each number's meaning comes from GSO's own page scripts.
+- New from GSO's Solar page (the link given at the start): grid (transmission) solar, distribution solar, and NEM, FiT and SELCO rooftop solar every 10 minutes (the rooftop values are GSO's own estimates and are labelled that way), and GSO's solar forecast for the day.
+- New from GSO's home page: battery storage (BESS) charge and discharge, total generation, other renewables (biogas, biomass, mini hydro), total tie-line flow, system availability by fuel, and the live output and capacity of about 60 solar farms.
+- The Solar page has a new "Solar by connection" chart in GSO's style, forecast against the matching actual total, transmission against distribution, and a live solar-farm table. The BESS page now shows real charge and discharge. The Overview shows all solar and the battery's net flow.
+- These GSO pages only show today, so they are collected all day; around midnight the archive checks which day a list belongs to rather than guessing.
+- Fewer requests to GSO: no page downloads before asking for data, and the time of the latest solar reading is asked once per run.
+- The EGAT tie-line is kept: GSO's menu no longer lists it, but it still answers with readings. The guessed Solar address used before (which GSO refused) is gone.
+- The repository's front page no longer shows version folders: the code is at the top level, like the owner's other projects, and versions 1–3 are kept on the `versions` branch.
+
 ## 28 October 2026 (third update) — Version 3
 
 New readings more often, and a page that keeps itself up to date.

@@ -24,7 +24,7 @@ name: Collect and publish
 on:
   push:
     branches: [main]
-    paths: ["Version 3/**", ".github/workflows/archive.yml"]
+    paths: ["gso_archive/**", "web/**", "requirements.txt", ".github/workflows/archive.yml"]
   schedule:
     - cron: "*/5 * * * *"    # collect and publish (five staggered schedules = about every minute)
     - cron: "1-59/5 * * * *"
@@ -45,14 +45,11 @@ jobs:
     concurrency:
       group: archive-build
       cancel-in-progress: false
-    defaults:
-      run:
-        working-directory: "Version 3"
     env:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
       GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
-      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station' }}
+      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile,solar_forecast,genmix_live,availability,solar_farms' }}
       GSO_COLLECTION_MODE: github
       COLLECT_INTERVAL_SECONDS: "60"  # what the schedule asks for; the site shows the measured interval
       RAW_RETENTION: none  # the runner's disk is thrown away after each run
@@ -106,8 +103,8 @@ jobs:
           key: ${{ steps.store.outputs.key }}
       - name: Build the site
         run: |
-          python -m gso_archive export-static --out ../_site $([ "$ALLOW_DEMO" = "true" ] && echo --demo-if-empty)
-          touch ../_site/.nojekyll
+          python -m gso_archive export-static --out _site $([ "$ALLOW_DEMO" = "true" ] && echo --demo-if-empty)
+          touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
@@ -148,9 +145,6 @@ jobs:
     if: needs.deploy.outputs.deployed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: "Version 3"
     env:
       SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
     steps:
@@ -174,9 +168,6 @@ jobs:
     if: github.event_name != 'schedule' || github.event.schedule == '43 19 * * *'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: "Version 3"
     env:
       GSO_LIVE_ENABLED: "true"
     steps:
@@ -196,7 +187,7 @@ jobs:
         if: always()
         with:
           name: gso-probe-${{ github.run_id }}
-          path: "Version 3/probe-out"
+          path: probe-out
           retention-days: 14
 
   # Only the newest saved archives are kept in the Actions cache (each run saves a new one).
@@ -224,9 +215,6 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
-    defaults:
-      run:
-        working-directory: "Version 3"
     env:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       GH_TOKEN: ${{ github.token }}

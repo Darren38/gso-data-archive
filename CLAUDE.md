@@ -1,7 +1,7 @@
 # Notes for working on this project
 
-An archive and dashboard for the Malaysian Grid System Operator's (GSO) public data. The current code is in
-`Version 3/`. One GitHub Actions workflow (`.github/workflows/archive.yml`) collects data about every 2–3 minutes and
+An archive and dashboard for the Malaysian Grid System Operator's (GSO) public data. The code is at the top level
+of the repository. One GitHub Actions workflow (`.github/workflows/archive.yml`) collects data about every 2–3 minutes and
 publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 
 ## How the owner likes changes made
@@ -16,7 +16,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   screenshot, then "What it is", "How current is it?", running it locally, and credits.
 - GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
-- A substantial update gets a new `Version N/` folder. Never change or delete an earlier version's folder.
+- No `Version N/` folders on `main` (the owner asked for them to be hidden). Like Physics Fruit Rush, a substantial
+  update gets a new version number (`gso_archive/__init__.py`, the commit message "GSO Grid Archive N.0 - …" and a
+  CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
 - Requests to other sites name the project, never the owner (no name or email in the User-Agent).
 - Never invent readings, endpoints or source capabilities. Demonstration data is watermarked and labelled everywhere.
 
@@ -39,16 +41,25 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
    and swaps it in. Every setting a visitor can change lives in the address (`getParam`/`setParams` in `ui.js`), and a
    page's `render` must `await picker.start()` so the swap happens only when the page is complete.
 8. **Values from links can't be trusted.** The Explorer ignores unknown series keys in `?series=`.
+9. **Don't guess what a GSO number means; read GSO's own script.** The Solar page's data is "$"-joined text whose
+   parts are only labelled inside `Scripts/Solar.v19.js` and `Scripts/SolarLandingPage.v5.js`. `gso-archive probe`
+   (run on GitHub, where gso.org.my is reachable) prints those scripts' parsing code. The guessed address
+   `Solar.aspx/GetChartDataSource` answered 401.
+10. **GSO answers 406 to a JSON/HTML-only `Accept` header for `.js` files.** Script downloads send `Accept: */*`.
+11. **Today-only answers need a date check around midnight.** `_pick_day` treats a list longer than today could
+    have as yesterday's, and the forecast is skipped between 23:30 and 00:30 rather than guessing its day.
+12. **Series created by a transform must be found by key.** `resolve_series` looks up the source label and then the
+    series key; before that, every Solar-page series was named "(auto-discovered)".
 
 ## How to check a change
 
 ```bash
-cd "Version 3"
 python -m pytest                       # all tests, including the browser checks
 TEST_DATABASE_URL=postgresql://… python -m pytest --ignore=tests/test_frontend.py   # same suite on PostgreSQL
 ```
 
 The browser checks (`tests/frontend/check_states.cjs`, preinstalled Playwright + Chromium) cover every main page at
 320, 360, 390, 768, 1024, 1440 and 1920 px: no sideways scrolling, and no `NaN`, `undefined` or `Infinity` on screen.
-They also cover the empty, loading, error, demo and static-site states. Look at the Solar page yourself at 320 px and
-1440 px after any layout change.
+They also cover the empty, loading, error, demo and static-site states, click through everything a visitor can do,
+and simulate new readings arriving. Look at the Solar and BESS pages yourself at 320 px and 1440 px after any layout
+change. Real GSO answers saved on 28 October 2026 are in `tests/fixtures/real/`.
