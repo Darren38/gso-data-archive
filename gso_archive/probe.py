@@ -55,7 +55,7 @@ def _extract(html: str) -> dict:
 
 
 # Page-specific scripts that load data (the Solar page and the home page keep their data calls in separate files).
-SCRIPT_HINT = re.compile(r"solar|landing", re.I)
+SCRIPT_HINT = re.compile(r"solar|landing|utils", re.I)
 SKIP_METHODS = re.compile(r"download|admin|access|quicklink|news", re.I)
 AJAX_URL = re.compile(r"""url\s*:\s*["']([^"']*?\.aspx/\w+)["']""", re.I)
 TIELINES = ["HVDC", "PLTG", "EGAT"]

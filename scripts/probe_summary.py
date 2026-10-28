@@ -72,6 +72,14 @@ def main(report_path: str, out_dir: str) -> None:
             print(f"\n## how {js.name} reads the data: {len(hits)} lines")
             for i in hits[:700]:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:220]}")
+        # GSO's chart colours: the chartColors table and every series' name/colour pair.
+        for js in sorted(folder.glob("script_*.js")):
+            lines = js.read_text(encoding="utf-8", errors="replace").splitlines()
+            hits = [i for i, line in enumerate(lines) if re.search(r"chartColors|gso\w*\s*:|color\s*:|#[0-9a-fA-F]{6}|rgba?\(", line)]
+            print(f"\n## colours in {js.name}: {len(hits)} lines")
+            for i in hits[:400]:
+                name = next((lines[j].strip()[:60] for j in range(i, max(-1, i - 4), -1) if "name:" in lines[j]), "")
+                print(f"   {i + 1:5d}: {lines[i].strip()[:160]}   {('<- ' + name) if name else ''}")
         # Whole bodies of the functions that turn GSO's answers into charts.
         wanted = {"DrawGenMixChart": 50, "DrawSolarMap": 45, "getData": 60, "DrawSolarChart": 40, "DrawSysAvPieChart": 25,
                   "DrawGenMixPieChart": 40}
