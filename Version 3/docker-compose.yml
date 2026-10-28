@@ -1,0 +1,69 @@
+# Single-host deployment: PostgreSQL + collector worker + read-only API/dashboard + daily backups.
+#   cp .env.example .env   # edit secrets
+#   docker compose up -d --build
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gso_archive
+      POSTGRES_USER: gso_writer
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gso_writer -d gso_archive"]
+      interval: 10s
+      retries: 10
+
+  migrate:
+    build: .
+    command: ["python", "-m", "gso_archive", "migrate"]
+    environment: &env
+      DATABASE_URL: postgresql://gso_writer:${POSTGRES_PASSWORD}@db:5432/gso_archive
+      GSO_LIVE_ENABLED: ${GSO_LIVE_ENABLED:-false}
+      GSO_ADAPTERS: ${GSO_ADAPTERS:-generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station}
+      GSO_USER_AGENT: ${GSO_USER_AGENT:-gso-data-archive/2.0}
+      COLLECT_INTERVAL_SECONDS: ${COLLECT_INTERVAL_SECONDS:-300}
+      RAW_RETENTION: ${RAW_RETENTION:-changed}
+    depends_on:
+      db: { condition: service_healthy }
+
+  collector:
+    build: .
+    restart: unless-stopped
+    command: ["python", "-m", "gso_archive", "schedule"]
+    environment: *env
+    volumes:
+      - raw:/data/raw
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck: { disable: true }
+
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      <<: *env
+      # Replace with a read-only role (deploy/postgres-roles.sql) in production.
+      API_DATABASE_URL: ${API_DATABASE_URL:-postgresql://gso_writer:${POSTGRES_PASSWORD}@db:5432/gso_archive}
+      API_CORS_ORIGINS: ${API_CORS_ORIGINS:-}
+    ports:
+      - "127.0.0.1:8000:8000"   # put a TLS reverse proxy (Caddy/nginx) in front
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  backup:
+    build: .
+    restart: unless-stopped
+    environment: *env
+    command: ["sh", "-c", "while true; do python -m gso_archive backup --out /backups --format both; sleep 86400; done"]
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck: { disable: true }
+
+volumes:
+  pgdata:
+  raw:

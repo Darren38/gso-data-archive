@@ -1,5 +1,16 @@
 # Changelog
 
+## 28 October 2026 (third update) — Version 3
+
+New readings more often, and a page that keeps itself up to date.
+
+- Collection now runs about every 2–3 minutes instead of every 5 or more: five GitHub schedules a minute apart keep runs going back to back. On your own server the default is every 2 minutes. The **Auto** label shows the interval measured from recent runs.
+- An open page checks for new readings every minute and redraws in place, with a short "New readings loaded" notice. It never flashes or jumps, keeps your dates and settings, and waits while you're using a control.
+- The view you choose (dates, solar series, demand overlay, comparison period, Explorer series) is kept in the page address, so it survives a reload or a theme switch and can be shared as a link.
+- The site check-up runs once an hour, so a broken source means one email an hour, not one per run.
+- Fixed: chart time labels running together on phones; the energy-share chart's labels cut off on phones; the Explorer crashing on a link with an unknown series; the generation-mix solar line disappearing when another solar series was chosen; future end dates being accepted; Demand's "All" range starting on the wrong day for Malaysian time; the phone menu staying open after choosing a page.
+- The browser tests now click through everything a visitor can do. 88 tests pass.
+
 ## 28 October 2026 (second update) — Version 2
 
 Runs completely on GitHub, the same way as Tech Comparison Hub.

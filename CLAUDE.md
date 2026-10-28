@@ -1,7 +1,7 @@
 # Notes for working on this project
 
 An archive and dashboard for the Malaysian Grid System Operator's (GSO) public data. The current code is in
-`Version 2/`. One GitHub Actions workflow (`.github/workflows/archive.yml`) collects data about every 5 minutes and
+`Version 3/`. One GitHub Actions workflow (`.github/workflows/archive.yml`) collects data about every 2–3 minutes and
 publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 
 ## How the owner likes changes made
@@ -33,10 +33,17 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 5. **GitHub Pages caches files for about ten minutes.** That's why `sw.js` exists, and why the archive is carried
    over from the Actions cache first and the live site second (the live copy can be a few minutes old).
 
+6. **Time-axis labels run together when a chart is narrow** (a 320 px phone with two y-axes leaves ~140 px of plot).
+   `timeChart` uses fewer ticks and smaller labels under 400–520 px. Pie slice labels are hidden under 480 px.
+7. **A page that redraws itself must not lose the visitor's place.** Live refresh builds the page in a hidden buffer
+   and swaps it in. Every setting a visitor can change lives in the address (`getParam`/`setParams` in `ui.js`), and a
+   page's `render` must `await picker.start()` so the swap happens only when the page is complete.
+8. **Values from links can't be trusted.** The Explorer ignores unknown series keys in `?series=`.
+
 ## How to check a change
 
 ```bash
-cd "Version 2"
+cd "Version 3"
 python -m pytest                       # all tests, including the browser checks
 TEST_DATABASE_URL=postgresql://… python -m pytest --ignore=tests/test_frontend.py   # same suite on PostgreSQL
 ```
