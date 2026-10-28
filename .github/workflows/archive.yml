@@ -1,0 +1,225 @@
+# Collects new GSO readings and publishes the dashboard to GitHub Pages — no server and no database service needed.
+#
+# Runs every 5 minutes, on every push to main, and on demand (Actions tab > "Collect and publish" > Run workflow).
+# Each run:
+#   - picks up the archive (one SQLite file) saved by the previous run in the Actions cache, and also merges in the copy
+#     published on the live site (data/archive.sqlite3.gz) in case the cache was cleared — the same idea as Tech
+#     Comparison Hub's seed_live.py. Copies are merged, never swapped, so nothing can be rolled back.
+#   - collects today's readings, re-checks yesterday about once an hour for late or corrected readings, and fetches days
+#     that were missed (only when repository variable GSO_LIVE_ENABLED is "true" — see "Version 2/README.md" first)
+#   - saves the archive for the next run, builds the site and publishes it
+# After publishing, a check-up reads the live site and fails the run (GitHub then emails the owner) when the page doesn't
+# load or collection has stopped. Once a day the archive is also copied to the "archive-backups" GitHub Release
+# (outside the git history), and the daily run keeps the schedule switched on.
+#
+# GitHub may start scheduled runs late or skip some when it is busy. No readings are lost: every request returns the
+# whole day, and missed days are fetched again automatically.
+#
+# Optional: secret DATABASE_URL to keep the archive in your own PostgreSQL instead of the Actions cache.
+name: Collect and publish
+
+on:
+  push:
+    branches: [main]
+    paths: ["Version 2/**", ".github/workflows/archive.yml"]
+  schedule:
+    - cron: "*/5 * * * *"  # collect and publish
+    - cron: "43 19 * * *"  # daily, 03:43 Malaysia time: backup to a GitHub Release + keep the schedule switched on
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: archive
+  cancel-in-progress: false  # never stop a run half way; the next one waits its turn
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: "Version 2"
+    env:
+      EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
+      GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'false' }}
+      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS }}
+      GSO_COLLECTION_MODE: github
+      RAW_RETENTION: none  # the runner's disk is thrown away after each run
+      ALLOW_DEMO: ${{ vars.PAGES_ALLOW_DEMO || 'true' }}
+      SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+    outputs:
+      store: ${{ steps.store.outputs.store }}
+      key: ${{ steps.store.outputs.key }}
+    steps:
+      # Every action is pinned to an exact commit, and the checkout keeps no GitHub token (this job never pushes),
+      # so the collector and the sites it reads can't use the repository's credentials.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - name: Where the archive is kept
+        id: store
+        run: |
+          if [ -n "$EXTERNAL_DB" ]; then
+            echo "store=external" >> "$GITHUB_OUTPUT"
+            echo "DATABASE_URL=$EXTERNAL_DB" >> "$GITHUB_ENV"
+          else
+            echo "store=github" >> "$GITHUB_OUTPUT"
+            echo "DATABASE_URL=sqlite:///$GITHUB_WORKSPACE/archive-store/archive.sqlite3" >> "$GITHUB_ENV"
+          fi
+          echo "key=archive-db-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+      - name: Pick up the archive saved by the previous run
+        if: steps.store.outputs.store == 'github'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: archive-store
+          key: ${{ steps.store.outputs.key }}
+          restore-keys: archive-db-
+      - name: Merge in the archive from the live site (in case the cache was cleared)
+        if: steps.store.outputs.store == 'github'
+        run: python -m gso_archive seed-live --base "$SITE_URL"
+        continue-on-error: true
+      - run: python -m gso_archive migrate
+      - name: Collect new readings (today, yesterday's corrections, missed days)
+        if: env.GSO_LIVE_ENABLED == 'true'
+        run: python -m gso_archive collect
+        continue-on-error: true  # a source that fails is recorded on the Status page; the site still publishes
+      - name: Save the archive for the next run
+        if: steps.store.outputs.store == 'github'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: archive-store
+          key: ${{ steps.store.outputs.key }}
+      - name: Build the site
+        run: |
+          python -m gso_archive export-static --out ../_site $([ "$ALLOW_DEMO" = "true" ] && echo --demo-if-empty)
+          touch ../_site/.nojekyll
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # A check-up of the live site after every deployment. It only reads the site. A failure marks the run red, so GitHub
+  # emails the owner; the details are on the run's summary page.
+  check:
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: "Version 2"
+    env:
+      SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - name: Check the live site
+        run: |
+          sleep 30
+          python -m gso_archive health-check --base "$SITE_URL" --max-age-minutes 120
+
+  # Only the newest saved archives are kept in the Actions cache (each run saves a new one).
+  tidy:
+    needs: build
+    if: needs.build.outputs.store == 'github'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Remove older saved archives from the cache
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --key archive-db- --sort created_at --order desc --limit 100 \
+            --json id --jq '.[3:][].id' | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Daily copy of the whole archive to the "archive-backups" release: release files live outside the git history and
+  # are kept until deleted. The newest 14 days are kept, plus the copy from the 1st of every month, forever.
+  backup:
+    needs: build
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '43 19 * * *')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: "Version 2"
+    env:
+      EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
+      GH_TOKEN: ${{ github.token }}
+      BACKUP_S3_URI: ${{ secrets.BACKUP_S3_URI }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - name: Pick up this run's archive
+        if: needs.build.outputs.store == 'github'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: archive-store
+          key: ${{ needs.build.outputs.key }}
+      - name: Make the backup (checksummed CSV per table, restorable into SQLite or PostgreSQL)
+        run: |
+          if [ -n "$EXTERNAL_DB" ]; then export DATABASE_URL="$EXTERNAL_DB"; else export DATABASE_URL="sqlite:///$GITHUB_WORKSPACE/archive-store/archive.sqlite3"; fi
+          [ -n "$EXTERNAL_DB" ] || [ -f "$GITHUB_WORKSPACE/archive-store/archive.sqlite3" ] || { echo "No archive yet - nothing to back up."; exit 0; }
+          python -m gso_archive backup --format portable --out "$RUNNER_TEMP/bk"
+          cd "$RUNNER_TEMP/bk" && tar czf "$RUNNER_TEMP/gso-archive-$(date -u +%F).tar.gz" gso-archive-portable-*
+      - name: Upload to the archive-backups release
+        run: |
+          FILE=$(ls "$RUNNER_TEMP"/gso-archive-*.tar.gz 2>/dev/null | head -1)
+          [ -n "$FILE" ] || exit 0
+          R="--repo $GITHUB_REPOSITORY"
+          gh release view archive-backups $R >/dev/null 2>&1 || gh release create archive-backups $R --latest=false \
+            --title "Archive backups" --notes "Daily copies of the GSO archive. Restore with: python -m gso_archive restore-portable <folder>"
+          gh release upload archive-backups "$FILE" --clobber $R
+          gh release view archive-backups $R --json assets --jq '.assets[].name' | sort -r | awk 'NR>14 && !/-01\.tar\.gz$/' \
+            | xargs -r -n1 gh release delete-asset archive-backups -y $R
+      - name: Also copy to your own object storage (optional)
+        if: env.BACKUP_S3_URI != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
+        run: aws s3 cp "$RUNNER_TEMP"/gso-archive-*.tar.gz "$BACKUP_S3_URI/" ${ENDPOINT:+--endpoint-url "$ENDPOINT"}
+
+  # GitHub switches off scheduled workflows in a public repository after 60 days without a push. Once a day this job
+  # uses GitHub's own "enable workflow" switch, which keeps it on without any commit.
+  keepalive:
+    if: github.event_name == 'schedule' && github.event.schedule == '43 19 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Keep the scheduled updates switched on
+        run: gh api --method PUT "repos/${{ github.repository }}/actions/workflows/archive.yml/enable"
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,22 @@
+# systemd unit for a non-Docker VM deployment.
+#   sudo cp deploy/gso-archive-collector.service /etc/systemd/system/
+#   sudo systemctl enable --now gso-archive-collector
+[Unit]
+Description=GSO Data Archive collector (5-minute schedule)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gso
+WorkingDirectory=/opt/gso-data-archive/Version 2
+EnvironmentFile=/opt/gso-data-archive/Version 2/.env
+ExecStart=/opt/gso-data-archive/venv/bin/gso-archive schedule
+Restart=always
+RestartSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/gso-data-archive/Version 2/data /opt/gso-data-archive/Version 2/backups
+
+[Install]
+WantedBy=multi-user.target

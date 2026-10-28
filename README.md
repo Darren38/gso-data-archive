@@ -1,35 +1,31 @@
-# GSO Data Archive
+<div align="center">
 
-## 👉 [Open the website](https://darren38.github.io/gso-data-archive/)
+# ☀️ GSO Grid Archive
 
-> The link goes live after the one-time GitHub Pages setup described in
-> [Version 1 → Publishing the website](Version%201/README.md#publishing-the-website)
-> (merge to `main`, then **Settings → Pages → Source: GitHub Actions**). Until a database
-> is connected, the site shows a **watermarked demonstration dataset**, not GSO readings.
+**A permanent record of Peninsular Malaysia's electricity grid, with solar power front and centre.**
 
----
+*Collects the Grid System Operator's public data every 5 minutes, keeps every reading forever, and turns it into charts, tables and downloads.*
 
-An independent, permanent archive and analytics dashboard for public data from Malaysia's
-[Grid System Operator (GSO)](https://www.gso.org.my/) (Peninsular Malaysia), with a
-focus on **solar generation**. It collects automatically on a 5-minute schedule, keeps every
-reading and every later revision, and shows the history as charts, tables and CSV/Excel downloads.
+[![Open the site](https://img.shields.io/badge/OPEN%20THE%20SITE-darren38.github.io-2ea44f?style=for-the-badge)](https://darren38.github.io/gso-data-archive/)
+
+<a href="https://darren38.github.io/gso-data-archive/"><img src="Version%202/docs/screenshot.jpg" alt="The Solar page of GSO Grid Archive showing seven days of solar generation against system demand. The picture uses the site's watermarked demonstration data, not GSO readings. Click to open the site." width="820"></a>
+
+</div>
+
+The site goes live after the one-time setup in [Version 2 → Publishing the site](Version%202/README.md#publishing-the-site-one-time).
+Until collection is switched on it shows watermarked **demonstration data**, not GSO readings.
 
 ## Versions
 
-Each substantial iteration gets its own folder. Earlier versions are never overwritten.
+Each big update gets its own folder, and older versions are kept as they were.
 
-| Version | Status | Summary |
-|---|---|---|
-| [Version 1](Version%201/README.md) | Current | Collector framework, PostgreSQL/SQLite archive with revision history, solar-first dashboard, automatic scheduling (worker or GitHub Actions), backups, 80 automated tests |
+| Version | What it is |
+|---|---|
+| [Version 2](Version%202/README.md) | **Current.** Runs entirely on GitHub (Actions + Pages, no server or database service), daily backups to a GitHub Release, site check-up after every update, downloadable archive |
+| [Version 1](Version%201/README.md) | First release: collector, archive with full revision history, solar-first dashboard, tests. Needed your own server or database to keep collecting |
 
-## Repository layout
+What changed and when: [CHANGELOG.md](CHANGELOG.md).
 
-```
-gso-data-archive/
-├── README.md                 ← this file (website link + version index)
-├── .github/workflows/        ← CI, scheduled collection, Pages publishing, backups
-└── Version 1/                ← self-contained project (see its README)
-```
+## Licence
 
-GitHub only runs workflows from `.github/workflows/` at the repository root, so the
-workflows live here and point into the active version folder.
+Code: [MIT](LICENSE). Data: Grid System Operator (GSO) / Tenaga Nasional Berhad. Independent project, not affiliated with GSO or TNB.
