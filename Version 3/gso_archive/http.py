@@ -134,5 +134,5 @@ class GsoClient:
         }
         return self._request("POST", url, json=body or {}, headers=headers)
 
-    def get(self, url: str) -> FetchResult:
-        return self._request("GET", url)
+    def get(self, url: str, accept: str | None = None) -> FetchResult:
+        return self._request("GET", url, headers={"Accept": accept} if accept else None)

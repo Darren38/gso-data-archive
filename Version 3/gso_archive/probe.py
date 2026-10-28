@@ -76,7 +76,7 @@ def _probe_scripts(client: GsoClient, settings: Settings, report: dict, out_dir:
                 continue
             seen.add(url)
             try:
-                res = client.get(url)
+                res = client.get(url, accept="*/*")  # GSO answers 406 to a JSON/HTML-only Accept for .js files
             except FetchError as exc:
                 report["scripts"][url] = {"error": str(exc)}
                 continue
@@ -113,6 +113,25 @@ def _probe_scripts(client: GsoClient, settings: Settings, report: dict, out_dir:
                     except FetchError as exc:
                         entry["error"] = f"{exc.error_type}: {exc}"
                     report["methods"][key] = entry
+    # The home page's own (inline) data calls, e.g. GetSolarActualData / GetSolarForecastData.
+    landing = report["pages"].get("LandingPage.aspx", {})
+    for method in landing.get("page_methods", []):
+        if SKIP_METHODS.search(method) or not re.search(r"solar|genmix|otherre|feature|current|sys", method, re.I):
+            continue
+        method_url = f"{settings.gso_base_url}/LandingPage.aspx/{method}"
+        entry = {"url": method_url, "request": {}}
+        try:
+            mres = client.post_pagemethod(method_url, {}, referer=f"{settings.gso_base_url}/LandingPage.aspx")
+            entry["status"] = mres.status
+            entry["raw_start"] = mres.content[:1500].decode("utf-8", errors="replace")
+            try:
+                records = decode_pagemethod(mres.content)
+                entry.update(records=len(records), fields=schema_signature(records), sample=records[:3])
+            except Exception as exc:  # noqa: BLE001
+                entry["decode_error"] = str(exc)
+        except FetchError as exc:
+            entry["error"] = f"{exc.error_type}: {exc}"
+        report["methods"][f"LandingPage.aspx/{method}"] = entry
     # Tie-lines need a Line parameter.
     base = f"{settings.gso_base_url}/SystemData/TieLine.aspx"
     for line in TIELINES:

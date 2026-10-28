@@ -90,6 +90,7 @@ def _tieline(line: str, label: str) -> AdapterSpec:
         ),
         fields={"MW": FieldSpec("flow", f"{line} flow (as published)", "MW", "actual", -5000.0, 5000.0)},
         time_fields=("Tarikhmasa", "DT"),
+        ignore_fields=("Line",),  # e.g. "TIE-HVDC" (observed 28 Oct 2026)
         extra_params={"Line": line},
         default_min=-5000.0,
         default_max=5000.0,
