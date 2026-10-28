@@ -123,8 +123,20 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      deployed: ${{ steps.deployment.outcome == 'success' }}
     steps:
+      # Until Pages is switched on (Settings > Pages > Source: GitHub Actions) the deploy is skipped with a warning
+      # instead of failing, so the owner isn't emailed every few minutes before setup is finished.
+      - name: Is GitHub Pages switched on?
+        id: pages
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" >/dev/null 2>&1; then echo "on=true" >> "$GITHUB_OUTPUT";
+          else echo "on=false" >> "$GITHUB_OUTPUT"; echo "::warning::GitHub Pages is not switched on yet. Settings > Pages > Source: GitHub Actions. The site will publish on the next run after that."; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
       - id: deployment
+        if: steps.pages.outputs.on == 'true'
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
   # A check-up of the live site, once an hour (and after a push or a manual run) so a broken source means one email an
@@ -132,6 +144,7 @@ jobs:
   # are on the run's summary page.
   check:
     needs: deploy
+    if: needs.deploy.outputs.deployed == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
