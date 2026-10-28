@@ -25,6 +25,16 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Where GSO has the same chart (for example its System Demand Profile), draw ours the way GSO draws it: same
   stacking order, colours and key order. Charts this site works out itself (comparisons, profiles, ramps) stay as they are.
 
+## Search engines (the same way as Tech Comparison Hub and EPF Goal Planner)
+
+- `web/index.html` carries a description (under 160 characters), the canonical address, share-preview tags and a
+  schema.org summary. Keep them true when the site changes.
+- `web/sitemap.xml` lists the site (its pages are `#/` views of one page, so there is one address). A `robots.txt`
+  here would never be read: only one at darren38.github.io itself counts.
+- IndexNow (Bing, Yandex and others): the `indexnow` job in `archive.yml` runs `scripts/indexnow.py submit` only after
+  a push has been published, never on the every-few-minutes data runs. It waits until the new page is live, then sends
+  the address. The key in `web/indexnow.txt` is public by design. Never let it fail a run.
+
 ## Lessons from bugs found here
 
 1. **A row of buttons that doesn't wrap widens the whole page on a 320 px phone.** The Solar page's seven date buttons

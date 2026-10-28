@@ -167,6 +167,24 @@ jobs:
           sleep 30
           python -m gso_archive health-check --base "$SITE_URL" --max-age-minutes 60
 
+  # Tells Bing and other search engines (IndexNow) that the site changed. The data changes every few minutes but the page
+  # itself only when the code does, so this runs only after a push has been published. It waits until the new page is
+  # live, sends the one address, and never fails the run: telling search engines is a courtesy.
+  indexnow:
+    needs: deploy
+    if: github.event_name == 'push' && needs.deploy.outputs.deployed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    concurrency:
+      group: indexnow
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Tell search engines the site changed (IndexNow; Bing, Yandex and others)
+        run: python3 scripts/indexnow.py submit
+
   # Looks at GSO's own pages from GitHub's servers: which data addresses each page really uses, what they answer and
   # with which fields. Runs after a push, once a day and on demand; the findings are in the log and kept as an artifact
   # (14 days) so the collectors can be checked against the real site.

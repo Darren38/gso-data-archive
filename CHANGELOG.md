@@ -1,5 +1,13 @@
 # Changelog
 
+## 28 October 2026 (eleventh update) — GSO Grid Archive 5.5
+
+Easier to find on Bing and other search engines, the same way as Tech Comparison Hub.
+
+- The site now has a clear title and description for search results, its official address, share previews with a screenshot (for WhatsApp, Facebook and the like), and a summary search engines can read.
+- A sitemap lists the site for Bing and Google.
+- After every update to the site's code, an automatic step waits until the new version is live and then tells Bing, Yandex and others through IndexNow. The readings that arrive every few minutes don't trigger it, so search engines aren't flooded.
+
 ## 28 October 2026 (tenth update) — GSO Grid Archive 5.4
 
 The demand chart now looks like GSO's own System Demand Profile.
