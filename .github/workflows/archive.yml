@@ -1,9 +1,10 @@
 # Collects new GSO readings and publishes the dashboard to GitHub Pages — no server and no database service needed.
 #
-# Runs about every minute, on every push to main, and on demand (Actions tab > "Collect and publish" > Run workflow).
-# GitHub's shortest schedule is every 5 minutes, so five schedules are staggered one minute apart; together with the
-# concurrency group below, runs follow one another back to back (a run takes about 2 minutes), giving new readings
-# every 2–3 minutes when GitHub keeps up. The site measures and shows the real interval on its "Auto" label.
+# Runs continuously: each run starts the next one about a minute after it finishes (the "next" job), so new readings
+# arrive every 2–3 minutes. GitHub's own schedule often starts late or not at all (this repository had none for the
+# first hour), so the schedules below are only a backup that restarts the chain if it ever stops. Also runs on every
+# push to main and on demand (Actions tab > "Collect and publish" > Run workflow; tick "probe" to look at GSO's pages).
+# The site measures and shows the real interval on its "Auto" label.
 # Each run:
 #   - picks up the archive (one SQLite file) saved by the previous run in the Actions cache, and also merges in the copy
 #     published on the live site (data/archive.sqlite3.gz) in case the cache was cleared — the same idea as Tech
@@ -33,6 +34,11 @@ on:
     - cron: "4-59/5 * * * *"
     - cron: "43 19 * * *"  # daily, 03:43 Malaysia time: backup to a GitHub Release + keep the schedule switched on
   workflow_dispatch:
+    inputs:
+      probe:
+        description: "Also look at GSO's pages and log which data addresses they use"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -157,7 +163,7 @@ jobs:
       - run: pip install --quiet -r requirements.txt
       - name: Check the live site
         run: |
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%M)" -ge 6 ]; then echo "Checked once an hour; not this run."; exit 0; fi
+          if [ "${{ github.event_name }}" != "push" ] && [ "$(date -u +%M)" -ge 6 ]; then echo "Checked once an hour; not this run."; exit 0; fi
           sleep 30
           python -m gso_archive health-check --base "$SITE_URL" --max-age-minutes 60
 
@@ -165,7 +171,7 @@ jobs:
   # with which fields. Runs after a push, once a day and on demand; the findings are in the log and kept as an artifact
   # (14 days) so the collectors can be checked against the real site.
   probe:
-    if: github.event_name != 'schedule' || github.event.schedule == '43 19 * * *'
+    if: github.event_name == 'push' || inputs.probe || github.event.schedule == '43 19 * * *'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -190,6 +196,27 @@ jobs:
           path: probe-out
           retention-days: 14
 
+  # Keeps collection going without waiting for GitHub's schedule: about a minute after this run's collection, start the
+  # next run. Only one chain ever runs: if a newer run is already queued or running, this one steps aside.
+  next:
+    needs: build
+    if: always() && github.ref == 'refs/heads/main' && needs.build.result != 'cancelled' && vars.GSO_LIVE_ENABLED != 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Start the next collection in about a minute
+        run: |
+          sleep 60
+          newer=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?per_page=30" \
+            --jq "[.workflow_runs[] | select(.id > ${{ github.run_id }} and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\"))] | length")
+          if [ "${newer:-0}" -gt 0 ]; then echo "A newer run is already on its way."; exit 0; fi
+          gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main
+          echo "Next run started."
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # Only the newest saved archives are kept in the Actions cache (each run saves a new one).
   tidy:
     needs: build
@@ -210,7 +237,7 @@ jobs:
   # are kept until deleted. The newest 14 days are kept, plus the copy from the 1st of every month, forever.
   backup:
     needs: build
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '43 19 * * *')
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -227,19 +254,26 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --quiet -r requirements.txt
+      - name: Already backed up today?
+        id: today
+        run: |
+          if gh release view archive-backups --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null \
+             | grep -q "gso-archive-$(date -u +%F).tar.gz"; then echo "done=true" >> "$GITHUB_OUTPUT"; echo "Today's backup exists."; fi
       - name: Pick up this run's archive
-        if: needs.build.outputs.store == 'github'
+        if: needs.build.outputs.store == 'github' && steps.today.outputs.done != 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: archive-store
           key: ${{ needs.build.outputs.key }}
       - name: Make the backup (checksummed CSV per table, restorable into SQLite or PostgreSQL)
+        if: steps.today.outputs.done != 'true'
         run: |
           if [ -n "$EXTERNAL_DB" ]; then export DATABASE_URL="$EXTERNAL_DB"; else export DATABASE_URL="sqlite:///$GITHUB_WORKSPACE/archive-store/archive.sqlite3"; fi
           [ -n "$EXTERNAL_DB" ] || [ -f "$GITHUB_WORKSPACE/archive-store/archive.sqlite3" ] || { echo "No archive yet - nothing to back up."; exit 0; }
           python -m gso_archive backup --format portable --out "$RUNNER_TEMP/bk"
           cd "$RUNNER_TEMP/bk" && tar czf "$RUNNER_TEMP/gso-archive-$(date -u +%F).tar.gz" gso-archive-portable-*
       - name: Upload to the archive-backups release
+        if: steps.today.outputs.done != 'true'
         run: |
           FILE=$(ls "$RUNNER_TEMP"/gso-archive-*.tar.gz 2>/dev/null | head -1)
           [ -n "$FILE" ] || exit 0
@@ -250,7 +284,7 @@ jobs:
           gh release view archive-backups $R --json assets --jq '.assets[].name' | sort -r | awk 'NR>14 && !/-01\.tar\.gz$/' \
             | xargs -r -n1 gh release delete-asset archive-backups -y $R
       - name: Also copy to your own object storage (optional)
-        if: env.BACKUP_S3_URI != ''
+        if: env.BACKUP_S3_URI != '' && steps.today.outputs.done != 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
