@@ -2,6 +2,7 @@
 import { getDaily, getPoints, exportUrl } from "../data.js";
 import { COLORS, FUELS, categoryChart, pieChart, timeChart } from "../charts.js";
 import { sumSeries } from "../analysis.js";
+import { drawProfile } from "../profile.js";
 import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtLong, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
 
 const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
@@ -33,14 +34,14 @@ export async function render(main, { meta, isCurrent }) {
       if (!isCurrent()) return;
       body.innerHTML = "";
       body.appendChild(h(shortForms(["MW", "MWh", "Co-Gen", "Oil/DF", "BESS", "MYT"])));
-      const c1 = h(card({ title: "Generation Mix", sub: verificationTag(gen[0].verification), desc: "Each colour is one fuel, stacked so the top edge is total generation. Grey: Coal, blue: Gas, green: Hydro, yellow: Transmission Solar.",
+      const c1 = h(card({ title: "Generation Mix", sub: verificationTag(gen[0].verification), desc: "Drawn like GSO's System Demand Profile: each colour is one source, stacked so the top edge is total generation, with System Demand (dashed) and, when GSO publishes it, GSO's Grid Demand (solid) on top. Grey: Coal, blue: Gas, green: Hydro, yellow: solar. Breaks mean a source had no reading at that time.",
         right: `<button class="btn" data-a="csv">CSV</button>${exportUrl(gen.map((s) => s.key), range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl(gen.map((s) => s.key), range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);
-      if (pts.some((p) => p.points.some((x) => x[1] != null))) {
-        timeChart(c1.querySelector(".chart"), { demo: meta.is_demo, series: pts.map((p, i) => ({ name: label(gen[i]), points: p.points, color: color(gen[i]), area: true, areaOpacity: 0.85, stack: "mix", width: 0.8 })) });
-      } else c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
-      c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`generation_${range.startDay}_${range.endDay}.csv`, pointsToCsv(pts)));
+      const profile = await drawProfile(c1.querySelector(".chart"), meta, start, end, { isCurrent });
+      if (!isCurrent()) return;
+      if (!profile) c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
+      c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`generation_${range.startDay}_${range.endDay}.csv`, pointsToCsv(profile || pts)));
 
       const row = h('<div class="grid cols-2"></div>'); body.appendChild(row);
       const energies = daily.map((d, i) => ({ name: label(gen[i]), value: d.rows.reduce((t, r) => t + (r.energy_mwh || 0), 0), color: color(gen[i]) })).filter((x) => x.value > 0);

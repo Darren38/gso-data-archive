@@ -89,3 +89,17 @@ export function latest(points) {
   for (let i = points.length - 1; i >= 0; i -= 1) if (points[i][1] != null) return points[i];
   return null;
 }
+
+/** Put several series on shared time slots (GSO publishes every 10 minutes) so they can be stacked.
+ * A stacking chart counts a missing lower value as zero and draws everything above it too low, so a slot
+ * where any series has no reading becomes a gap for all of them. Returns aligned point lists in input order. */
+export function alignStack(list, slotMs = 600e3) {
+  const maps = list.map((points) => {
+    const m = new Map();
+    for (const [t, v] of points) if (v != null) m.set(Math.round(Date.parse(t) / slotMs) * slotMs, v);
+    return m;
+  });
+  const slots = [...new Set(maps.flatMap((m) => [...m.keys()]))].sort((a, b) => a - b);
+  const complete = slots.map((k) => maps.every((m) => m.has(k)));
+  return maps.map((m) => slots.map((k, i) => [new Date(k).toISOString(), complete[i] ? m.get(k) : null, complete[i] ? "ok" : "gap"]));
+}

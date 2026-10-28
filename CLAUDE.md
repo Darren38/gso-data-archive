@@ -22,6 +22,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
 - Requests to other sites name the project, never the owner (no name or email in the User-Agent).
 - Never invent readings, endpoints or source capabilities. Demonstration data is watermarked and labelled everywhere.
+- Where GSO has the same chart (for example its System Demand Profile), draw ours the way GSO draws it: same
+  stacking order, colours and key order. Charts this site works out itself (comparisons, profiles, ramps) stay as they are.
 
 ## Lessons from bugs found here
 
@@ -59,6 +61,21 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     timestamp where every series has a reading (`latestCommon` in `overview.js`), never each series' own latest value.
 16. **Test with real-shaped data, not only the demo.** A stand-in GSO that serves `tests/fixtures/real/` for the
     today-only pages, then `collect`, `backfill` and `export-static`, gives the same static site Pages serves.
+17. **A stacked chart counts a missing lower reading as zero** and draws every layer above it too low: a fake dip.
+    `alignStack` in `analysis.js` puts sources on GSO's 10-minute steps and gaps a moment for every layer when any
+    source has no reading there. Sources that come from different GSO pages (Generation Mix and the home page) never
+    share exact timestamps, so they must always go through it before stacking.
+
+### Lessons from EPF Goal Planner (the owner's other site), worth checking here too
+
+18. **The `hidden` attribute loses to a class that sets `display`.** Keep `[hidden]{display:none !important}` (present).
+19. **Hover-only interactions do nothing on a phone.** Anything that shows detail on hover must also work by tap.
+20. **A floating bar at the bottom of a phone screen covers whatever scrolls to the bottom.** Give the page
+    `scroll-padding-bottom` and end padding the bar's height. (Today's toast is fine: it is brief and lets taps through.)
+21. **A dialog's Escape key must be heard on the whole page**, not only inside it (present for the menu).
+22. **Grid and flex children with text that never wraps widen the page.** Give them `min-width:0`, and write
+    `minmax(min(330px,100%),1fr)` rather than a bare `minmax(330px,1fr)`.
+23. **Saved settings can be old or damaged**, like values from links (lesson 8): accept only known choices.
 
 ## How to check a change
 

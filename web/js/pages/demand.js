@@ -2,6 +2,7 @@
 import { getDaily, getPoints, exportUrl, rollup } from "../data.js";
 import { COLORS, categoryChart, profileChart, timeChart } from "../charts.js";
 import { intradayProfiles } from "../analysis.js";
+import { drawProfile } from "../profile.js";
 import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, fmtEnergy, fmtTime, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, freshnessPill } from "../ui.js";
 
 export async function render(main, { meta, isCurrent }) {
@@ -35,14 +36,23 @@ export async function render(main, { meta, isCurrent }) {
         ${kpi({ icon: "energy", label: "Energy Demand", value: wd.length ? fmtEnergy(energy) : null, meta: `${wd.length}/${rows.length} days with data` })}
       </div>`));
       body.appendChild(h(shortForms(["MW", "MWh", "MYT"])));
-      const c1 = h(card({ title: "System Demand", sub: freshnessPill(s.last, s.interval_s), desc: "How much electricity Peninsular Malaysia is using, in MW, as published on GSO's System Demand page. It usually peaks in the afternoon and is lowest before dawn. Breaks mean no reading.",
+      // up to a month, the chart is GSO's own System Demand Profile: what is generating, stacked, with demand on top
+      const asProfile = pts && days <= 31;
+      const c1 = h(card({ title: asProfile ? "System Demand Profile" : "System Demand", sub: freshnessPill(s.last, s.interval_s),
+        desc: asProfile
+          ? "Like GSO's System Demand Profile: each colour is a source of electricity, stacked, so the top edge is what the grid generates. The dashed line is System Demand; the solid dark line, when GSO publishes it, is GSO's Grid Demand. Breaks mean a source had no reading at that time."
+          : "How much electricity Peninsular Malaysia is using, in MW, as published on GSO's System Demand page. It usually peaks in the afternoon and is lowest before dawn. Breaks mean no reading.",
         right: `<button class="btn" data-a="csv" ${pts ? "" : "disabled"}>CSV</button>${exportUrl([s.key], range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl([s.key], range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: pts ? '<div class="chart tall"></div>' : '<div class="notice">Range too long for raw readings; see daily statistics.</div>' }));
       body.appendChild(c1);
       if (pts) {
-        if (pts.points.some((p) => p[1] != null)) timeChart(c1.querySelector(".chart"), { series: [{ name: "System Demand", points: pts.points, color: COLORS.demand, area: true, width: 2 }], demo: meta.is_demo });
+        let csv = [pts];
+        const profile = asProfile ? await drawProfile(c1.querySelector(".chart"), meta, start, end, { isCurrent }) : null;
+        if (!isCurrent()) return;
+        if (profile) csv = profile;
+        else if (pts.points.some((p) => p[1] != null)) timeChart(c1.querySelector(".chart"), { series: [{ name: "System Demand", points: pts.points, color: COLORS.demand, area: true, width: 2 }], demo: meta.is_demo });
         else c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
-        c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`demand_${range.startDay}_${range.endDay}.csv`, pointsToCsv([pts])));
+        c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`demand_${range.startDay}_${range.endDay}.csv`, pointsToCsv(csv)));
       }
       const row = h('<div class="grid cols-2"></div>'); body.appendChild(row);
       const c2 = h(card({ title: "Daily Peak & Minimum", desc: "Blue bars: the day's highest demand. Orange line: the day's lowest.", body: '<div class="chart"></div>' }));

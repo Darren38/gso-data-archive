@@ -113,10 +113,11 @@ function axisTime(ms) {
 /** Time-series line/area chart.
  * series: [{name, points:[[iso, v|null, q]], color, area, dashed, yAxisIndex, stack, step, type}]
  */
-export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, zoom = true, unit = "MW", digits = 0, markNow = false }) {
+export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, zoom = true, unit = "MW", digits = 0, markNow = false, legendOrder = null }) {
   const b = base(demo);
   const narrow = el.clientWidth < 400;
-  const lg = legendFor(el, series.map((s) => s.name), b.legend, narrow ? { left: 8, right: 8 } : undefined);
+  const lg = legendFor(el, legendOrder || series.map((s) => s.name), b.legend, narrow ? { left: 8, right: 8 } : undefined);
+  if (legendOrder) lg.legend = { ...lg.legend, data: legendOrder };
   const option = {
     ...b,
     legend: lg.legend,

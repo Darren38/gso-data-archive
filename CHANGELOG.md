@@ -1,5 +1,14 @@
 # Changelog
 
+## 28 October 2026 (tenth update) — GSO Grid Archive 5.4
+
+The demand chart now looks like GSO's own System Demand Profile.
+
+- On the **Demand** page, for any range up to a month, the main chart is now drawn the way GSO draws its "System Demand Profile for Peninsular Malaysia": coal at the bottom, then gas, co-gen, oil, tie-line, hydro, BESS, transmission solar, distribution solar and other renewables stacked on top, in GSO's colours and with GSO's key order, plus the System Demand line (dashed) and GSO's Grid Demand line (solid, when GSO publishes it). Longer ranges keep the single demand line, which is easier to read over months.
+- The **Generation Mix** chart on the Generation page uses the same GSO-style chart, so it now also shows tie-line, BESS and the demand lines.
+- Fixed: stacked charts could show a fake dip. When one source had no reading at a moment, the chart counted it as zero and drew every layer above it too low. Sources are now lined up on GSO's 10-minute steps, and a moment where any source has no reading is left as a gap, as everywhere else on the site.
+- Charts this site works out itself (today against yesterday, daily peaks, profiles, ramps and so on) are unchanged.
+
 ## 28 October 2026 (ninth update) — GSO Grid Archive 5.3
 
 Looks more like GSO, and a full check for bugs.
