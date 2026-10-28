@@ -1,5 +1,20 @@
 # Changelog
 
+## 28 October 2026 (ninth update) — GSO Grid Archive 5.3
+
+Looks more like GSO, and a full check for bugs.
+
+- Charts look more like GSO's home page: "Generation Mix" and the new "Generation Availability" are rings with the total MW in the middle in green, labels such as "Gas: 36.5%", round colour dots in the key, and the date and time underneath the title in GSO blue (for example "28 October 2026, 4:20 pm MYT").
+- Card titles are in capitals with a short green bar underneath, like GSO's headings, and GSO green is used for buttons and the selected page.
+- The Generation Mix now shows one moment in time, the newest time at which every fuel has a reading, so its numbers add up the way GSO's do. Before, it could mix readings from slightly different times.
+- "Last Updated" is now "Latest GSO Reading": it shows the time of GSO's newest reading, how long ago that was, and when this site last checked GSO. (GSO adds a reading every 10 minutes and publishes it a little later, so "20–30 min ago" is normal.)
+- Checked every page at 7 screen widths, in light and dark mode and with both clocks, using real GSO answers: no errors, no sideways scrolling, no "NaN" or "undefined", and nothing cut off. Fixed along the way:
+  - big numbers spilling out of narrow cards (for example 14,350 MW on a 1,024 px screen, "Connected" on a 320 px phone)
+  - "Observed -23450 s ago" when a time was slightly in the future (now "just now")
+  - donut labels cut off ("Transmission Sol…"); they now wrap onto two lines like GSO's
+  - the donut key falling back to small "1/7" arrows on phones
+  - the energy total "653,517 MWh" overflowing its ring (now "653.5 GWh")
+
 ## 28 October 2026 (eighth update) — GSO Grid Archive 5.2
 
 Choose your clock.

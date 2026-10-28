@@ -53,6 +53,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     series key; before that, every Solar-page series was named "(auto-discovered)".
 13. **A scrolling chart legend hides names behind "1/6" arrows on phones.** `legendFor` in `charts.js` wraps the legend
     and moves the plot down to make room; it keeps scrolling only for very long lists (e.g. one line per day).
+14. **Phone rules in a media query override earlier container-query rules of equal weight.** The narrow-card
+    `@container` rules for `.kpi` sit at the very end of `app.css`; their widths are the card's inner width.
+15. **GSO's chart data comes from two pages with different times.** A snapshot (the Generation Mix donut) must use one
+    timestamp where every series has a reading (`latestCommon` in `overview.js`), never each series' own latest value.
+16. **Test with real-shaped data, not only the demo.** A stand-in GSO that serves `tests/fixtures/real/` for the
+    today-only pages, then `collect`, `backfill` and `export-static`, gives the same static site Pages serves.
 
 ## How to check a change
 

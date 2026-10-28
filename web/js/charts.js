@@ -59,7 +59,7 @@ function base(demo) {
 }
 
 /** A legend that wraps onto more lines instead of hiding names behind "1/6" arrows, and the plot top that leaves room for it. */
-function legendFor(el, names, legend, { left = 64, right = 72 } = {}) {
+function legendFor(el, names, legend, { left = 64, right = 72, room = 0.35 } = {}) {
   const avail = Math.max(120, (el.clientWidth || 600) - left - right);
   let rows = 1, x = 0;
   for (const n of names) {
@@ -67,7 +67,7 @@ function legendFor(el, names, legend, { left = 64, right = 72 } = {}) {
     if (x && x + w > avail) { rows += 1; x = 0; }
     x += w;
   }
-  if (rows > 6 || rows * 23 > (el.clientHeight || 330) * 0.35) return { legend, rows: 1, top: 52 }; // very long lists keep the scrolling legend
+  if (rows > 6 || rows * 23 > (el.clientHeight || 330) * room) return { legend, rows: 1, top: 52 }; // very long lists keep the scrolling legend
   return { legend: { ...legend, type: "plain", left, right }, rows, top: 30 + rows * 23 };
 }
 
@@ -183,19 +183,28 @@ export function categoryChart(el, { categories, series, yAxes = [{ name: "MW" }]
   return mount(el, option);
 }
 
-export function pieChart(el, { items, demo = false, unit = "MWh" }) {
+const energyText = (mwh) => (mwh >= 1e6 ? `${fmtNum(mwh / 1e6, 2)} TWh` : mwh >= 1e3 ? `${fmtNum(mwh / 1e3, 1)} GWh` : `${fmtNum(mwh, 0)} MWh`);
+
+/** Donut in GSO's style: "Gas: 36.5%" labels, round legend dots, and the total in the middle. */
+export function pieChart(el, { items, demo = false, unit = "MWh", total = false }) {
   const b = base(demo);
-  const lg = legendFor(el, items.map((i) => i.name), b.legend, { left: 8, right: 8 });
+  const lg = legendFor(el, items.map((i) => i.name), { ...b.legend, icon: "circle", itemWidth: 12, itemHeight: 12 }, { left: 8, right: 8, room: 0.5 });
   const roomy = lg.rows <= 1;
+  const cy = roomy ? 45 : 45 - lg.rows * 3;
+  const sum = items.reduce((t, i) => t + (i.value || 0), 0);
+  const wide = el.clientWidth >= 480;
   return mount(el, {
     ...b,
     tooltip: { trigger: "item", backgroundColor: css("--surface"), borderColor: css("--border"), textStyle: { color: css("--text") },
       formatter: (p) => `${p.marker}${p.name}: <b>${fmtNum(p.value, 0)} ${unit}</b> (${p.percent.toFixed(1)}%)` },
     legend: { ...lg.legend, top: "bottom" },
-    series: [{ type: "pie", radius: roomy ? ["45%", "72%"] : ["38%", "62%"], center: ["50%", roomy ? "45%" : `${45 - lg.rows * 3}%`], avoidLabelOverlap: true,
-      itemStyle: { borderColor: css("--surface"), borderWidth: 2 },
+    title: total ? { text: unit === "MWh" ? energyText(sum) : `${fmtNum(sum, 0)} ${unit}`, left: "center", top: `${cy}%`, textVerticalAlign: "middle",
+      textStyle: { color: css("--gso-green"), fontSize: wide ? 24 : 17, fontWeight: 600 } } : undefined,
+    series: [{ type: "pie", radius: roomy ? ["50%", "72%"] : ["44%", "64%"], center: ["50%", `${cy}%`], avoidLabelOverlap: true,
+      itemStyle: { borderColor: css("--surface"), borderWidth: 1.5 },
       // Slice labels only where they fit; on phones the legend and tooltip name the slices.
-      label: { show: el.clientWidth >= 480, color: css("--text-2"), formatter: "{b}\n{d}%" }, labelLine: { show: el.clientWidth >= 480 },
+      label: { show: wide, color: css("--text"), fontWeight: 500, lineHeight: 15, overflow: "break", width: 96,
+        formatter: (p) => `${p.name}: ${p.percent.toFixed(1)}%` }, labelLine: { show: wide, length: 10, length2: 8 },
       data: items.map((i) => ({ name: i.name, value: i.value, itemStyle: { color: i.color } })) }],
   });
 }

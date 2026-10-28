@@ -3,7 +3,21 @@ import { getPoints, getStatus } from "../data.js";
 import { COLORS, SOLAR_PARTS, FUELS, pieChart, timeChart } from "../charts.js";
 import { fuelIcon } from "../icons.js";
 import { extent, sumSeries } from "../analysis.js";
-import { card, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
+import { card, clock, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
+
+// GSO's home page "Generation Mix" and "Generation Availability" donuts, with GSO's names and colours.
+const MIX = [...FUELS.slice(0, 5), { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline }, ...FUELS.slice(5)];
+const AVAIL = [
+  ["coal", "Coal", COLORS.coal], ["cogen", "Co-Gen", COLORS.cogen], ["gas", "Gas", COLORS.gas], ["hydro", "Hydro", COLORS.hydro],
+  ["transmission_solar", "Transmission Solar", COLORS.gridSolar], ["distribution_solar", "Distribution Solar", COLORS.dnSolar], ["bess", "BESS", COLORS.bessDischarge],
+].map(([k, label, color]) => ({ key: `availability.${k}`, label, color }));
+
+/** The newest time at which every series has a reading, so the donut shows one moment (as GSO's does). */
+function latestCommon(seriesPoints) {
+  const maps = seriesPoints.map((pts) => new Map(pts.filter((p) => p[1] != null).map((p) => [Date.parse(p[0]), p[1]])));
+  const times = [...maps[0].keys()].filter((t) => maps.every((m) => m.has(t))).sort((a, b) => b - a);
+  return times.length ? { t: new Date(times[0]).toISOString(), values: maps.map((m) => m.get(times[0])) } : null;
+}
 
 export async function render(main, { meta, isCurrent }) {
   const by = Object.fromEntries(meta.series.map((s) => [s.key, s]));
@@ -23,9 +37,8 @@ export async function render(main, { meta, isCurrent }) {
   const share = solarNow != null && demand?.latest_value ? (100 * solarNow) / demand.latest_value : null;
   const dis = by["genmix_live.bess_discharge"], chg = by["genmix_live.bess_charge"];
   const bess = dis && chg && dis.latest_value != null && chg.latest_value != null ? dis.latest_value + chg.latest_value : null;
-  const fuels = FUELS.map((f) => ({ ...f, s: by[f.key] })).filter((f) => f.s && f.s.latest_value != null && f.s.latest_value > 0);
-  const fuelTotal = fuels.reduce((t, f) => t + f.s.latest_value, 0);
-  const biggest = fuels.slice().sort((a, b) => b.s.latest_value - a.s.latest_value)[0];
+  const mixSeries = MIX.filter((m) => by[m.key]);
+  const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
 
   main.appendChild(h(`<div class="grid kpis hero">
     ${kpi({ big: true, cls: "solar", icon: "solar", label: "Current Solar Generation", value: solarNow != null ? fmtNum(solarNow) : null, unit: "MW",
@@ -49,40 +62,58 @@ export async function render(main, { meta, isCurrent }) {
   main.appendChild(chartToday);
   const row = h('<div class="grid cols-2"></div>');
   main.appendChild(row);
-  const mixCard = h(card({ title: "Generation Mix Now", desc: "Share of each fuel in generation at the latest reading.",
+  const mixCard = h(card({ title: "Generation Mix", desc: "Share of each fuel in the electricity being generated. The middle shows the total.",
+    body: '<div class="chart"></div>' }));
+  const avCard = h(card({ title: "Generation Availability", desc: "Share of each kind of plant ready to run. The middle shows the total available.",
     body: '<div class="chart"></div>' }));
   const demCard = h(card({ title: "System Demand: Today vs Yesterday", desc: "Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
-  row.append(mixCard, demCard);
+  row.append(mixCard, avCard);
+  main.appendChild(demCard);
 
   try {
     const fc = by["solar_forecast.total"];
-    const [partPts, fcPts, solarPts, demToday, demYest] = await Promise.all([
+    const [partPts, fcPts, solarPts, demToday, demYest, mixPts] = await Promise.all([
       parts.length ? Promise.all(parts.map((s) => getPoints(s.key, start, now))) : [],
       fc ? getPoints(fc.key, start, new Date(start.getTime() + 864e5)) : null,
       by["generation_mix.solar"] ? getPoints("generation_mix.solar", start, now) : null,
       demand ? getPoints(demand.key, start, now) : null,
       demand ? getPoints(demand.key, new Date(start.getTime() - 864e5), start) : null,
+      Promise.all(mixSeries.map((m) => getPoints(m.key, new Date(start.getTime() - 864e5), now))),
     ]);
     if (!isCurrent()) return;
 
     const totalToday = partPts.length === SOLAR_PARTS.length ? sumSeries(partPts.map((p) => p.points)) : solarPts?.points || [];
     const peak = extent(totalToday).max;
     const fcPeak = fcPts ? extent(fcPts.points).max : null;
+    // One moment for the whole mix, like GSO's chart (the fuels and the extras come from two GSO pages).
+    const snap = mixSeries.length ? latestCommon(mixPts.map((p) => p.points)) : null;
+    const slices = snap ? mixSeries.map((m, i) => ({ ...m, value: snap.values[i] })).filter((m) => m.value > 0) : [];
+    const mixTotal = slices.reduce((t, m) => t + m.value, 0);
+    const biggest = slices.slice().sort((a, b) => b.value - a.value)[0];
     second.innerHTML = [
       kpi({ cls: "solar", icon: "peak", label: "Today's Solar Peak", value: peak ? fmtNum(peak[1]) : null, unit: "MW", meta: peak ? `at ${fmtTime(peak[0])} MYT` : "" }),
       kpi({ cls: "forecast", icon: "forecast", label: "Solar Forecast Peak", value: fcPeak ? fmtNum(fcPeak[1]) : null, unit: "MW", meta: fcPeak ? `expected at ${fmtTime(fcPeak[0])} MYT` : "" }),
-      kpi({ icon: biggest ? fuelIcon(biggest.key) : "plant", label: "Largest Source Now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.s.latest_value) / fuelTotal, 0)}% of generation · ${fmtNum(biggest.s.latest_value)} MW` : "" }),
-      kpi({ icon: "clock", label: "Last Updated", value: solarAt ? fmtAge(ageOf(solarAt)) : null, meta: `Collected from GSO automatically · <a href="#/status">status</a>` }),
+      kpi({ icon: biggest ? fuelIcon(biggest.key) : "plant", label: "Largest Source Now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.value) / mixTotal, 0)}% of the Generation Mix · ${fmtNum(biggest.value)} MW` : "" }),
+      kpi({ icon: "clock", label: "Latest GSO Reading", value: solarAt ? fmtTime(solarAt) : null,
+        meta: solarAt ? `${fmtAge(ageOf(solarAt))}. GSO adds a reading every 10 minutes${meta.generated_at ? `; this site last checked GSO ${fmtAge(ageOf(meta.generated_at))}` : ""} · <a href="#/status">status</a>` : "" }),
     ].join("");
 
     const series = partPts.map((p, i) => ({ name: SOLAR_PARTS[i].label, points: p.points, color: SOLAR_PARTS[i].color, area: true, areaOpacity: 0.85, stack: "solar", width: 0.6 }));
     if (!series.length && solarPts) series.push({ name: "Transmission Solar", points: solarPts.points, color: COLORS.solar, area: true });
     if (fcPts) series.push({ name: "Forecast", points: fcPts.points, color: COLORS.forecast, dashed: true, width: 2 });
     if (series.some((s) => s.points.some((p) => p[1] != null))) timeChart(chartToday.querySelector(".chart"), { series, demo: meta.is_demo, markNow: true });
-    else chartToday.querySelector(".card-b").innerHTML = emptyState("No solar readings yet today", "Solar starts after sunrise (about 7:00 MYT).", "☀");
+    else chartToday.querySelector(".card-b").innerHTML = emptyState("No solar readings yet today", `Solar starts after sunrise (about ${clock(7, 0)} MYT).`, "☀");
 
-    if (fuels.length) pieChart(mixCard.querySelector(".chart"), { unit: "MW", demo: meta.is_demo, items: fuels.map((f) => ({ name: f.label, value: f.s.latest_value, color: f.color })) });
-    else mixCard.querySelector(".card-b").innerHTML = emptyState("No generation reading yet");
+    if (slices.length) {
+      mixCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(snap.t)}</p>`);
+      pieChart(mixCard.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo, items: slices.map((m) => ({ name: m.label, value: m.value, color: m.color })) });
+    } else mixCard.querySelector(".card-b").innerHTML = emptyState("No complete Generation Mix yet", "Shown once every fuel has a reading for the same time.");
+
+    if (avSeries.length) {
+      avCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(by[avSeries[0].key].last)}</p>`);
+      pieChart(avCard.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo,
+        items: avSeries.map((a) => ({ name: a.label, value: by[a.key].latest_value, color: a.color })).filter((a) => a.value > 0) });
+    } else avCard.querySelector(".card-b").innerHTML = emptyState("No Generation Availability reading yet");
 
     if (demToday && demToday.points.some((p) => p[1] != null)) {
       const shifted = (demYest?.points || []).map(([t, v, q]) => [new Date(Date.parse(t) + 864e5).toISOString(), v, q]);

@@ -35,6 +35,9 @@ const timeParts = (iso) => {
 export const fmtDateTime = (iso) => (iso ? `${mytDate.format(new Date(iso))}, ${timeParts(iso)}` : "—");
 export const fmtDate = (iso) => (iso ? mytDate.format(new Date(iso.length === 10 ? `${iso}T12:00:00+08:00` : iso)) : "—");
 export const fmtTime = (iso) => (iso ? timeParts(iso) : "—");
+const mytLongDate = new Intl.DateTimeFormat("en-GB", { timeZone: MYT, year: "numeric", month: "long", day: "numeric" });
+/** "28 October 2026, 4:20 pm MYT", the way GSO dates its charts. */
+export const fmtLong = (iso) => (iso ? `${mytLongDate.format(new Date(iso))}, ${timeParts(iso)} MYT` : "—");
 
 export function fmtNum(v, digits = 0) {
   if (v == null || Number.isNaN(v)) return "—";
@@ -48,7 +51,8 @@ export function fmtEnergy(mwh) {
 }
 export function fmtAge(seconds) {
   if (seconds == null) return "never";
-  if (seconds < 90) return `${Math.round(seconds)} s ago`;
+  if (seconds < 60) return "just now"; // also covers a device clock running slightly behind
+  if (seconds < 90) return "1 min ago";
   if (seconds < 5400) return `${Math.round(seconds / 60)} min ago`;
   if (seconds < 172800) return `${Math.round(seconds / 3600)} h ago`;
   return `${Math.round(seconds / 86400)} days ago`;
@@ -71,8 +75,8 @@ export function errorState(err) {
 }
 
 /** A dashboard card. `desc` is a one-line, plain-words "how to read this" shown under the title. */
-export function card({ title, sub = "", desc = "", right = "", body = "", cls = "" }) {
-  return `<section class="card ${cls}"><div class="card-h"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}${right ? `<div class="right">${right}</div>` : ""}</div>${desc ? `<p class="desc">${desc}</p>` : ""}<div class="card-b">${body}</div></section>`;
+export function card({ title, sub = "", desc = "", right = "", body = "", cls = "", when = "" }) {
+  return `<section class="card ${cls}"><div class="card-h"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}${right ? `<div class="right">${right}</div>` : ""}</div>${when ? `<p class="when">${when}</p>` : ""}${desc ? `<p class="desc">${desc}</p>` : ""}<div class="card-b">${body}</div></section>`;
 }
 
 export function kpi({ label, value, unit = "", meta = "", cls = "", tag = "", big = false, icon = "" }) {

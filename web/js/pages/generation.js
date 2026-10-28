@@ -2,10 +2,11 @@
 import { getDaily, getPoints, exportUrl } from "../data.js";
 import { COLORS, FUELS, categoryChart, pieChart, timeChart } from "../charts.js";
 import { sumSeries } from "../analysis.js";
-import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
+import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtLong, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
 
 const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
 const AVAIL_COLOR = { coal: COLORS.coal, gas: COLORS.gas, cogen: COLORS.cogen, hydro: COLORS.hydro, transmission_solar: COLORS.gridSolar, distribution_solar: COLORS.dnSolar, bess: COLORS.bessDischarge };
+const AVAIL_NAME = { coal: "Coal", gas: "Gas", cogen: "Co-Gen", hydro: "Hydro", transmission_solar: "Transmission Solar", distribution_solar: "Distribution Solar", bess: "BESS" };
 const availColor = (key) => AVAIL_COLOR[key.split(".")[1]] || COLORS.other;
 
 export async function render(main, { meta, isCurrent }) {
@@ -47,7 +48,7 @@ export async function render(main, { meta, isCurrent }) {
       const total = sumSeries(pts.map((p) => p.points));
       const c3 = h(card({ title: "Total Generation", desc: "All fuels added together. Shown only at times when every fuel has a reading.", body: '<div class="chart"></div>' }));
       row.append(c2, c3);
-      if (energies.length) pieChart(c2.querySelector(".chart"), { items: energies, demo: meta.is_demo });
+      if (energies.length) pieChart(c2.querySelector(".chart"), { items: energies, total: true, demo: meta.is_demo });
       else c2.querySelector(".card-b").innerHTML = emptyState("No energy to show");
       if (total.some((x) => x[1] != null)) timeChart(c3.querySelector(".chart"), { series: [{ name: "Total", points: total, color: COLORS.net, area: true }], demo: meta.is_demo });
       else c3.querySelector(".card-b").innerHTML = emptyState("No complete timestamps");
@@ -56,10 +57,10 @@ export async function render(main, { meta, isCurrent }) {
 
       const av = meta.series.filter((s) => s.dataset === "availability" && s.latest_value != null);
       if (av.length) {
-        const cA = h(card({ title: "System Availability", sub: `${av[0].last ? fmtDateTime(av[0].last) + " MYT" : ""} ${verificationTag(av[0].verification)}`, desc: "MW of each kind of plant available to the grid right now, as on GSO's home page.", body: '<div class="chart short"></div>' }));
+        const cA = h(card({ title: "Generation Availability", when: av[0].last ? fmtLong(av[0].last) : "", sub: verificationTag(av[0].verification), desc: "MW of each kind of plant available to the grid right now, as on GSO's home page.", body: '<div class="chart"></div>' }));
         body.appendChild(cA);
-        categoryChart(cA.querySelector(".chart"), { categories: av.map((s) => s.name.replace("System availability — ", "")), demo: meta.is_demo,
-          series: [{ name: "Available", unit: "MW", data: av.map((s) => ({ value: s.latest_value, itemStyle: { color: availColor(s.key) } })) }] });
+        pieChart(cA.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo,
+          items: av.filter((s) => s.latest_value > 0).map((s) => ({ name: AVAIL_NAME[s.key.split(".")[1]] || s.name, value: s.latest_value, color: availColor(s.key) })) });
       }
       const c4 = h(card({ title: "Installed Capacity", desc: "The total size of all power stations of each fuel, whether running or not.", sub: caps.length ? verificationTag(caps[0].verification) : "", body: '<div class="chart short"></div>' }));
       body.appendChild(c4);
