@@ -67,6 +67,22 @@ def main(report_path: str, out_dir: str) -> None:
             print(f"\n## how {js.name} reads the data: {len(hits)} lines")
             for i in hits[:700]:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:220]}")
+        # Whole bodies of the functions that turn GSO's answers into charts.
+        wanted = {"DrawGenMixChart": 50, "DrawSolarMap": 45, "getData": 60, "DrawSolarChart": 40, "DrawSysAvPieChart": 25,
+                  "DrawGenMixPieChart": 40}
+        for js in sorted(folder.glob("script_*.js")):
+            lines = js.read_text(encoding="utf-8", errors="replace").splitlines()
+            for name, count in wanted.items():
+                for i, line in enumerate(lines):
+                    if re.search(rf"function\s+{name}\s*\(", line):
+                        print(f"\n## {js.name}: function {name} (line {i + 1})")
+                        for j in range(i, min(len(lines), i + count)):
+                            print(f"   {j + 1:5d}| {lines[j].rstrip()[:240]}")
+            for i, line in enumerate(lines):  # the chart series list for the generation-mix chart
+                if re.search(r"name:\s*'(Grid Demand|System Demand|BESS|Tie-Line)'", line):
+                    print(f"\n## {js.name}: series near line {i + 1}")
+                    for j in range(max(0, i - 2), min(len(lines), i + 5)):
+                        print(f"   {j + 1:5d}| {lines[j].rstrip()[:240]}")
         for raw in sorted(folder.glob("*__*.json")):
             print(f"\n## raw answer {raw.name}: {raw.read_text(encoding='utf-8', errors='replace')[:1500]}")
 
