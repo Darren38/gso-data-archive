@@ -29,6 +29,7 @@ PAGES = [
     "SystemData/SystemDemand.aspx",
     "SystemData/TieLine.aspx",
     "SystemData/PowerStation.aspx",
+    "SystemData/CBPE.aspx",
 ]
 
 PATTERNS = {
@@ -105,6 +106,7 @@ def _probe_scripts(client: GsoClient, settings: Settings, report: dict, out_dir:
                         mres = client.post_pagemethod(method_url, body, referer=page_url)
                         entry["status"] = mres.status
                         entry["raw_start"] = mres.content[:1500].decode("utf-8", errors="replace")
+                        entry["raw_full"] = mres.content[:30000].decode("utf-8", errors="replace")
                         try:
                             records = decode_pagemethod(mres.content)
                             entry.update(records=len(records), fields=schema_signature(records), sample=records[:3])
@@ -124,6 +126,7 @@ def _probe_scripts(client: GsoClient, settings: Settings, report: dict, out_dir:
             mres = client.post_pagemethod(method_url, {}, referer=f"{settings.gso_base_url}/LandingPage.aspx")
             entry["status"] = mres.status
             entry["raw_start"] = mres.content[:1500].decode("utf-8", errors="replace")
+            entry["raw_full"] = mres.content[:30000].decode("utf-8", errors="replace")
             try:
                 records = decode_pagemethod(mres.content)
                 entry.update(records=len(records), fields=schema_signature(records), sample=records[:3])
