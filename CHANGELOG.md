@@ -1,5 +1,12 @@
 # Changelog
 
+## 28 October 2026 (eighth update) — GSO Grid Archive 5.2
+
+Choose your clock.
+
+- A new **12-hour / 24-hour** button next to Theme (in the menu on phones) switches every time on the site, including cards, tables, chart labels and tooltips, between "13:30" and "1:30 pm". Your choice is remembered on your device.
+- The "Short forms used on this page" notes are now a dropdown: press to expand. Very short lists stay open.
+
 ## 28 October 2026 (seventh update) — GSO Grid Archive 5.1
 
 Livelier headline numbers, and GSO's own words.

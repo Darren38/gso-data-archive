@@ -1,7 +1,7 @@
 // App shell: hash router, theme, banners, freshness indicator, and live refresh.
 import { clearCache, getMeta, MODE } from "./data.js";
 import { disposeAll, disposeDetached } from "./charts.js";
-import { errorState, freshnessPill, esc, fmtTime } from "./ui.js";
+import { errorState, freshnessPill, esc, fmtTime, isHour12, setHour12 } from "./ui.js";
 
 const ROUTES = {
   overview: { title: "Overview", load: () => import("./pages/overview.js") },
@@ -167,6 +167,17 @@ function initTheme() {
   });
 }
 
+function initClock() {
+  const btn = document.getElementById("clock-toggle");
+  const show = () => { btn.textContent = isHour12() ? "🕑 12-hour" : "🕑 24-hour"; btn.setAttribute("aria-pressed", String(isHour12())); };
+  show();
+  btn.addEventListener("click", () => {
+    setHour12(!isHour12());
+    show();
+    route({ silent: true }); // redraw every time on the page in the new format; settings live in the address
+  });
+}
+
 function initMenu() {
   const btn = document.getElementById("menu-btn"), sb = document.getElementById("sidebar");
   const setOpen = (open) => { sb.classList.toggle("open", open); btn.setAttribute("aria-expanded", String(open)); };
@@ -178,6 +189,7 @@ function initMenu() {
 
 function boot() {
   initTheme();
+  initClock();
   initMenu();
   window.addEventListener("hashchange", () => route());
   for (const ev of ["pointerdown", "keydown"]) document.addEventListener(ev, () => { lastInteraction = Date.now(); }, { passive: true });

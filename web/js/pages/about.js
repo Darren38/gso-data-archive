@@ -1,6 +1,6 @@
 // About & Data Sources.
 import { MODE } from "../data.js";
-import { SHORT_FORMS, card, esc, h, verificationTag } from "../ui.js";
+import { SHORT_FORMS, card, esc, fmtDateTime, h, verificationTag } from "../ui.js";
 
 export async function render(main, { meta }) {
   main.appendChild(h(card({ title: "About this archive", body: `<div class="prose">
@@ -33,7 +33,7 @@ export async function render(main, { meta }) {
       ? `Collected automatically by GitHub Actions about every ${Math.round(c.interval_seconds / 60)} minutes. GitHub sometimes runs it later; nothing is lost, because each request returns the whole day.`
       : `Collected automatically every ${Math.round(c.interval_seconds / 60)} minutes.`}</td></tr>
     <tr><th scope="row">Missed days</th><td style="white-space:normal">Yesterday is checked again every hour for late or corrected readings, and days the collector missed are fetched again automatically.</td></tr>
-    <tr><th scope="row">This page</th><td style="white-space:normal">${MODE === "static" ? `Published ${esc(meta.generated_at ? new Date(meta.generated_at).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" }) : "")} MYT. Every visit checks for newer files.` : "Live from the archive."}</td></tr>
+    <tr><th scope="row">This page</th><td style="white-space:normal">${MODE === "static" ? `Published ${esc(meta.generated_at ? fmtDateTime(meta.generated_at) : "")} MYT. Every visit checks for newer files.` : "Live from the archive."}</td></tr>
     </tbody></table></div>
     ${MODE === "static" && !meta.is_demo ? '<p><a class="btn primary" href="data/archive.sqlite3.gz" download>Download the whole archive (SQLite, gzip)</a> <span class="small muted">Every reading and every revision. Open with any SQLite tool.</span></p>' : ""}` })));
   main.appendChild(h(card({ title: "Short forms", desc: "The terms GSO uses on its pages, which this site uses too.", body: `<div class="table-wrap"><table><tbody>

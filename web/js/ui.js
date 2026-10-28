@@ -11,13 +11,30 @@ export function h(html) {
   return t.content.firstElementChild;
 }
 
-const mytFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
-const mytDate = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", year: "numeric", month: "short", day: "2-digit" });
-const mytTime = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kuala_Lumpur", hour: "2-digit", minute: "2-digit", hour12: false });
+// 12-hour or 24-hour clock: the visitor's choice, remembered in this browser only.
+let hour12 = false;
+try { hour12 = localStorage.getItem("gso-clock") === "12"; } catch { /* storage unavailable */ }
+export const isHour12 = () => hour12;
+export function setHour12(on) {
+  hour12 = !!on;
+  try { localStorage.setItem("gso-clock", hour12 ? "12" : "24"); } catch { /* ignore */ }
+}
+/** "13:05" or "1:05 pm" from an hour (0–23) and minute. */
+export function clock(h, m) {
+  const mm = String(m).padStart(2, "0");
+  return hour12 ? `${h % 12 || 12}:${mm} ${h < 12 ? "am" : "pm"}` : `${String(h).padStart(2, "0")}:${mm}`;
+}
 
-export const fmtDateTime = (iso) => (iso ? `${mytFmt.format(new Date(iso))}` : "—");
+const MYT = "Asia/Kuala_Lumpur";
+const mytDate = new Intl.DateTimeFormat("en-GB", { timeZone: MYT, year: "numeric", month: "short", day: "2-digit" });
+const timeParts = (iso) => {
+  const d = new Date(Date.parse(iso) + MYT_OFFSET_MS);
+  return clock(d.getUTCHours(), d.getUTCMinutes());
+};
+
+export const fmtDateTime = (iso) => (iso ? `${mytDate.format(new Date(iso))}, ${timeParts(iso)}` : "—");
 export const fmtDate = (iso) => (iso ? mytDate.format(new Date(iso.length === 10 ? `${iso}T12:00:00+08:00` : iso)) : "—");
-export const fmtTime = (iso) => (iso ? mytTime.format(new Date(iso)) : "—");
+export const fmtTime = (iso) => (iso ? timeParts(iso) : "—");
 
 export function fmtNum(v, digits = 0) {
   if (v == null || Number.isNaN(v)) return "—";
@@ -211,7 +228,7 @@ export const SHORT_FORMS = {
 /** A small side note explaining the short forms a page uses. */
 export function shortForms(keys) {
   const items = keys.filter((k) => SHORT_FORMS[k]).map((k) => `<span><b>${esc(k)}</b> ${esc(SHORT_FORMS[k])}</span>`);
-  // Open on wide screens; on phones it starts folded so the charts stay near the top.
-  const open = typeof window !== "undefined" && window.innerWidth >= 700 ? " open" : "";
-  return items.length ? `<details class="shortforms"${open}><summary>Short forms used on this page</summary><div>${items.join("")}</div></details>` : "";
+  // A long list folds into a dropdown (press to expand) so the charts stay near the top.
+  const open = items.length <= 3 ? " open" : "";
+  return items.length ? `<details class="shortforms"${open}><summary>Short forms used on this page <span class="muted">(${items.length})</span></summary><div>${items.join("")}</div></details>` : "";
 }

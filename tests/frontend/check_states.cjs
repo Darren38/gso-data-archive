@@ -121,6 +121,15 @@ async function visit(page, base, route, wait = 1200) {
     await page.click("#theme-toggle"); await page.waitForTimeout(2000);
     if ((await hash()) !== before) fail.push("theme switch lost the page settings");
     await errorsOnPage("solar after theme switch");
+    // 12-hour / 24-hour switch: times change, the view stays, and the choice survives a reload.
+    await page.click("#clock-toggle"); await page.waitForTimeout(2000);
+    if (!/\b\d{1,2}:\d{2} (am|pm)\b/.test(await page.textContent("main"))) fail.push("12-hour switch did not change the times");
+    if ((await hash()) !== before) fail.push("clock switch lost the page settings");
+    await errorsOnPage("solar after clock switch");
+    await page.reload(); await page.waitForTimeout(2000);
+    if (!(await page.textContent("#clock-toggle")).includes("12-hour")) fail.push("12-hour choice lost on reload");
+    await page.click("#clock-toggle"); await page.waitForTimeout(1500);
+    if (/\b\d{1,2}:\d{2} (am|pm)\b/.test(await page.textContent("main"))) fail.push("24-hour switch left am/pm times");
     // Table pages.
     await page.goto(`${base}/#/solar?range=90d`); await page.waitForTimeout(2000);
     const next = await page.$('.pager button[data-p="1"]:not([disabled])');

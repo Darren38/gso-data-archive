@@ -1,6 +1,6 @@
 // ECharts wrappers. Times are shifted by +8 h and rendered with useUTC so every
 // axis label and tooltip is Malaysia time regardless of the viewer's timezone.
-import { MYT_OFFSET_MS, fmtNum } from "./ui.js";
+import { MYT_OFFSET_MS, clock, fmtNum } from "./ui.js";
 
 // Colours follow GSO's own charts (gso.org.my Scripts/utils.js, Solar.v19.js, SolarLandingPage.v5.js), so the archive
 // reads the same way as the source. Lines that would be too pale on white use a slightly darker shade of GSO's colour.
@@ -98,7 +98,17 @@ export function disposeAll() {
 }
 
 const shift = (iso) => Date.parse(iso) + MYT_OFFSET_MS;
-const tsLabel = (ms) => new Date(ms).toISOString().slice(0, 16).replace("T", " ");
+// Chart times are shifted to MYT and read as UTC, so getUTC* gives Malaysia time.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const tsLabel = (ms) => { const d = new Date(ms); return `${d.toISOString().slice(0, 10)} ${clock(d.getUTCHours(), d.getUTCMinutes())}`; };
+/** Time-axis label: a clock time, or the date at midnight (month or year on the 1st). */
+function axisTime(ms) {
+  const d = new Date(ms), h = d.getUTCHours(), m = d.getUTCMinutes();
+  if (h || m) return clock(h, m);
+  const day = d.getUTCDate(), mo = d.getUTCMonth(), y = d.getUTCFullYear();
+  if (day === 1 && mo === 0) return String(y);
+  return day === 1 ? `${MONTHS[mo]} ${y}` : `${day} ${MONTHS[mo]}`;
+}
 
 /** Time-series line/area chart.
  * series: [{name, points:[[iso, v|null, q]], color, area, dashed, yAxisIndex, stack, step, type}]
@@ -115,7 +125,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
     xAxis: { type: "time", ...b._axis, splitLine: { show: false },
       // Narrow charts (phones) get fewer ticks so labels like "27 Oct" and "12:00" never run together.
       splitNumber: el.clientWidth < 400 ? 2 : el.clientWidth < 520 ? 3 : undefined,
-      axisLabel: { ...b._axis.axisLabel, fontSize: el.clientWidth < 400 ? 11 : 12.5, formatter: { day: "{d} {MMM}", hour: "{HH}:{mm}", minute: "{HH}:{mm}", month: "{MMM} {yyyy}", year: "{yyyy}" } } },
+      axisLabel: { ...b._axis.axisLabel, fontSize: el.clientWidth < 400 ? 11 : 12.5, formatter: axisTime } },
     yAxis: yAxes.map((y, i) => ({ type: "value", name: y.name, nameTextStyle: { color: css("--text-3"), align: i ? "right" : "left" },
       position: i ? "right" : "left", scale: !!y.scale, min: y.min, max: y.max, ...b._axis, splitLine: i ? { show: false } : b._axis.splitLine,
       axisLabel: { ...b._axis.axisLabel, formatter: (v) => fmtNum(v, y.digits ?? 0) } })),
@@ -193,7 +203,7 @@ export function pieChart(el, { items, demo = false, unit = "MWh" }) {
 /** Intraday profile: x = minutes since MYT midnight, one line per group. */
 export function profileChart(el, { groups, demo = false, unit = "MW" }) {
   const b = base(demo);
-  const label = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  const label = (m) => clock(Math.floor(m / 60) % 24, m % 60);
   return mount(el, {
     ...b,
     xAxis: { type: "value", min: 0, max: 1440, interval: 180, ...b._axis, splitLine: { show: false }, axisLabel: { ...b._axis.axisLabel, formatter: label } },

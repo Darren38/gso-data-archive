@@ -136,7 +136,10 @@ main, .page { padding: 20px 24px 32px; display: flex; flex-direction: column; ga
 .hero .kpi { padding: 16px 18px; }
 .shortforms { padding: 10px 14px; border-left: 3px solid var(--border);
   background: color-mix(in srgb, var(--text) 4%, transparent); border-radius: 8px; color: var(--text-2); font-size: 13px; line-height: 1.45; }
-.shortforms summary { color: var(--text); font-weight: 600; cursor: pointer; }
+.shortforms summary { color: var(--text); font-weight: 600; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.shortforms summary::-webkit-details-marker { display: none; }
+.shortforms summary::after { content: "▾"; margin-left: auto; font-size: 15px; transition: transform .15s; }
+.shortforms[open] summary::after { transform: rotate(180deg); }
 .shortforms > div { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
 .shortforms b { color: var(--text); }
 .health-line { margin: 4px 2px 0; color: var(--text-2); font-size: 14px; }
