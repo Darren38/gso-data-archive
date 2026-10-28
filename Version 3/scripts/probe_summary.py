@@ -58,6 +58,15 @@ def main(report_path: str, out_dir: str) -> None:
             print(f"\n## {html.name}: {len(hits)} matching lines")
             for i in hits[:60]:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:300]}")
+        # How GSO's own scripts read and label the data (series names, splitting of "$"-joined answers, units).
+        keys = re.compile(r"split\(|name\s*:|\.d\b|series|title|text\s*:|forecast|actual|lss|dn\b|rooftop|transmission|"
+                          r"distribution|grid|capacity|irradiance|function\s+\w+|\[\d\]|MW|MWp|%", re.I)
+        for js in sorted(folder.glob("script_*.js")):
+            lines = js.read_text(encoding="utf-8", errors="replace").splitlines()
+            hits = [i for i, line in enumerate(lines) if keys.search(line) and len(line.strip()) > 2]
+            print(f"\n## how {js.name} reads the data: {len(hits)} lines")
+            for i in hits[:700]:
+                print(f"   {i + 1:5d}: {lines[i].strip()[:220]}")
         for raw in sorted(folder.glob("*__*.json")):
             print(f"\n## raw answer {raw.name}: {raw.read_text(encoding='utf-8', errors='replace')[:1500]}")
 
