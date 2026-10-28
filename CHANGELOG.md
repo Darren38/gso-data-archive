@@ -1,5 +1,14 @@
 # Changelog
 
+## 28 October 2026 (fifth update) — GSO Grid Archive 4.1
+
+The site is online and collects from GSO without stopping.
+
+- The site is live at https://darren38.github.io/gso-data-archive/ with real GSO data.
+- GitHub had not started a single scheduled run in over an hour, so each run now starts the next one about a minute after collecting. New readings arrive every 2–3 minutes; only one chain ever runs; GitHub's schedule stays as a backup that restarts it if it ever stops.
+- The page check (probe) runs only after a push or when asked, and the backup is made once a day, so the frequent runs don't add load on GSO.
+- The README's "Run it locally" steps are replaced with "Open it": the site is meant to be opened online with one click. Developer steps are in docs/DEVELOPMENT.md.
+
 ## 28 October 2026 (fourth update) — GSO Grid Archive 4.0
 
 Real data from GSO's Solar page and home page, checked first-hand.

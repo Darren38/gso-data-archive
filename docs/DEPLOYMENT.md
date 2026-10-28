@@ -9,7 +9,7 @@ instructions for the repository owner. Only the local runs described in [STATUS.
 |---|---|---|
 | What runs it | `.github/workflows/archive.yml` on GitHub Actions; site on GitHub Pages | Docker Compose or systemd on a small VM |
 | Where the archive lives | One SQLite file: Actions cache → published with the site → daily GitHub Release copy | PostgreSQL |
-| Interval | Five staggered schedules (one a minute); runs go back to back, about every 2–3 min. GitHub sometimes runs late or skips | Every 2 min by default (`COLLECT_INTERVAL_SECONDS`, minimum 60), ±30 s |
+| Interval | Each run starts the next about a minute after collecting: about every 2–3 min. GitHub's schedule is only a backup (it often starts late or not at all) | Every 2 min by default (`COLLECT_INTERVAL_SECONDS`, minimum 60), ±30 s |
 | Completeness | Complete while GSO still serves the day (whole-day requests + automatic back-fill) | Complete |
 | Network origin | GitHub's (US) addresses. GSO may block them | You choose (Malaysia/Singapore is lowest risk) |
 | Raw response files | Not kept (runner disks are thrown away) | Kept and synced off-site |
