@@ -218,3 +218,15 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# GSO archive: local data, backups, static exports
+/Version */data/
+/Version */backups/
+/Version */site/
+/_site/
+*.sqlite3
+*.sqlite3-*
+*.collector.lock
+*.dump
+node_modules/
+/Version */tests/frontend/package*.json
