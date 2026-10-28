@@ -42,7 +42,7 @@ export async function render(main, { meta, isCurrent }) {
       const units = [...new Set(infos.map((s) => s.unit))];
       body.innerHTML = "";
       const xlsx = exportUrl(keys, range.startDay, range.endDay, "xlsx");
-      const c1 = h(card({ title: "Chart", sub: units.length > 1 ? "Mixed units — second unit on right axis" : "",
+      const c1 = h(card({ title: "Chart", desc: "Every series you ticked, over the dates you chose. Breaks mean no reading, never zero.", sub: units.length > 1 ? "Mixed units — second unit on right axis" : "",
         right: `<button class="btn" data-a="csv">CSV</button>${xlsx ? `<a class="btn primary" href="${esc(xlsx)}">Excel</a>` : '<span class="small muted">Excel export requires API mode</span>'}`,
         body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);

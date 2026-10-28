@@ -52,13 +52,19 @@ export function errorState(err) {
   return `<div class="state error" role="alert"><div class="big" aria-hidden="true">!</div><h3>Could not load data</h3><p>${esc(err && err.message ? err.message : err)}</p><p class="muted">Previously archived data is unaffected. Try again shortly.</p></div>`;
 }
 
-export function card({ title, sub = "", right = "", body = "", cls = "" }) {
-  return `<section class="card ${cls}"><div class="card-h"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}${right ? `<div class="right">${right}</div>` : ""}</div><div class="card-b">${body}</div></section>`;
+/** A dashboard card. `desc` is a one-line, plain-words "how to read this" shown under the title. */
+export function card({ title, sub = "", desc = "", right = "", body = "", cls = "" }) {
+  return `<section class="card ${cls}"><div class="card-h"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}${right ? `<div class="right">${right}</div>` : ""}</div>${desc ? `<p class="desc">${desc}</p>` : ""}<div class="card-b">${body}</div></section>`;
 }
 
-export function kpi({ label, value, unit = "", meta = "", cls = "", tag = "" }) {
+export function kpi({ label, value, unit = "", meta = "", cls = "", tag = "", big = false }) {
   const v = value == null || value === "—" ? `<span class="na">Not available</span>` : `${value}${unit ? `<small>${esc(unit)}</small>` : ""}`;
-  return `<div class="card kpi ${cls}"><div class="label">${esc(label)} ${tag}</div><div class="value">${v}</div><div class="meta">${meta}</div></div>`;
+  return `<div class="card kpi ${cls} ${big ? "big" : ""}"><div class="label">${esc(label)} ${tag}</div><div class="value">${v}</div><div class="meta">${meta}</div></div>`;
+}
+
+/** A section heading between groups of cards. */
+export function section(title, text = "") {
+  return `<div class="section-h"><h2>${esc(title)}</h2>${text ? `<p>${text}</p>` : ""}</div>`;
 }
 
 export function verificationTag(v) {

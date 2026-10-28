@@ -31,7 +31,7 @@ export async function render(main, { meta, isCurrent }) {
         return kpi({ label: s.dataset.replace("tieline_", "").toUpperCase(), value: s.latest_value != null ? fmtNum(s.latest_value) : null, unit: "MW",
           meta: `${s.last ? fmtDateTime(s.last) + " MYT" : ""}${e.max ? ` · range ${fmtNum(e.min[1])} to ${fmtNum(e.max[1])} MW` : ""}` });
       }).join("")}</div>`));
-      const c1 = h(card({ title: "Interconnector flows", sub: "MW as published",
+      const c1 = h(card({ title: "Power lines to neighbours", sub: "MW as published", desc: "Flow on the links to Thailand (EGAT, HVDC) and Singapore (PLTG). GSO publishes a reading every 30 minutes.",
         right: `<button class="btn" data-a="csv">CSV</button>${exportUrl(lines.map((s) => s.key), range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl(lines.map((s) => s.key), range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);
@@ -41,7 +41,7 @@ export async function render(main, { meta, isCurrent }) {
       c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`tieline_${range.startDay}_${range.endDay}.csv`, pointsToCsv(pts)));
 
       const th = lines.map((s, i) => [s, pts[i]]).filter(([s]) => s.dataset === "tieline_egat" || s.dataset === "tieline_hvdc");
-      const c2 = h(card({ title: "Net flow with Thailand (EGAT + HVDC)", sub: "Derived sum, published sign convention", body: '<div class="chart"></div>' }));
+      const c2 = h(card({ title: "Total flow with Thailand", desc: "The two Thailand links added together (EGAT + HVDC).", body: '<div class="chart"></div>' }));
       body.appendChild(c2);
       if (th.length === 2) timeChart(c2.querySelector(".chart"), { demo: meta.is_demo, series: [{ name: "Net (EGAT + HVDC)", points: sumSeries(th.map(([, p]) => p.points)), color: COLORS.net, area: true }] });
       else c2.querySelector(".card-b").innerHTML = emptyState("Needs both EGAT and HVDC readings");

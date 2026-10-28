@@ -1,5 +1,19 @@
 # Changelog
 
+## 28 October 2026 (sixth update) — GSO Grid Archive 5.0
+
+A clearer dashboard that's quicker to read.
+
+- The Overview is now a dashboard: four big numbers at the top (solar right now, electricity demand, how much of demand solar covers, and the batteries), then today's solar against GSO's forecast, where electricity comes from right now, and today's demand against yesterday's.
+- Every chart has a short line under its title saying what it shows and how to read it, in plain words ("Bars: the highest solar output each day. Line: total solar energy that day").
+- Colours now follow GSO's own charts: the same oranges and yellows for each kind of solar, GSO's green for the forecast, grey for coal, blue for gas, green for hydro, and green and pink for batteries supplying and charging.
+- Plainer names everywhere: "Large solar farms (grid)" and "Solar on local network" instead of "transmission" and "distribution"; "Fastest rise" instead of "steepest up-ramp"; "Typical miss" instead of "MAE".
+- The Solar page leads with what matters most (solar by type, solar against demand, daily peaks, the forecast check, solar farms). The detailed analysis sits in its own "Deeper analysis" section below.
+- Bigger text: larger headline numbers, chart labels and page text.
+- Chart keys on phones now wrap onto extra lines instead of hiding names behind small arrows.
+- Fixed: the battery figures showing a minus sign while charging; units such as "MW" splitting across two lines on narrow phones; all power plant types in one colour on the availability chart.
+- The site was already plain HTML, CSS and JavaScript with nothing to install; it opens straight from the link in the README.
+
 ## 28 October 2026 (fifth update) — GSO Grid Archive 4.1
 
 The site is online and collects from GSO without stopping.

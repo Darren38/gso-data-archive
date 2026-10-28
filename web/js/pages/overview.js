@@ -1,108 +1,105 @@
-// Overview: latest successfully archived readings with their source timestamps.
+// Overview: a dashboard of the grid right now and today. Only archived GSO readings are shown, with their times.
 import { getPoints, getStatus } from "../data.js";
-import { COLORS, timeChart } from "../charts.js";
-import { card, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, freshnessPill, h, kpi, ageOf } from "../ui.js";
-
-const FUELS = [
-  ["generation_mix.coal", "Coal", COLORS.coal], ["generation_mix.gas", "Gas", COLORS.gas],
-  ["generation_mix.hydro", "Hydro", COLORS.hydro], ["generation_mix.solar", "Solar", COLORS.solar],
-  ["generation_mix.cogen", "Co-gen", COLORS.cogen], ["generation_mix.oil", "Oil", COLORS.oil],
-];
+import { COLORS, SOLAR_PARTS, FUELS, pieChart, timeChart } from "../charts.js";
+import { extent, sumSeries } from "../analysis.js";
+import { card, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
 
 export async function render(main, { meta, isCurrent }) {
   const by = Object.fromEntries(meta.series.map((s) => [s.key, s]));
-  const solar = by["generation_mix.solar"];
-  const demand = by["system_demand.demand"];
-  const genKeys = meta.series.filter((s) => s.dataset === "generation_mix" && s.kind === "actual");
-  const totalGen = genKeys.length && genKeys.every((s) => s.last === genKeys[0].last)
-    ? genKeys.reduce((t, s) => t + (s.latest_value || 0), 0) : null;
-  const ties = meta.series.filter((s) => s.category === "tieline");
-  // (solar farms and other per-unit series are summarised on their own pages)
-
   if (!meta.series.length) {
     main.innerHTML = card({ title: "Welcome", body: emptyState("Nothing archived yet",
-      "The archive is empty. No live values are shown until the collector has successfully stored real GSO readings. " +
-      "Check <a href=\"#/status\">Collection Status</a> to see whether collection is enabled and running.", "◧") });
-    renderStatusSummary(main);
+      "No live values are shown until the collector has stored real GSO readings. " +
+      "<a href=\"#/status\">Collection Status</a> shows whether collection is running.", "◧") });
     return;
   }
 
-  main.appendChild(h(`<div class="grid kpis">
-    ${kpi({ label: "Solar generation", cls: "solar", value: solar && solar.latest_value != null ? fmtNum(solar.latest_value) : null, unit: "MW",
-      meta: solar?.last ? `${fmtDateTime(solar.last)} MYT · ${fmtAge(ageOf(solar.last))}` : "No reading archived" })}
-    ${kpi({ label: "System demand", cls: "demand", value: demand && demand.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
-      meta: demand?.last ? `${fmtDateTime(demand.last)} MYT · ${fmtAge(ageOf(demand.last))}` : "No reading archived" })}
-    ${kpi({ label: "Solar share of generation", value: solar && totalGen ? fmtNum((100 * solar.latest_value) / totalGen, 1) : null, unit: "%",
-      meta: totalGen ? `Derived from ${genKeys.length} fuel series at the same timestamp` : "Needs a complete generation-mix reading" })}
-    ${kpi({ label: "Total generation (sum of fuels)", value: totalGen != null ? fmtNum(totalGen) : null, unit: "MW", meta: totalGen != null ? "Derived" : "" })}
-    ${(() => {
-      const prof = ["grid", "distribution", "nem", "fit", "selco"].map((k) => by[`solar_profile.${k}`]).filter(Boolean);
-      const sameTime = prof.length === 5 && prof.every((s) => s.last === prof[0].last && s.latest_value != null);
-      return kpi({ label: "All solar (GSO Solar page)", cls: "solar", value: sameTime ? fmtNum(prof.reduce((t, s) => t + s.latest_value, 0)) : null, unit: "MW",
-        meta: sameTime ? `Grid + distribution + rooftop estimates · ${fmtDateTime(prof[0].last)} MYT` : "Appears once GSO's Solar page has been collected" });
-    })()}
-    ${(() => {
-      const d = by["genmix_live.bess_discharge"], c = by["genmix_live.bess_charge"];
-      const net = d && c && d.latest_value != null && c.latest_value != null ? d.latest_value + c.latest_value : null;
-      return kpi({ label: "Battery storage (BESS) net", value: net != null ? fmtNum(net) : null, unit: "MW",
-        meta: net != null ? `${net > 0 ? "Discharging" : net < 0 ? "Charging" : "Idle"} · ${fmtDateTime(d.last)} MYT` : "" });
-    })()}
-    ${kpi({ label: "Tie-line flows archived", value: ties.length ? String(ties.length) : null, meta: ties.length ? ties.map((t) => `${t.dataset.replace("tieline_", "").toUpperCase()} ${fmtNum(t.latest_value)} MW`).join(" · ") : "" })}
-  </div>`));
+  // ---- right now
+  const parts = SOLAR_PARTS.map((p) => by[p.key]).filter(Boolean);
+  const partsNow = parts.length === SOLAR_PARTS.length && parts.every((s) => s.latest_value != null && s.last === parts[0].last);
+  const solarNow = partsNow ? parts.reduce((t, s) => t + s.latest_value, 0) : by["generation_mix.solar"]?.latest_value ?? null;
+  const solarAt = partsNow ? parts[0].last : by["generation_mix.solar"]?.last;
+  const demand = by["system_demand.demand"];
+  const share = solarNow != null && demand?.latest_value ? (100 * solarNow) / demand.latest_value : null;
+  const dis = by["genmix_live.bess_discharge"], chg = by["genmix_live.bess_charge"];
+  const bess = dis && chg && dis.latest_value != null && chg.latest_value != null ? dis.latest_value + chg.latest_value : null;
+  const fuels = FUELS.map((f) => ({ ...f, s: by[f.key] })).filter((f) => f.s && f.s.latest_value != null && f.s.latest_value > 0);
+  const fuelTotal = fuels.reduce((t, f) => t + f.s.latest_value, 0);
+  const biggest = fuels.slice().sort((a, b) => b.s.latest_value - a.s.latest_value)[0];
 
-  const now = new Date();
-  const start = new Date(now.getTime() - 48 * 3600e3);
-  const c1 = h(card({ title: "Solar vs demand — last 48 hours", sub: solar ? freshnessPill(solar.last, solar.interval_s) : "", body: '<div class="chart tall"></div>' }));
-  main.appendChild(c1);
+  main.appendChild(h(`<div class="grid kpis hero">
+    ${kpi({ big: true, cls: "solar", label: "☀ Solar right now", value: solarNow != null ? fmtNum(solarNow) : null, unit: "MW",
+      meta: solarAt ? `${partsNow ? "All solar incl. rooftop" : "Transmission solar"} · ${fmtTime(solarAt)} MYT` : "" })}
+    ${kpi({ big: true, cls: "demand", label: "⚡ Electricity demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
+      meta: demand?.last ? `Peninsular Malaysia · ${fmtTime(demand.last)} MYT` : "" })}
+    ${kpi({ big: true, cls: "solar", label: "Solar covers", value: share != null ? fmtNum(share, 1) : null, unit: "%", meta: "of electricity demand right now" })}
+    ${kpi({ big: true, cls: "bess", label: "🔋 Battery storage", value: bess != null ? fmtNum(Math.abs(bess)) : null, unit: "MW",
+      meta: bess == null ? "" : bess > 0 ? "Supplying the grid" : bess < 0 ? "Charging from the grid" : "Idle" })}
+  </div>`));
+  const second = h('<div class="grid kpis"></div>');
+  main.appendChild(second);
+
+  // ---- today
+  const today = mytDay(new Date());
+  const start = mytDayStart(today), now = new Date();
+  const chartToday = h(card({ title: "Solar today vs GSO's forecast",
+    desc: "Each colour is one kind of solar, stacked so the top edge is all solar together. The dashed line is GSO's forecast for today.",
+    body: '<div class="chart tall"></div>' }));
+  main.appendChild(chartToday);
   const row = h('<div class="grid cols-2"></div>');
   main.appendChild(row);
-  const c2 = h(card({ title: "Generation mix — last 48 hours", sub: "Stacked, as published", body: '<div class="chart"></div>' }));
-  const c3 = h(card({ title: "Collection health", body: '<div class="health"></div>' }));
-  row.append(c2, c3);
+  const mixCard = h(card({ title: "Where electricity comes from now", desc: "Share of each fuel in generation at the latest reading.",
+    body: '<div class="chart"></div>' }));
+  const demCard = h(card({ title: "Demand today vs yesterday", desc: "Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
+  row.append(mixCard, demCard);
 
   try {
-    const [sp, dp, ...fuels] = await Promise.all([
-      solar ? getPoints(solar.key, start, now) : null,
+    const fc = by["solar_forecast.total"];
+    const [partPts, fcPts, solarPts, demToday, demYest] = await Promise.all([
+      parts.length ? Promise.all(parts.map((s) => getPoints(s.key, start, now))) : [],
+      fc ? getPoints(fc.key, start, new Date(start.getTime() + 864e5)) : null,
+      by["generation_mix.solar"] ? getPoints("generation_mix.solar", start, now) : null,
       demand ? getPoints(demand.key, start, now) : null,
-      ...FUELS.filter(([k]) => by[k]).map(([k]) => getPoints(k, start, now)),
+      demand ? getPoints(demand.key, new Date(start.getTime() - 864e5), start) : null,
     ]);
     if (!isCurrent()) return;
-    const series = [];
-    if (sp) series.push({ name: "Solar", points: sp.points, color: COLORS.solar, area: true, width: 2 });
-    if (dp) series.push({ name: "System demand", points: dp.points, color: COLORS.demand, yAxisIndex: sp ? 1 : 0 });
-    if (series.length && series.some((s) => s.points.some((p) => p[1] != null))) {
-      timeChart(c1.querySelector(".chart"), { series, yAxes: sp && dp ? [{ name: "Solar MW" }, { name: "Demand MW" }] : [{ name: "MW" }], demo: meta.is_demo, markNow: true });
-    } else {
-      c1.querySelector(".card-b").innerHTML = emptyState("No readings in the last 48 hours",
-        "The most recent archived data is older than 48 hours. Values are never extrapolated.");
-    }
-    const present = FUELS.filter(([k]) => by[k]);
-    if (fuels.length && fuels.some((f) => f.points.length)) {
-      timeChart(c2.querySelector(".chart"), { demo: meta.is_demo, series: fuels.map((f, i) => ({ name: present[i][1], points: f.points, color: present[i][2], area: true, areaOpacity: 0.55, stack: "mix", width: 0.8 })) });
-    } else c2.querySelector(".card-b").innerHTML = emptyState("No generation-mix readings in the last 48 hours");
-  } catch (err) {
-    c1.querySelector(".card-b").innerHTML = errorState(err);
-  }
-  renderStatusSummary(c3.querySelector(".health"));
-}
 
-async function renderStatusSummary(el) {
+    const totalToday = partPts.length === SOLAR_PARTS.length ? sumSeries(partPts.map((p) => p.points)) : solarPts?.points || [];
+    const peak = extent(totalToday).max;
+    const fcPeak = fcPts ? extent(fcPts.points).max : null;
+    second.innerHTML = [
+      kpi({ cls: "solar", label: "Today's solar peak so far", value: peak ? fmtNum(peak[1]) : null, unit: "MW", meta: peak ? `at ${fmtTime(peak[0])} MYT` : "" }),
+      kpi({ cls: "forecast", label: "GSO forecast peak today", value: fcPeak ? fmtNum(fcPeak[1]) : null, unit: "MW", meta: fcPeak ? `expected at ${fmtTime(fcPeak[0])} MYT` : "" }),
+      kpi({ label: "Biggest source now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.s.latest_value) / fuelTotal, 0)}% of generation · ${fmtNum(biggest.s.latest_value)} MW` : "" }),
+      kpi({ label: "Data updated", value: solarAt ? fmtAge(ageOf(solarAt)) : null, meta: `Collected from GSO automatically · <a href="#/status">status</a>` }),
+    ].join("");
+
+    const series = partPts.map((p, i) => ({ name: SOLAR_PARTS[i].label, points: p.points, color: SOLAR_PARTS[i].color, area: true, areaOpacity: 0.85, stack: "solar", width: 0.6 }));
+    if (!series.length && solarPts) series.push({ name: "Transmission solar", points: solarPts.points, color: COLORS.solar, area: true });
+    if (fcPts) series.push({ name: "GSO forecast", points: fcPts.points, color: COLORS.forecast, dashed: true, width: 2 });
+    if (series.some((s) => s.points.some((p) => p[1] != null))) timeChart(chartToday.querySelector(".chart"), { series, demo: meta.is_demo, markNow: true });
+    else chartToday.querySelector(".card-b").innerHTML = emptyState("No solar readings yet today", "Solar starts after sunrise (about 7:00 MYT).", "☀");
+
+    if (fuels.length) pieChart(mixCard.querySelector(".chart"), { unit: "MW", demo: meta.is_demo, items: fuels.map((f) => ({ name: f.label, value: f.s.latest_value, color: f.color })) });
+    else mixCard.querySelector(".card-b").innerHTML = emptyState("No generation reading yet");
+
+    if (demToday && demToday.points.some((p) => p[1] != null)) {
+      const shifted = (demYest?.points || []).map(([t, v, q]) => [new Date(Date.parse(t) + 864e5).toISOString(), v, q]);
+      timeChart(demCard.querySelector(".chart"), { demo: meta.is_demo, zoom: false, series: [
+        { name: "Today", points: demToday.points, color: COLORS.demand, width: 2.4 },
+        { name: "Yesterday", points: shifted, color: COLORS.demandLight, dashed: true, width: 1.6 },
+      ] });
+    } else demCard.querySelector(".card-b").innerHTML = emptyState("No demand readings yet today");
+  } catch (err) {
+    chartToday.querySelector(".card-b").innerHTML = errorState(err);
+  }
+
+  // ---- health, one line
   try {
     const st = await getStatus();
-    const enabled = st.adapters.filter((a) => a.enabled);
-    const failing = enabled.filter((a) => a.consecutive_failures > 0);
-    const stale = st.freshness.filter((f) => f.stale);
-    const hb = st.collector_heartbeat;
-    const html = `<div class="stat-row" style="flex-direction:column;gap:8px">
-      <span>Live GSO collection: <b>${st.live_enabled ? "enabled" : "disabled"}</b>${st.live_enabled ? "" : ' <span class="muted">(GSO_LIVE_ENABLED=false — see About)</span>'}</span>
-      <span>Last collector cycle: <b>${hb ? fmtDateTime(hb.cycle_started_at) + " MYT" : "never"}</b>${hb && hb.skipped_reason ? ` <span class="muted">— ${hb.skipped_reason}</span>` : ""}</span>
-      <span>Adapters failing: <b>${failing.length}</b> of ${enabled.length} enabled</span>
-      <span>Stale series: <b>${stale.length}</b> of ${st.freshness.length}</span>
-      <span>Archived observations: <b>${fmtNum(st.totals.observations)}</b> · revisions tracked: <b>${fmtNum(st.totals.revisions)}</b></span>
-      <a href="#/status">Full collection status →</a></div>`;
-    if (el.classList && el.classList.contains("health")) el.innerHTML = html;
-    else el.appendChild(h(card({ title: "Collection health", body: html })));
-  } catch (err) {
-    el.innerHTML = errorState(err);
-  }
+    if (!isCurrent()) return;
+    const failing = st.adapters.filter((a) => a.enabled && a.consecutive_failures > 0);
+    main.appendChild(h(`<p class="health-line">${st.live_enabled ? "🟢 Collecting from GSO automatically" : "⚪ Automatic collection is off"}
+      · last run ${st.collector_heartbeat ? fmtAge(ageOf(st.collector_heartbeat.cycle_started_at)) : "never"}
+      · ${failing.length ? `<b>${failing.length} source(s) failing</b>` : "all sources working"} · <a href="#/status">details</a></p>`));
+  } catch { /* status is optional here */ }
 }

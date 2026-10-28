@@ -1,10 +1,12 @@
 // Generation mix page.
 import { getDaily, getPoints, exportUrl } from "../data.js";
-import { COLORS, categoryChart, pieChart, timeChart } from "../charts.js";
+import { COLORS, FUELS, categoryChart, pieChart, timeChart } from "../charts.js";
 import { sumSeries } from "../analysis.js";
 import { addDays, card, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
 
-const COLOR_BY_FUEL = { coal: COLORS.coal, gas: COLORS.gas, hydro: COLORS.hydro, solar: COLORS.solar, oil: COLORS.oil, cogen: COLORS.cogen };
+const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
+const AVAIL_COLOR = { coal: COLORS.coal, gas: COLORS.gas, cogen: COLORS.cogen, hydro: COLORS.hydro, transmission_solar: COLORS.gridSolar, distribution_solar: COLORS.dnSolar, bess: COLORS.bessDischarge };
+const availColor = (key) => AVAIL_COLOR[key.split(".")[1]] || COLORS.other;
 
 export async function render(main, { meta, isCurrent }) {
   const gen = meta.series.filter((s) => s.dataset === "generation_mix" && s.kind === "actual");
@@ -15,7 +17,8 @@ export async function render(main, { meta, isCurrent }) {
   }
   const bar = h("<div></div>"); main.appendChild(bar);
   const body = h('<div class="grid"></div>'); main.appendChild(body);
-  const color = (s) => COLOR_BY_FUEL[s.key.split(".")[1]] || COLORS.other;
+  const color = (s) => FUEL[s.key]?.color || COLORS.other;
+  const label = (s) => FUEL[s.key]?.label || s.name.replace(" (as published in generation mix)", "");
   const picker = rangePicker(bar, { initial: "2d", presets: ["1d", "2d", "7d", "30d", "90d"], onChange: (r) => draw(r) });
 
   async function draw(range) {
@@ -28,20 +31,20 @@ export async function render(main, { meta, isCurrent }) {
       ]);
       if (!isCurrent()) return;
       body.innerHTML = "";
-      const c1 = h(card({ title: "Generation by fuel", sub: `Stacked, MW as published ${verificationTag(gen[0].verification)}`,
+      const c1 = h(card({ title: "Electricity made from each fuel", sub: verificationTag(gen[0].verification), desc: "Each colour is one fuel, stacked so the top edge is all generation together. Grey: coal, blue: gas, green: hydro, yellow: solar.",
         right: `<button class="btn" data-a="csv">CSV</button>${exportUrl(gen.map((s) => s.key), range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl(gen.map((s) => s.key), range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);
       if (pts.some((p) => p.points.some((x) => x[1] != null))) {
-        timeChart(c1.querySelector(".chart"), { demo: meta.is_demo, series: pts.map((p, i) => ({ name: gen[i].name.replace(" (as published in generation mix)", ""), points: p.points, color: color(gen[i]), area: true, areaOpacity: 0.6, stack: "mix", width: 0.8 })) });
+        timeChart(c1.querySelector(".chart"), { demo: meta.is_demo, series: pts.map((p, i) => ({ name: label(gen[i]), points: p.points, color: color(gen[i]), area: true, areaOpacity: 0.85, stack: "mix", width: 0.8 })) });
       } else c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
       c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`generation_${range.startDay}_${range.endDay}.csv`, pointsToCsv(pts)));
 
       const row = h('<div class="grid cols-2"></div>'); body.appendChild(row);
-      const energies = daily.map((d, i) => ({ name: gen[i].name.replace(" (as published in generation mix)", ""), value: d.rows.reduce((t, r) => t + (r.energy_mwh || 0), 0), color: color(gen[i]) })).filter((x) => x.value > 0);
-      const c2 = h(card({ title: "Energy share in range", sub: "Derived from archived readings", body: '<div class="chart"></div>' }));
+      const energies = daily.map((d, i) => ({ name: label(gen[i]), value: d.rows.reduce((t, r) => t + (r.energy_mwh || 0), 0), color: color(gen[i]) })).filter((x) => x.value > 0);
+      const c2 = h(card({ title: "Share of each fuel", desc: "How the electricity made in this period splits between fuels.", body: '<div class="chart"></div>' }));
       const total = sumSeries(pts.map((p) => p.points));
-      const c3 = h(card({ title: "Total generation (sum of published fuels)", sub: "Derived; a timestamp counts only if every fuel has a reading", body: '<div class="chart"></div>' }));
+      const c3 = h(card({ title: "All electricity made", desc: "All fuels added together. Shown only at times when every fuel has a reading.", body: '<div class="chart"></div>' }));
       row.append(c2, c3);
       if (energies.length) pieChart(c2.querySelector(".chart"), { items: energies, demo: meta.is_demo });
       else c2.querySelector(".card-b").innerHTML = emptyState("No energy to show");
@@ -52,12 +55,12 @@ export async function render(main, { meta, isCurrent }) {
 
       const av = meta.series.filter((s) => s.dataset === "availability" && s.latest_value != null);
       if (av.length) {
-        const cA = h(card({ title: "System availability now", sub: `GSO home page · ${av[0].last ? fmtDateTime(av[0].last) + " MYT" : ""} ${verificationTag(av[0].verification)}`, body: '<div class="chart short"></div>' }));
+        const cA = h(card({ title: "Power plants ready to run now", sub: `${av[0].last ? fmtDateTime(av[0].last) + " MYT" : ""} ${verificationTag(av[0].verification)}`, desc: "MW of each kind of plant available to the grid right now (GSO's \"system availability\").", body: '<div class="chart short"></div>' }));
         body.appendChild(cA);
         categoryChart(cA.querySelector(".chart"), { categories: av.map((s) => s.name.replace("System availability — ", "")), demo: meta.is_demo,
-          series: [{ name: "Available", data: av.map((s) => s.latest_value), color: COLORS.gas, unit: "MW" }] });
+          series: [{ name: "Available", unit: "MW", data: av.map((s) => ({ value: s.latest_value, itemStyle: { color: availColor(s.key) } })) }] });
       }
-      const c4 = h(card({ title: "Installed capacity snapshot", sub: caps.length ? verificationTag(caps[0].verification) : "", body: '<div class="chart short"></div>' }));
+      const c4 = h(card({ title: "Installed capacity", desc: "The total size of all power stations of each fuel, whether running or not.", sub: caps.length ? verificationTag(caps[0].verification) : "", body: '<div class="chart short"></div>' }));
       body.appendChild(c4);
       const capSeries = caps.filter((c) => c.key !== "power_station.capacity_total" && c.latest_value != null);
       if (capSeries.length) {

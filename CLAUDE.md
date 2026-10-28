@@ -51,6 +51,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     have as yesterday's, and the forecast is skipped between 23:30 and 00:30 rather than guessing its day.
 12. **Series created by a transform must be found by key.** `resolve_series` looks up the source label and then the
     series key; before that, every Solar-page series was named "(auto-discovered)".
+13. **A scrolling chart legend hides names behind "1/6" arrows on phones.** `legendFor` in `charts.js` wraps the legend
+    and moves the plot down to make room; it keeps scrolling only for very long lists (e.g. one line per day).
 
 ## How to check a change
 
