@@ -9,7 +9,7 @@
 #     published on the live site (data/archive.sqlite3.gz) in case the cache was cleared — the same idea as Tech
 #     Comparison Hub's seed_live.py. Copies are merged, never swapped, so nothing can be rolled back.
 #   - collects today's readings, re-checks yesterday about once an hour for late or corrected readings, and fetches days
-#     that were missed (only when repository variable GSO_LIVE_ENABLED is "true" — see "Version 3/README.md" first)
+#     that were missed (on by default; repository variable GSO_LIVE_ENABLED=false pauses it)
 #   - saves the archive for the next run, builds the site and publishes it
 # After publishing, a check-up reads the live site and fails the run (GitHub then emails the owner) when the page doesn't
 # load or collection has stopped. Once a day the archive is also copied to the "archive-backups" GitHub Release
@@ -50,8 +50,9 @@ jobs:
         working-directory: "Version 3"
     env:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
-      GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'false' }}
-      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS }}
+      # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
+      GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
+      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile' }}
       GSO_COLLECTION_MODE: github
       COLLECT_INTERVAL_SECONDS: "60"  # what the schedule asks for; the site shows the measured interval
       RAW_RETENTION: none  # the runner's disk is thrown away after each run
@@ -165,6 +166,38 @@ jobs:
           if [ "${{ github.event_name }}" = "schedule" ] && [ "$(date -u +%M)" -ge 6 ]; then echo "Checked once an hour; not this run."; exit 0; fi
           sleep 30
           python -m gso_archive health-check --base "$SITE_URL" --max-age-minutes 60
+
+  # Looks at GSO's own pages from GitHub's servers: which data addresses each page really uses, what they answer and
+  # with which fields. Runs after a push, once a day and on demand; the findings are in the log and kept as an artifact
+  # (14 days) so the collectors can be checked against the real site.
+  probe:
+    if: github.event_name != 'schedule' || github.event.schedule == '43 19 * * *'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: "Version 3"
+    env:
+      GSO_LIVE_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet -r requirements.txt
+      - name: Look at GSO's pages
+        run: |
+          python -m gso_archive probe --out probe-out > probe.json || true
+          python scripts/probe_summary.py probe.json probe-out
+        continue-on-error: true
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: gso-probe-${{ github.run_id }}
+          path: "Version 3/probe-out"
+          retention-days: 14
 
   # Only the newest saved archives are kept in the Actions cache (each run saves a new one).
   tidy:

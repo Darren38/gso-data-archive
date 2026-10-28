@@ -13,7 +13,7 @@
 </div>
 
 The site goes live after the one-time setup in [Version 3 → Publishing the site](Version%203/README.md#publishing-the-site-one-time).
-Until collection is switched on it shows watermarked **demonstration data**, not GSO readings.
+Until the first real GSO readings arrive it shows watermarked **demonstration data**.
 
 ## Versions
 

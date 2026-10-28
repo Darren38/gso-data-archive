@@ -36,16 +36,17 @@
 | Backup of the whole archive | Once a day, to the `archive-backups` release (last 14 days, plus the 1st of every month kept for good) |
 | The site itself | Every visit checks for newer files, so an update shows on the next refresh |
 
-## Before switching on collection
+## Collection from GSO
 
-Automatic collection is **off until you switch it on**. Another project reports that GSO's terms
-say its data may not be downloaded or stored without TNB's written consent. That text couldn't be
-read first-hand from here, so please check the terms on [gso.org.my](https://www.gso.org.my/) and
-ask GSO/TNB for consent if needed. Then switch collection on: **Settings → Secrets and variables →
-Actions → Variables → New variable** `GSO_LIVE_ENABLED` = `true`.
+Collection from [gso.org.my](https://www.gso.org.my/) is **on**: the workflow fetches the generation mix (which
+includes solar), demand, tie-lines, installed capacity and the Solar Profile page. To pause it, add the repository
+variable **Settings → Secrets and variables → Actions → Variables** `GSO_LIVE_ENABLED` = `false`.
 
-Until then the site shows **demonstration data**: made-up curves, watermarked on every chart and
-labelled on every page, so they can't be mistaken for GSO readings.
+Another project reports that GSO's terms say its data may not be downloaded or stored without TNB's written consent.
+That text couldn't be read first-hand from here, so it's worth checking the terms on gso.org.my.
+
+Until the first real readings arrive, the site shows **demonstration data**: made-up curves, watermarked on every
+chart and labelled on every page, so they can't be mistaken for GSO readings.
 
 ## Publishing the site (one time)
 
