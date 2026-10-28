@@ -8,7 +8,7 @@
 
 [![Open the site](https://img.shields.io/badge/OPEN%20THE%20SITE-darren38.github.io-2ea44f?style=for-the-badge)](https://darren38.github.io/gso-data-archive/)
 
-<a href="https://darren38.github.io/gso-data-archive/"><img src="docs/screenshot.jpg" alt="The GSO Grid Archive dashboard: solar right now, electricity demand, solar's share and battery storage in big numbers, then today's solar by type against GSO's forecast. Click to open the site." width="820"></a>
+<a href="https://darren38.github.io/gso-data-archive/"><img src="docs/screenshot.jpg" alt="The GSO Grid Archive dashboard: Current Solar Generation, Current System Demand, solar's share and Current BESS Status in big numbers with icons, then today's Solar Profile against GSO's Forecast. Click to open the site." width="820"></a>
 
 </div>
 

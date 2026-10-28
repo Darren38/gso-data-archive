@@ -16,11 +16,11 @@ export const COLORS = {
 
 /** GSO Solar page series, bottom to top as GSO stacks them. */
 export const SOLAR_PARTS = [
-  { key: "solar_profile.grid", label: "Large solar farms (grid)", color: "#FF956E" },
-  { key: "solar_profile.distribution", label: "Solar on local network", color: "#FFAC54" },
-  { key: "solar_profile.nem", label: "Rooftop NEM (estimate)", color: "#FFC78A" },
-  { key: "solar_profile.fit", label: "FiT (estimate)", color: "#F0DB7A" },
-  { key: "solar_profile.selco", label: "SELCO (estimate)", color: "#EEF56C" },
+  { key: "solar_profile.grid", label: "Grid", color: "#FF956E" },
+  { key: "solar_profile.distribution", label: "Distribution", color: "#FFAC54" },
+  { key: "solar_profile.nem", label: "NEM", color: "#FFC78A" },
+  { key: "solar_profile.fit", label: "FiT", color: "#F0DB7A" },
+  { key: "solar_profile.selco", label: "SELCO", color: "#EEF56C" },
 ];
 
 /** Generation sources with GSO's colours. */
@@ -28,11 +28,11 @@ export const FUELS = [
   { key: "generation_mix.coal", label: "Coal", color: COLORS.coal },
   { key: "generation_mix.gas", label: "Gas", color: COLORS.gas },
   { key: "generation_mix.hydro", label: "Hydro", color: COLORS.hydro },
-  { key: "generation_mix.solar", label: "Transmission solar", color: COLORS.gridSolar },
-  { key: "genmix_live.distribution_solar", label: "Distribution solar", color: COLORS.dnSolar },
-  { key: "genmix_live.other_re", label: "Other renewables", color: COLORS.otherRe },
-  { key: "generation_mix.cogen", label: "Co-gen", color: COLORS.cogen },
-  { key: "generation_mix.oil", label: "Oil", color: COLORS.oil },
+  { key: "generation_mix.solar", label: "Transmission Solar", color: COLORS.gridSolar },
+  { key: "genmix_live.distribution_solar", label: "Distribution Solar", color: COLORS.dnSolar },
+  { key: "genmix_live.other_re", label: "Other RE", color: COLORS.otherRe },
+  { key: "generation_mix.cogen", label: "Co-Gen", color: COLORS.cogen },
+  { key: "generation_mix.oil", label: "Oil/DF", color: COLORS.oil },
 ];
 
 const instances = new Set();

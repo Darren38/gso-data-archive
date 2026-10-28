@@ -1,5 +1,15 @@
 # Changelog
 
+## 28 October 2026 (seventh update) — GSO Grid Archive 5.1
+
+Livelier headline numbers, and GSO's own words.
+
+- Every headline number now has a small colourful picture, in the spirit of GSO's own home page: a solar panel for solar, a power tower for demand, a battery for storage, a light bulb for the day's peak, a sun behind a cloud for the forecast, a clock for when the data was updated, and a flame, factory or water drop for whichever fuel is making the most electricity right now.
+- The pictures are drawn for this site (not copied from GSO) and work in light and dark mode.
+- On phones the picture sits above its label, and numbers such as "15,216 MW" now stay on one line.
+- The words now match GSO's own pages: "Current System Demand", "Current Solar Generation", "Current BESS Status", "Solar Profile", "Generation Mix", "System Availability", "Cross-Border Power Exchange (Tie-Line)", and GSO's series names Grid, Distribution, NEM, FiT, SELCO, Forecast, Transmission Solar, Distribution Solar, Co-Gen, Oil/DF and Other RE.
+- Each page has a short "Short forms used on this page" note explaining terms such as MW, MWh, BESS, NEM, FiT, SELCO, LSS, EGAT, HVDC and PLTG. It is open on computers and folded on phones (tap to open). The About page lists them all.
+
 ## 28 October 2026 (sixth update) — GSO Grid Archive 5.0
 
 A clearer dashboard that's quicker to read.

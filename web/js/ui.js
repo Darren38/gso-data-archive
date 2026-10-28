@@ -1,4 +1,5 @@
 // Shared UI helpers: formatting (always MYT), states, KPI cards, tables, range picker, CSV.
+import { ICONS } from "./icons.js";
 export const MYT_OFFSET_MS = 8 * 3600e3;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -57,9 +58,9 @@ export function card({ title, sub = "", desc = "", right = "", body = "", cls = 
   return `<section class="card ${cls}"><div class="card-h"><h2>${esc(title)}</h2>${sub ? `<span class="sub">${sub}</span>` : ""}${right ? `<div class="right">${right}</div>` : ""}</div>${desc ? `<p class="desc">${desc}</p>` : ""}<div class="card-b">${body}</div></section>`;
 }
 
-export function kpi({ label, value, unit = "", meta = "", cls = "", tag = "", big = false }) {
+export function kpi({ label, value, unit = "", meta = "", cls = "", tag = "", big = false, icon = "" }) {
   const v = value == null || value === "—" ? `<span class="na">Not available</span>` : `${value}${unit ? `<small>${esc(unit)}</small>` : ""}`;
-  return `<div class="card kpi ${cls} ${big ? "big" : ""}"><div class="label">${esc(label)} ${tag}</div><div class="value">${v}</div><div class="meta">${meta}</div></div>`;
+  return `<div class="card kpi ${cls} ${big ? "big" : ""}"><div class="label">${icon && ICONS[icon] ? `<span class="kpi-icon">${ICONS[icon]}</span>` : ""}<span>${esc(label)} ${tag}</span></div><div class="value">${v}</div><div class="meta">${meta}</div></div>`;
 }
 
 /** A section heading between groups of cards. */
@@ -182,4 +183,35 @@ export function pointsToCsv(payloads) {
   }
   rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   return lines.concat(rows.map((r) => r[1])).join("\n") + "\n";
+}
+
+/** Short forms used on the pages (GSO's own terms), explained in a few words. */
+export const SHORT_FORMS = {
+  GSO: "Grid System Operator, which runs Peninsular Malaysia's grid",
+  MW: "megawatt: power at one moment",
+  MWh: "megawatt-hour: energy over time (1 GWh = 1,000 MWh; 1 TWh = 1,000 GWh)",
+  "MW/min": "change in MW per minute",
+  MYT: "Malaysia time (UTC+8)",
+  Grid: "solar farms connected to the high-voltage transmission grid",
+  Distribution: "solar connected to the local distribution network",
+  NEM: "Net Energy Metering: rooftop solar that offsets the owner's bill (GSO estimate)",
+  FiT: "Feed-in Tariff: solar sold to the grid at a fixed price (GSO estimate)",
+  SELCO: "Self-Consumption: rooftop solar used on site (GSO estimate)",
+  LSS: "Large Scale Solar: big solar farms on GSO's solar map",
+  RE: "renewable energy; Other RE is biogas, biomass and mini hydro",
+  "Co-Gen": "co-generation: plants that make electricity and heat together",
+  "Oil/DF": "oil and distillate fuel",
+  BESS: "Battery Energy Storage System",
+  "Tie-Line": "power line linking Malaysia's grid with a neighbour's",
+  EGAT: "link with the Electricity Generating Authority of Thailand",
+  HVDC: "High-Voltage Direct Current link with Thailand",
+  PLTG: "Plentong link with Singapore",
+};
+
+/** A small side note explaining the short forms a page uses. */
+export function shortForms(keys) {
+  const items = keys.filter((k) => SHORT_FORMS[k]).map((k) => `<span><b>${esc(k)}</b> ${esc(SHORT_FORMS[k])}</span>`);
+  // Open on wide screens; on phones it starts folded so the charts stay near the top.
+  const open = typeof window !== "undefined" && window.innerWidth >= 700 ? " open" : "";
+  return items.length ? `<details class="shortforms"${open}><summary>Short forms used on this page</summary><div>${items.join("")}</div></details>` : "";
 }

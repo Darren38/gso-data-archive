@@ -1,6 +1,6 @@
 // About & Data Sources.
 import { MODE } from "../data.js";
-import { card, esc, h, verificationTag } from "../ui.js";
+import { SHORT_FORMS, card, esc, h, verificationTag } from "../ui.js";
 
 export async function render(main, { meta }) {
   main.appendChild(h(card({ title: "About this archive", body: `<div class="prose">
@@ -36,6 +36,9 @@ export async function render(main, { meta }) {
     <tr><th scope="row">This page</th><td style="white-space:normal">${MODE === "static" ? `Published ${esc(meta.generated_at ? new Date(meta.generated_at).toLocaleString("en-GB", { timeZone: "Asia/Kuala_Lumpur" }) : "")} MYT. Every visit checks for newer files.` : "Live from the archive."}</td></tr>
     </tbody></table></div>
     ${MODE === "static" && !meta.is_demo ? '<p><a class="btn primary" href="data/archive.sqlite3.gz" download>Download the whole archive (SQLite, gzip)</a> <span class="small muted">Every reading and every revision. Open with any SQLite tool.</span></p>' : ""}` })));
+  main.appendChild(h(card({ title: "Short forms", desc: "The terms GSO uses on its pages, which this site uses too.", body: `<div class="table-wrap"><table><tbody>
+    ${Object.entries(SHORT_FORMS).map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td style="white-space:normal">${esc(v)}</td></tr>`).join("")}
+    </tbody></table></div>` })));
   main.appendChild(h(card({ title: "Datasets", body: `<div class="table-wrap"><table><thead><tr><th>Dataset</th><th>Category</th><th>Source page</th><th>Verification</th><th>Notes</th></tr></thead><tbody>
     ${meta.datasets.map((d) => `<tr><td class="mono">${esc(d.key)}</td><td>${esc(d.category)}</td><td class="mono">${esc(d.source_url)}</td><td>${verificationTag(d.verification)}</td><td style="white-space:normal;min-width:320px">${esc(d.description)}${d.no_data_yet ? ' <span class="muted">(no data archived yet)</span>' : ""}</td></tr>`).join("")}
     </tbody></table></div>` })));

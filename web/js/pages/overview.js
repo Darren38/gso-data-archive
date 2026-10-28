@@ -1,8 +1,9 @@
 // Overview: a dashboard of the grid right now and today. Only archived GSO readings are shown, with their times.
 import { getPoints, getStatus } from "../data.js";
 import { COLORS, SOLAR_PARTS, FUELS, pieChart, timeChart } from "../charts.js";
+import { fuelIcon } from "../icons.js";
 import { extent, sumSeries } from "../analysis.js";
-import { card, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
+import { card, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
 
 export async function render(main, { meta, isCurrent }) {
   const by = Object.fromEntries(meta.series.map((s) => [s.key, s]));
@@ -27,29 +28,30 @@ export async function render(main, { meta, isCurrent }) {
   const biggest = fuels.slice().sort((a, b) => b.s.latest_value - a.s.latest_value)[0];
 
   main.appendChild(h(`<div class="grid kpis hero">
-    ${kpi({ big: true, cls: "solar", label: "☀ Solar right now", value: solarNow != null ? fmtNum(solarNow) : null, unit: "MW",
-      meta: solarAt ? `${partsNow ? "All solar incl. rooftop" : "Transmission solar"} · ${fmtTime(solarAt)} MYT` : "" })}
-    ${kpi({ big: true, cls: "demand", label: "⚡ Electricity demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
+    ${kpi({ big: true, cls: "solar", icon: "solar", label: "Current Solar Generation", value: solarNow != null ? fmtNum(solarNow) : null, unit: "MW",
+      meta: solarAt ? `${partsNow ? "Grid + Distribution + NEM + FiT + SELCO" : "Transmission Solar"} · ${fmtTime(solarAt)} MYT` : "" })}
+    ${kpi({ big: true, cls: "demand", icon: "demand", label: "Current System Demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
       meta: demand?.last ? `Peninsular Malaysia · ${fmtTime(demand.last)} MYT` : "" })}
-    ${kpi({ big: true, cls: "solar", label: "Solar covers", value: share != null ? fmtNum(share, 1) : null, unit: "%", meta: "of electricity demand right now" })}
-    ${kpi({ big: true, cls: "bess", label: "🔋 Battery storage", value: bess != null ? fmtNum(Math.abs(bess)) : null, unit: "MW",
-      meta: bess == null ? "" : bess > 0 ? "Supplying the grid" : bess < 0 ? "Charging from the grid" : "Idle" })}
+    ${kpi({ big: true, cls: "solar", icon: "share", label: "Solar Share of Demand", value: share != null ? fmtNum(share, 1) : null, unit: "%", meta: "Current Solar Generation ÷ System Demand" })}
+    ${kpi({ big: true, cls: "bess", icon: "battery", label: "Current BESS Status", value: bess != null ? fmtNum(Math.abs(bess)) : null, unit: "MW",
+      meta: bess == null ? "" : bess > 0 ? "Discharging to the grid" : bess < 0 ? "Charging from the grid" : "Idle" })}
   </div>`));
   const second = h('<div class="grid kpis"></div>');
   main.appendChild(second);
+  main.appendChild(h(shortForms(["MW", "MYT", "Grid", "Distribution", "NEM", "FiT", "SELCO", "BESS", "Co-Gen", "RE"])));
 
   // ---- today
   const today = mytDay(new Date());
   const start = mytDayStart(today), now = new Date();
-  const chartToday = h(card({ title: "Solar today vs GSO's forecast",
-    desc: "Each colour is one kind of solar, stacked so the top edge is all solar together. The dashed line is GSO's forecast for today.",
+  const chartToday = h(card({ title: "Solar Profile vs Forecast (today)",
+    desc: "Each colour is one kind of solar (Grid, Distribution, NEM, FiT, SELCO), stacked so the top edge is total solar. Dashed green line: GSO's Forecast.",
     body: '<div class="chart tall"></div>' }));
   main.appendChild(chartToday);
   const row = h('<div class="grid cols-2"></div>');
   main.appendChild(row);
-  const mixCard = h(card({ title: "Where electricity comes from now", desc: "Share of each fuel in generation at the latest reading.",
+  const mixCard = h(card({ title: "Generation Mix Now", desc: "Share of each fuel in generation at the latest reading.",
     body: '<div class="chart"></div>' }));
-  const demCard = h(card({ title: "Demand today vs yesterday", desc: "Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
+  const demCard = h(card({ title: "System Demand: Today vs Yesterday", desc: "Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
   row.append(mixCard, demCard);
 
   try {
@@ -67,15 +69,15 @@ export async function render(main, { meta, isCurrent }) {
     const peak = extent(totalToday).max;
     const fcPeak = fcPts ? extent(fcPts.points).max : null;
     second.innerHTML = [
-      kpi({ cls: "solar", label: "Today's solar peak so far", value: peak ? fmtNum(peak[1]) : null, unit: "MW", meta: peak ? `at ${fmtTime(peak[0])} MYT` : "" }),
-      kpi({ cls: "forecast", label: "GSO forecast peak today", value: fcPeak ? fmtNum(fcPeak[1]) : null, unit: "MW", meta: fcPeak ? `expected at ${fmtTime(fcPeak[0])} MYT` : "" }),
-      kpi({ label: "Biggest source now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.s.latest_value) / fuelTotal, 0)}% of generation · ${fmtNum(biggest.s.latest_value)} MW` : "" }),
-      kpi({ label: "Data updated", value: solarAt ? fmtAge(ageOf(solarAt)) : null, meta: `Collected from GSO automatically · <a href="#/status">status</a>` }),
+      kpi({ cls: "solar", icon: "peak", label: "Today's Solar Peak", value: peak ? fmtNum(peak[1]) : null, unit: "MW", meta: peak ? `at ${fmtTime(peak[0])} MYT` : "" }),
+      kpi({ cls: "forecast", icon: "forecast", label: "Solar Forecast Peak", value: fcPeak ? fmtNum(fcPeak[1]) : null, unit: "MW", meta: fcPeak ? `expected at ${fmtTime(fcPeak[0])} MYT` : "" }),
+      kpi({ icon: biggest ? fuelIcon(biggest.key) : "plant", label: "Largest Source Now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.s.latest_value) / fuelTotal, 0)}% of generation · ${fmtNum(biggest.s.latest_value)} MW` : "" }),
+      kpi({ icon: "clock", label: "Last Updated", value: solarAt ? fmtAge(ageOf(solarAt)) : null, meta: `Collected from GSO automatically · <a href="#/status">status</a>` }),
     ].join("");
 
     const series = partPts.map((p, i) => ({ name: SOLAR_PARTS[i].label, points: p.points, color: SOLAR_PARTS[i].color, area: true, areaOpacity: 0.85, stack: "solar", width: 0.6 }));
-    if (!series.length && solarPts) series.push({ name: "Transmission solar", points: solarPts.points, color: COLORS.solar, area: true });
-    if (fcPts) series.push({ name: "GSO forecast", points: fcPts.points, color: COLORS.forecast, dashed: true, width: 2 });
+    if (!series.length && solarPts) series.push({ name: "Transmission Solar", points: solarPts.points, color: COLORS.solar, area: true });
+    if (fcPts) series.push({ name: "Forecast", points: fcPts.points, color: COLORS.forecast, dashed: true, width: 2 });
     if (series.some((s) => s.points.some((p) => p[1] != null))) timeChart(chartToday.querySelector(".chart"), { series, demo: meta.is_demo, markNow: true });
     else chartToday.querySelector(".card-b").innerHTML = emptyState("No solar readings yet today", "Solar starts after sunrise (about 7:00 MYT).", "☀");
 

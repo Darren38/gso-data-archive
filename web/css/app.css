@@ -118,7 +118,12 @@ main, .page { padding: 20px 24px 32px; display: flex; flex-direction: column; ga
 .chart.tall { height: 400px; } .chart.short { height: 240px; }
 
 .kpi { padding: 14px 16px; position: relative; overflow: hidden; }
-.kpi .label { color: var(--text-2); font-size: 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.kpi .label { color: var(--text-2); font-size: 14px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
+.kpi-icon { flex: none; width: 42px; height: 42px; padding: 5px; border-radius: 12px; display: inline-flex; background: color-mix(in srgb, var(--text) 6%, transparent); }
+.kpi-icon svg { width: 100%; height: 100%; }
+.kpi.big .kpi-icon { width: 50px; height: 50px; padding: 6px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .kpi-icon { background: color-mix(in srgb, var(--text) 14%, transparent); } }
+:root[data-theme="dark"] .kpi-icon { background: color-mix(in srgb, var(--text) 14%, transparent); }
 .kpi .value { font-size: 30px; font-weight: 700; letter-spacing: -.4px; margin-top: 4px; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .kpi.big .value { font-size: 40px; }
 .kpi.big .label { font-size: 15px; }
@@ -129,6 +134,11 @@ main, .page { padding: 20px 24px 32px; display: flex; flex-direction: column; ga
 .kpi.bess { border-top: 3px solid #00C853; }
 .kpi.forecast { border-top: 3px solid #23AF4E; }
 .hero .kpi { padding: 16px 18px; }
+.shortforms { padding: 10px 14px; border-left: 3px solid var(--border);
+  background: color-mix(in srgb, var(--text) 4%, transparent); border-radius: 8px; color: var(--text-2); font-size: 13px; line-height: 1.45; }
+.shortforms summary { color: var(--text); font-weight: 600; cursor: pointer; }
+.shortforms > div { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
+.shortforms b { color: var(--text); }
 .health-line { margin: 4px 2px 0; color: var(--text-2); font-size: 14px; }
 .kpi .na { color: var(--text-3); font-size: 15px; font-weight: 500; }
 
@@ -194,7 +204,10 @@ td.num, th.num { text-align: right; }
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .kpi { padding: 12px; }
   .kpi .value { font-size: 23px; }
-  .kpi.big .value { font-size: 27px; }
+  .kpi.big .value { font-size: 25px; }
+  .kpi .value small { font-size: 13px; margin-left: 3px; }
+  .kpi-icon, .kpi.big .kpi-icon { width: 36px; height: 36px; padding: 4px; border-radius: 10px; }
+  .kpi .label { flex-direction: column; align-items: flex-start; gap: 6px; }
   .hero .kpi { padding: 12px; }
   .span-2 { grid-column: auto; }
   .chart { height: 300px; } .chart.tall { height: 440px; }

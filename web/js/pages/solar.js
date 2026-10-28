@@ -4,7 +4,7 @@ import { COLORS, FUELS, SOLAR_PARTS, categoryChart, profileChart, timeChart } fr
 import { combine, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
 import {
   addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtNum, fmtTime,
-  freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, verificationTag,
+  freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, verificationTag,
 } from "../ui.js";
 
 const RAW_LIMIT_DAYS = 370;
@@ -105,30 +105,31 @@ export async function render(main, { meta, isCurrent }) {
 
     body.innerHTML = "";
     body.appendChild(h(`<div class="grid kpis">
-      ${kpi({ big: true, label: "☀ Latest reading", cls: "solar", value: p.latest_value != null ? fmtNum(p.latest_value) : null, unit: "MW",
+      ${kpi({ big: true, icon: "solar", label: "Current Solar Generation", cls: "solar", value: p.latest_value != null ? fmtNum(p.latest_value) : null, unit: "MW",
         meta: p.last ? `Observed ${fmtDateTime(p.last)} MYT` : "No readings yet" })}
-      ${kpi({ big: true, label: "Highest in this period", cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
+      ${kpi({ big: true, icon: "peak", label: "Peak Solar Generation", cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
         meta: peakDay ? `${fmtDate(peakDay.max_time)} at ${fmtTime(peakDay.max_time)}` : "" })}
-      ${kpi({ label: "Energy in this period", cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
-        meta: "Worked out from the readings (MW × hours)" })}
-      ${kpi({ label: "Fastest rise", value: rampExt.max ? `+${fmtNum(rampExt.max[1], 1)}` : null, unit: "MW/min",
+      ${kpi({ icon: "energy", label: "Solar Energy", cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
+        meta: "In this period, worked out from the readings" })}
+      ${kpi({ icon: "rise", label: "Fastest Ramp-Up", value: rampExt.max ? `+${fmtNum(rampExt.max[1], 1)}` : null, unit: "MW/min",
         meta: rampExt.min ? `Fastest fall ${fmtNum(rampExt.min[1], 1)} MW/min` : rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps" })}
-      ${kpi({ label: "Most of demand covered", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",
+      ${kpi({ icon: "share", label: "Peak Solar Share", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",
         meta: shareExt.max ? `${fmtDateTime(shareExt.max[0])} MYT` : demand ? "Needs overlapping demand data" : "Demand not archived" })}
-      ${kpi({ label: "Readings collected", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Expected ${rows[0] ? rows[0].expected : "—"} readings/day` })}
+      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Expected ${rows[0] ? rows[0].expected : "—"} readings/day` })}
     </div>`));
+    body.appendChild(h(shortForms(["MW", "MWh", "MW/min", "MYT", "Grid", "Distribution", "NEM", "FiT", "SELCO", "LSS"])));
 
     // ---- GSO Solar page: solar by connection, with GSO's forecast
     const profileTotal = prof.length === 5 ? sumSeries(prof.map((x) => x.points)) : [];
-    const gsoCard = h(card({ title: "Solar output by type",
+    const gsoCard = h(card({ title: "Solar Profile",
       sub: "From GSO's Solar page",
-      desc: "Each colour is one kind of solar, stacked so the top edge is all solar together. Large farms and local-network solar are measured; the three rooftop types are GSO's estimates. Dashed green line: GSO's forecast.",
+      desc: "Each colour is one kind of solar, stacked so the top edge is total solar. Grid and Distribution are measured; NEM, FiT and SELCO are GSO's estimates. Dashed green line: GSO's Forecast.",
       body: '<div class="chart tall"></div>' }));
     body.appendChild(gsoCard);
     if (prof.length && prof.some((x) => x.points.some((q) => q[1] != null))) {
       const part = (k) => SOLAR_PARTS.find((x) => x.key === k) || { label: k, color: COLORS.solar };
       const series = prof.map((x, i) => ({ name: part(PROFILE[i].key).label, points: x.points, color: part(PROFILE[i].key).color, area: true, areaOpacity: 0.85, stack: "gso", width: 0.6 }));
-      if (fc.length) series.push({ name: "GSO forecast", points: fc[0].points, color: COLORS.forecast, dashed: true, width: 2 });
+      if (fc.length) series.push({ name: "Forecast", points: fc[0].points, color: COLORS.forecast, dashed: true, width: 2 });
       timeChart(gsoCard.querySelector(".chart"), { series, demo });
     } else {
       gsoCard.querySelector(".card-b").innerHTML = emptyState(rawOk ? "No readings from GSO's Solar page in this range" : "Shorten the range",
@@ -136,7 +137,7 @@ export async function render(main, { meta, isCurrent }) {
     }
 
     // ---- main time-series
-    const main1 = h(card({ title: "Solar compared with demand", cls: "", desc: current.overlay && dem ? "Yellow area: solar (left scale). Blue line: how much electricity the country is using (right scale). Breaks mean no reading, never zero." : "Yellow area: solar output. Breaks mean no reading, never zero.", sub: rawOk ? `${fmtNum(points.filter((x) => x[1] != null).length)} readings · gaps shown as breaks` : "",
+    const main1 = h(card({ title: "Solar Generation vs System Demand", cls: "", desc: current.overlay && dem ? "Yellow area: solar (left scale). Blue line: System Demand, the electricity Peninsular Malaysia is using (right scale). Breaks mean no reading, never zero." : "Yellow area: solar generation. Breaks mean no reading, never zero.", sub: rawOk ? `${fmtNum(points.filter((x) => x[1] != null).length)} readings · gaps shown as breaks` : "",
       right: `<button class="btn" data-act="csv">CSV</button>${exportUrl([p.key], range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl([p.key, ...(demand ? [demand.key] : [])], range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
       body: rawOk ? '<div class="chart tall"></div>' : `<div class="notice">The selected range is ${days} days. Raw readings are charted for ranges up to ${RAW_LIMIT_DAYS} days; daily statistics are shown below.</div>` }));
     body.appendChild(main1);
@@ -146,7 +147,7 @@ export async function render(main, { meta, isCurrent }) {
       comps.forEach((c, i) => series.push({ name: others[i].name, points: c.points, color: palette[i % palette.length], width: 1.4 }));
       // GSO's forecast is for total solar (incl. rooftop); it is compared with the matching total in the cards below.
       const yAxes = [{ name: "MW" }];
-      if (current.overlay && dem) { series.push({ name: "Electricity demand", points: dem.points, color: COLORS.demand, yAxisIndex: 1, width: 1.6 }); yAxes.push({ name: "Demand MW" }); }
+      if (current.overlay && dem) { series.push({ name: "System Demand", points: dem.points, color: COLORS.demand, yAxisIndex: 1, width: 1.6 }); yAxes.push({ name: "Demand MW" }); }
       if (points.every((x) => x[1] == null)) main1.querySelector(".card-b").innerHTML = emptyState("No solar readings in this range", "Try a different range. Gaps are never filled with zero.");
       else timeChart(main1.querySelector(".chart"), { series, yAxes, demo });
       main1.querySelector('[data-act="csv"]').addEventListener("click", () => {
@@ -159,7 +160,7 @@ export async function render(main, { meta, isCurrent }) {
     // ---- daily peak & energy + share
     const row2 = h('<div class="grid cols-2"></div>');
     body.appendChild(row2);
-    const dailyCard = h(card({ title: "Each day's peak and energy", desc: "Bars: the highest solar output each day. Line: total solar energy that day (MWh).", body: '<div class="chart"></div>' }));
+    const dailyCard = h(card({ title: "Daily Peak & Energy", desc: "Bars: the highest solar output each day. Line: total solar energy that day (MWh).", body: '<div class="chart"></div>' }));
     row2.appendChild(dailyCard);
     if (withData.length) {
       categoryChart(dailyCard.querySelector(".chart"), {
@@ -173,7 +174,7 @@ export async function render(main, { meta, isCurrent }) {
       });
     } else dailyCard.querySelector(".card-b").innerHTML = emptyState("No daily statistics in this range");
 
-    const shareCard = h(card({ title: "How much of demand solar covers", desc: "Solar as a percentage of electricity demand at the same moment. Higher means more of the country runs on sunshine.", body: '<div class="chart"></div>' }));
+    const shareCard = h(card({ title: "Solar Share of System Demand", desc: "Solar as a percentage of System Demand at the same moment. Higher means more of the country runs on sunshine.", body: '<div class="chart"></div>' }));
     row2.appendChild(shareCard);
     if (share.some((x) => x[1] != null)) timeChart(shareCard.querySelector(".chart"), { series: [{ name: "Solar share", points: share, color: COLORS.solar, area: true, unit: "%" }], yAxes: [{ name: "%", digits: 0 }], demo, unit: "%", digits: 1 });
     else shareCard.querySelector(".card-b").innerHTML = emptyState(rawOk ? "Not enough overlapping data" : "Range too long", demand ? "Needs solar and demand readings at the same timestamps." : "System demand has not been archived yet.");
@@ -182,12 +183,12 @@ export async function render(main, { meta, isCurrent }) {
     const row4 = h('<div class="grid cols-2"></div>');
     body.appendChild(row4);
     const actualForFc = profileTotal.some((q) => q[1] != null) ? profileTotal : points;
-    const fcCard = h(card({ title: "Did GSO's forecast get it right?", desc: "Yellow: what solar actually produced (all types together). Dashed green: what GSO forecast. The closer they are, the better the forecast.", sub: "", body: '<div class="chart"></div><div class="stat-row fc-stats" style="margin-top:8px"></div>' }));
+    const fcCard = h(card({ title: "Forecast vs Actual", desc: "Yellow: actual solar (Grid + Distribution + NEM + FiT + SELCO). Dashed green: GSO's Forecast. The closer they are, the better the forecast.", sub: "", body: '<div class="chart"></div><div class="stat-row fc-stats" style="margin-top:8px"></div>' }));
     row4.appendChild(fcCard);
     if (fc.length && fc[0].points.length) {
       timeChart(fcCard.querySelector(".chart"), { demo, series: [
-        { name: "Actual solar", points: actualForFc, color: COLORS.solar, area: true },
-        { name: "GSO forecast", points: fc[0].points, color: COLORS.forecast, dashed: true, width: 2 },
+        { name: "Actual", points: actualForFc, color: COLORS.solar, area: true },
+        { name: "Forecast", points: fc[0].points, color: COLORS.forecast, dashed: true, width: 2 },
       ] });
       const err = forecastError(actualForFc, fc[0].points);
       fcCard.querySelector(".fc-stats").innerHTML = err
@@ -198,7 +199,7 @@ export async function render(main, { meta, isCurrent }) {
         "GSO's Solar page publishes today's forecast; the archive keeps each day's forecast from when collection started.", "◌");
     }
 
-    const tdCard = h(card({ title: "Large farms vs local-network solar", desc: "Large farms send power over the high-voltage grid; smaller ones feed the local network near homes and businesses.", body: '<div class="chart"></div>' }));
+    const tdCard = h(card({ title: "Grid vs Distribution Solar", desc: "Grid: solar farms on the high-voltage transmission grid. Distribution: smaller solar feeding the local network near homes and businesses.", body: '<div class="chart"></div>' }));
     row4.appendChild(tdCard);
     const txi = PROFILE.findIndex((s) => s.key === "solar_profile.grid"), dxi = PROFILE.findIndex((s) => s.key === "solar_profile.distribution");
     if (rawOk && txi >= 0 && dxi >= 0 && prof[txi].points.some((q) => q[1] != null)) {
@@ -222,7 +223,7 @@ export async function render(main, { meta, isCurrent }) {
                  pct: cap ? (100 * s.latest_value) / cap : null, last: s.last, key: s.key };
       }).sort((a, b) => (b.mw ?? -1) - (a.mw ?? -1));
       const totalMw = rows2.reduce((t, r) => t + (r.mw || 0), 0), totalCap = rows2.reduce((t, r) => t + (r.cap || 0), 0);
-      const farmCard = h(card({ title: "Solar farms right now", desc: "Every large solar farm on GSO's map, biggest output first. \"Of capacity\" shows how hard each farm is working.",
+      const farmCard = h(card({ title: "LSS Solar Farms Now", desc: "Every solar farm on GSO's solar map, highest output first. \"Of capacity\" shows how hard each farm is working.",
         sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity · ${rows2[0].last ? fmtDateTime(rows2[0].last) + " MYT" : ""}`,
         body: '<div class="tbl"></div>' }));
       body.appendChild(farmCard);
@@ -240,12 +241,12 @@ export async function render(main, { meta, isCurrent }) {
     // ---- ramps & profiles
     const row3 = h('<div class="grid cols-2"></div>');
     body.appendChild(row3);
-    const rampCard = h(card({ title: "How fast solar rises and falls", desc: "Above zero: output rising (morning, clouds clearing). Below zero: falling (clouds, sunset). MW per minute.", body: '<div class="chart"></div>' }));
+    const rampCard = h(card({ title: "Ramp Rate", desc: "Above zero: output rising (morning, clouds clearing). Below zero: falling (clouds, sunset). MW per minute.", body: '<div class="chart"></div>' }));
     row3.appendChild(rampCard);
     if (rampPts.some((x) => x[1] != null)) timeChart(rampCard.querySelector(".chart"), { series: [{ name: "Ramp", points: rampPts, color: COLORS.solar3, type: "bar", unit: "MW/min" }], yAxes: [{ name: "MW/min", digits: 1 }], demo, unit: "MW/min", digits: 2 });
     else rampCard.querySelector(".card-b").innerHTML = emptyState(rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps");
 
-    const profCard = h(card({ title: "Shape of the day", desc: "Solar output by time of day. The darkest, thickest line is the most recent.", sub: days <= 10 ? "One line per day" : days <= 92 ? "One line per ISO week" : "One line per month", body: '<div class="chart"></div>' }));
+    const profCard = h(card({ title: "Daily Profile", desc: "Solar generation by time of day. The darkest, thickest line is the most recent.", sub: days <= 10 ? "One line per day" : days <= 92 ? "One line per ISO week" : "One line per month", body: '<div class="chart"></div>' }));
     row3.appendChild(profCard);
     if (rawOk && points.some((x) => x[1] != null)) {
       const groupKey = days <= 10 ? (d) => d : days <= 92 ? (d) => { const r = rollup([{ date: d, count: 0, completeness: 0 }], "week"); return r[0].period; } : (d) => d.slice(0, 7);
@@ -255,7 +256,7 @@ export async function render(main, { meta, isCurrent }) {
     } else profCard.querySelector(".card-b").innerHTML = emptyState(rawOk ? "No readings" : "Shorten the range to see profiles");
 
     // ---- period comparison
-    const cmp = h(card({ title: "Compare days, weeks, months or years", desc: "Pick a period to see its highest output (bars) and total energy (line).",
+    const cmp = h(card({ title: "Period Comparison", desc: "Pick a period to see its highest output (bars) and total energy (line).",
       right: '<div class="seg" role="group" aria-label="Period">' + ["day", "week", "month", "year"].map((x) => `<button type="button" data-period="${x}" aria-pressed="${x === (days > 120 ? "month" : days > 31 ? "week" : "day")}">${x[0].toUpperCase() + x.slice(1)}</button>`).join("") + "</div>",
       body: '<div class="chart short"></div><div class="tbl" style="margin-top:10px"></div>' }));
     body.appendChild(cmp);
@@ -289,7 +290,7 @@ export async function render(main, { meta, isCurrent }) {
     drawCmp(["day", "week", "month", "year"].includes(getParam("period")) ? getParam("period") : defaultPeriod);
 
     // ---- completeness + table
-    const tbl = h(card({ title: "Daily figures", sub: "Malaysia time", desc: "One row per day. Darker cells in the strip mean more of that day's readings were collected.",
+    const tbl = h(card({ title: "Daily Statistics", sub: "Malaysia time", desc: "One row per day. Darker cells in the strip mean more of that day's readings were collected.",
       right: `<button class="btn" data-act="dcsv">Download CSV</button>`,
       body: `<div class="strip" aria-label="Daily completeness">${rows.map((r) => `<span title="${r.date}: ${fmtNum(r.completeness * 100, 0)}% complete" style="background:${r.count ? `color-mix(in srgb, ${getComputedStyle(document.documentElement).getPropertyValue("--solar")} ${Math.round(25 + r.completeness * 75)}%, transparent)` : ""}"></span>`).join("")}</div>
              <p class="small muted">Each cell is one day; empty cells mean no archived readings (not zero output).</p><div class="tbl"></div>` }));

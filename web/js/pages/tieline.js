@@ -2,9 +2,10 @@
 import { getPoints, exportUrl } from "../data.js";
 import { COLORS, timeChart } from "../charts.js";
 import { sumSeries, extent } from "../analysis.js";
-import { addDays, card, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker } from "../ui.js";
+import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker } from "../ui.js";
 
 const LINE_COLOR = { tieline_egat: COLORS.egat, tieline_hvdc: COLORS.hvdc, tieline_pltg: COLORS.pltg };
+const LINE_NAME = { tieline_egat: "EGAT (Thailand)", tieline_hvdc: "HVDC (Thailand)", tieline_pltg: "PLTG (Singapore)" };
 
 export async function render(main, { meta, isCurrent }) {
   const lines = meta.series.filter((s) => s.category === "tieline");
@@ -28,20 +29,21 @@ export async function render(main, { meta, isCurrent }) {
       body.innerHTML = "";
       body.appendChild(h(`<div class="grid kpis">${lines.map((s, i) => {
         const e = extent(pts[i].points);
-        return kpi({ label: s.dataset.replace("tieline_", "").toUpperCase(), value: s.latest_value != null ? fmtNum(s.latest_value) : null, unit: "MW",
+        return kpi({ icon: "exchange", label: LINE_NAME[s.dataset] || s.dataset.replace("tieline_", "").toUpperCase(), value: s.latest_value != null ? fmtNum(s.latest_value) : null, unit: "MW",
           meta: `${s.last ? fmtDateTime(s.last) + " MYT" : ""}${e.max ? ` · range ${fmtNum(e.min[1])} to ${fmtNum(e.max[1])} MW` : ""}` });
       }).join("")}</div>`));
-      const c1 = h(card({ title: "Power lines to neighbours", sub: "MW as published", desc: "Flow on the links to Thailand (EGAT, HVDC) and Singapore (PLTG). GSO publishes a reading every 30 minutes.",
+      body.appendChild(h(shortForms(["Tie-Line", "EGAT", "HVDC", "PLTG", "MW", "MYT"])));
+      const c1 = h(card({ title: "Tie-Line Flows", sub: "MW as published", desc: "Power on the links to Thailand (EGAT, HVDC) and Singapore (PLTG). GSO publishes a reading every 30 minutes.",
         right: `<button class="btn" data-a="csv">CSV</button>${exportUrl(lines.map((s) => s.key), range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl(lines.map((s) => s.key), range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);
       if (pts.some((p) => p.points.some((x) => x[1] != null))) {
-        timeChart(c1.querySelector(".chart"), { demo: meta.is_demo, series: pts.map((p, i) => ({ name: lines[i].name, points: p.points, color: LINE_COLOR[lines[i].dataset] || COLORS.other })) });
+        timeChart(c1.querySelector(".chart"), { demo: meta.is_demo, series: pts.map((p, i) => ({ name: LINE_NAME[lines[i].dataset] || lines[i].name, points: p.points, color: LINE_COLOR[lines[i].dataset] || COLORS.other })) });
       } else c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
       c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`tieline_${range.startDay}_${range.endDay}.csv`, pointsToCsv(pts)));
 
       const th = lines.map((s, i) => [s, pts[i]]).filter(([s]) => s.dataset === "tieline_egat" || s.dataset === "tieline_hvdc");
-      const c2 = h(card({ title: "Total flow with Thailand", desc: "The two Thailand links added together (EGAT + HVDC).", body: '<div class="chart"></div>' }));
+      const c2 = h(card({ title: "Net Exchange with Thailand", desc: "The two Thailand links added together (EGAT + HVDC).", body: '<div class="chart"></div>' }));
       body.appendChild(c2);
       if (th.length === 2) timeChart(c2.querySelector(".chart"), { demo: meta.is_demo, series: [{ name: "Net (EGAT + HVDC)", points: sumSeries(th.map(([, p]) => p.points)), color: COLORS.net, area: true }] });
       else c2.querySelector(".card-b").innerHTML = emptyState("Needs both EGAT and HVDC readings");

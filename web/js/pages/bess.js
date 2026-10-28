@@ -2,7 +2,7 @@
 import { getDaily, getPoints, exportUrl } from "../data.js";
 import { COLORS, categoryChart, timeChart } from "../charts.js";
 import { sumSeries } from "../analysis.js";
-import { addDays, card, downloadText, emptyState, errorState, esc, fmtDateTime, fmtEnergy, fmtNum, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
+import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtEnergy, fmtNum, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
 
 const BESS_GREEN = COLORS.bessDischarge, BESS_PINK = COLORS.bessCharge;
 
@@ -37,33 +37,34 @@ export async function render(main, { meta, isCurrent }) {
       const latestNet = dis && chg && dis.latest_value != null && chg.latest_value != null ? dis.latest_value + chg.latest_value : null;
       body.innerHTML = "";
       body.appendChild(h(`<div class="grid kpis">
-        ${kpi({ big: true, cls: "bess", label: "🔋 Battery now", value: latestNet != null ? fmtNum(Math.abs(latestNet)) : null, unit: "MW", meta: dis?.last ? `${latestNet > 0 ? "Supplying the grid" : latestNet < 0 ? "Charging from the grid" : "Idle"} · ${fmtDateTime(dis.last)} MYT` : "" })}
-        ${kpi({ label: "Supplying now", value: dis && dis.latest_value != null ? fmtNum(dis.latest_value) : null, unit: "MW" })}
-        ${kpi({ label: "Charging now", value: chg && chg.latest_value != null ? fmtNum(Math.abs(chg.latest_value)) : null, unit: "MW" })}
-        ${kpi({ label: "Battery ready to run", value: avail && avail.latest_value != null ? fmtNum(avail.latest_value) : null, unit: "MW", meta: avail?.last ? `${fmtDateTime(avail.last)} MYT` : "" })}
-        ${kpi({ label: "Energy supplied", value: disDaily.some((r) => r.count) ? fmtEnergy(energyOut) : null, meta: "In this period" })}
-        ${kpi({ label: "Energy stored", value: chgDaily.some((r) => r.count) ? fmtEnergy(energyIn) : null, meta: "In this period" })}
+        ${kpi({ big: true, cls: "bess", icon: "battery", label: "Current BESS Status", value: latestNet != null ? fmtNum(Math.abs(latestNet)) : null, unit: "MW", meta: dis?.last ? `${latestNet > 0 ? "Discharging" : latestNet < 0 ? "Charging" : "Idle"} · ${fmtDateTime(dis.last)} MYT` : "" })}
+        ${kpi({ icon: "battery", label: "BESS Discharge", value: dis && dis.latest_value != null ? fmtNum(dis.latest_value) : null, unit: "MW" })}
+        ${kpi({ icon: "battery", label: "BESS Charge", value: chg && chg.latest_value != null ? fmtNum(Math.abs(chg.latest_value)) : null, unit: "MW" })}
+        ${kpi({ icon: "plant", label: "BESS Availability", value: avail && avail.latest_value != null ? fmtNum(avail.latest_value) : null, unit: "MW", meta: avail?.last ? `${fmtDateTime(avail.last)} MYT` : "" })}
+        ${kpi({ icon: "energy", label: "Energy Discharged", value: disDaily.some((r) => r.count) ? fmtEnergy(energyOut) : null, meta: "In this period" })}
+        ${kpi({ icon: "energy", label: "Energy Charged", value: chgDaily.some((r) => r.count) ? fmtEnergy(energyIn) : null, meta: "In this period" })}
       </div>`));
+      body.appendChild(h(shortForms(["BESS", "MW", "MWh", "MYT"])));
       const xl = exportUrl(keys.map((s) => s.key), range.startDay, range.endDay, "xlsx");
-      const c1 = h(card({ title: "Battery supplying and charging", desc: "Green above zero: batteries supplying the grid. Pink below zero: batteries charging. Dark line: the two together.", sub: verificationTag(dis?.verification || chg?.verification),
+      const c1 = h(card({ title: "BESS Discharge & Charge", desc: "Green above zero: discharge (batteries supplying the grid). Pink below zero: charge. Dark line: Net, the two together.", sub: verificationTag(dis?.verification || chg?.verification),
         right: `<button class="btn" data-a="csv">CSV</button>${xl ? `<a class="btn" href="${esc(xl)}">Excel</a>` : ""}`, body: '<div class="chart tall"></div>' }));
       body.appendChild(c1);
       if (pts.some((p) => p.points.some((q) => q[1] != null))) {
         const series = [];
-        if (dis) series.push({ name: "Supplying (discharge)", points: pts[0].points, color: BESS_GREEN, area: true, areaOpacity: 0.45 });
-        if (chg) series.push({ name: "Charging", points: pts[keys.indexOf(chg)].points, color: BESS_PINK, area: true, areaOpacity: 0.45 });
+        if (dis) series.push({ name: "Discharge", points: pts[0].points, color: BESS_GREEN, area: true, areaOpacity: 0.45 });
+        if (chg) series.push({ name: "Charge", points: pts[keys.indexOf(chg)].points, color: BESS_PINK, area: true, areaOpacity: 0.45 });
         if (pts.length === 2) series.push({ name: "Net", points: net, color: COLORS.net, width: 1.6 });
         timeChart(c1.querySelector(".chart"), { series, demo: meta.is_demo });
       } else c1.querySelector(".card-b").innerHTML = emptyState("No BESS readings in this range");
       c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`bess_${range.startDay}_${range.endDay}.csv`, pointsToCsv(pts)));
       if (disDaily.length) {
-        const c2 = h(card({ title: "Energy per day", desc: "Green: energy the batteries supplied each day. Pink: energy they stored (MWh).", body: '<div class="chart short"></div>' }));
+        const c2 = h(card({ title: "Daily BESS Energy", desc: "Green: energy discharged each day. Pink: energy charged (MWh).", body: '<div class="chart short"></div>' }));
         body.appendChild(c2);
         if (disDaily.some((r) => r.count) || chgDaily.some((r) => r.count)) {
           categoryChart(c2.querySelector(".chart"), { categories: disDaily.map((r) => r.date.slice(5)), demo: meta.is_demo, yAxes: [{ name: "MWh" }],
             series: [
-              { name: "Supplied", data: disDaily.map((r) => r.energy_mwh), color: BESS_GREEN, unit: "MWh" },
-              { name: "Stored", data: chgDaily.map((r) => (r.energy_mwh == null ? null : Math.abs(r.energy_mwh))), color: BESS_PINK, unit: "MWh" },
+              { name: "Discharged", data: disDaily.map((r) => r.energy_mwh), color: BESS_GREEN, unit: "MWh" },
+              { name: "Charged", data: chgDaily.map((r) => (r.energy_mwh == null ? null : Math.abs(r.energy_mwh))), color: BESS_PINK, unit: "MWh" },
             ] });
         } else c2.querySelector(".card-b").innerHTML = emptyState("No daily totals yet");
       }

@@ -1,6 +1,6 @@
 # Status: facts, limitations, next steps
 
-Status as of 28 October 2026 (GSO Grid Archive 5.0).
+Status as of 28 October 2026 (GSO Grid Archive 5.1).
 
 ## What is working
 
