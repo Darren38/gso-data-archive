@@ -39,12 +39,27 @@ def _pick_day(count: int, ref: datetime) -> date:
     return local.date() - timedelta(days=1) if count > slot + 2 else local.date()
 
 
+def _reading_time(ctx: dict) -> datetime:
+    """When the newest solar reading was taken: GSO's "last available", but never later than the real clock
+    (rounded down to GSO's 10-minute steps), because before sunrise GSO's answer is 07:00 of the coming morning."""
+    t = ctx["last_available"]
+    now = ctx.get("now")
+    if now is not None:
+        now = now.astimezone(MYT)
+        step = now.replace(minute=now.minute - now.minute % SLOT_MINUTES, second=0, microsecond=0)
+        t = min(t, step)
+    return t
+
+
 def _slot(day: date, index: int) -> datetime:
     return (datetime(day.year, day.month, day.day, tzinfo=MYT) + timedelta(minutes=SLOT_MINUTES * index)).astimezone(UTC)
 
 
 def parse_last_available(d: object) -> datetime:
-    """Solar.aspx/GetLastAvailableData: "2026-10-28 13:30|28/10/2026 13:30" (time of the newest solar reading)."""
+    """Solar.aspx/GetLastAvailableData: "2026-10-28 13:30|28/10/2026 13:30" (time of the newest solar reading).
+
+    Before sunrise GSO answers 07:00 of the day, a time still in the future (seen at 00:32 on 29 Oct 2026:
+    "2026-10-29 07:00"; GSO's Solar.v19.js compares it with 07:00 too). Use `_reading_time` to date readings."""
     if not isinstance(d, str) or "|" not in d:
         raise SchemaError(f"unexpected last-available answer: {d!r}")
     return datetime.strptime(d.split("|")[0].strip(), "%Y-%m-%d %H:%M").replace(tzinfo=MYT)
@@ -79,7 +94,7 @@ def _solar_actual(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     lists = [_values(p) for p in parts[:5]]
     if len({len(x) for x in lists}) != 1:
         raise SchemaError(f"solar series have different lengths: {[len(x) for x in lists]}")
-    day = _pick_day(len(lists[0]), ctx["last_available"])
+    day = _pick_day(len(lists[0]), _reading_time(ctx))
     out = ParsedPayload(signature=f"solar_actual:{len(parts)} parts")
     for (series, source), values in zip(SOLAR_PARTS, lists):
         _series(spec, out, values, day, series, source, quality="estimate" if series in ("nem", "fit", "selco") else None)
@@ -96,7 +111,8 @@ def _solar_forecast(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     parts = d.split("$")
     values = _values(parts[0])
     out = ParsedPayload(signature=f"solar_forecast:{len(parts)} parts,{len(values)} values")
-    ref = ctx["last_available"].astimezone(MYT)
+    # GSO's forecast is for today. The day comes from the real clock (GSO's "last available" reads 07:00 at night).
+    ref = (ctx.get("now") or ctx["last_available"]).astimezone(MYT)
     minutes = ref.hour * 60 + ref.minute
     if len(values) != 24 * 60 // SLOT_MINUTES:
         raise SchemaError(f"forecast has {len(values)} values, expected 144")
@@ -175,7 +191,7 @@ def _solar_farms(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     if not isinstance(d, str):
         raise SchemaError("solar map answer is not text")
     rows = [r.strip() for r in d.split("$") if r.strip()]
-    t = ctx["last_available"].astimezone(UTC)
+    t = _reading_time(ctx).astimezone(UTC)
     day_start = datetime(t.astimezone(MYT).year, t.astimezone(MYT).month, t.astimezone(MYT).day, tzinfo=MYT).astimezone(UTC)
     out = ParsedPayload(signature="solar_map:10 fields")
     stations = 0
@@ -189,13 +205,20 @@ def _solar_farms(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
         except ValueError:
             out.rejected.append(f"{code}: bad numbers {f[6]!r}/{f[7]!r}")
             continue
+        try:  # [1], [2]: latitude and longitude (every farm lands in its own state; SOURCE_INVESTIGATION §3)
+            lat, lon = float(f[1]), float(f[2])
+            if not (0.5 < lat < 8 and 99 < lon < 106):  # Peninsular Malaysia
+                lat = lon = None
+        except ValueError:
+            lat = lon = None
         stations += 1
         label = f"{code} ({state}, {region}, {'grid' if conn == 'GRID' else 'distribution' if conn == 'DN' else conn})"
         slug = code.lower()
         quality = "out_of_range" if live > cap * 1.2 or live < 0 else "ok"
-        out.readings.append(Reading(slug, code, t, live, quality=quality, name=f"Solar farm {label} — live output", unit="MW"))
+        out.readings.append(Reading(slug, code, t, live, quality=quality, name=f"Solar farm {label} — live output", unit="MW",
+                                    latitude=lat, longitude=lon))
         out.readings.append(Reading(f"{slug}_capacity", code, day_start, cap, kind="capacity",
-                                    name=f"Solar farm {label} — capacity", unit="MW"))
+                                    name=f"Solar farm {label} — capacity", unit="MW", latitude=lat, longitude=lon))
     if not stations:
         raise SchemaError("no solar farm rows found")
     return out

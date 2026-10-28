@@ -103,3 +103,34 @@ export function alignStack(list, slotMs = 600e3) {
   const complete = slots.map((k) => maps.every((m) => m.has(k)));
   return maps.map((m) => slots.map((k, i) => [new Date(k).toISOString(), complete[i] ? m.get(k) : null, complete[i] ? "ok" : "gap"]));
 }
+
+/** Per-MYT-day statistics from raw points, the same way the archive's daily files are made (gso_archive/analytics.py
+ * `daily`): energy only between readings at most 1.5 intervals apart, and today expects only the readings so far. */
+export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW") {
+  const MYT = 8 * 3600e3, interval = intervalS || 600;
+  const byDay = new Map();
+  for (const [t, v] of points) {
+    if (v == null) continue;
+    const day = new Date(Date.parse(t) + MYT).toISOString().slice(0, 10);
+    if (!byDay.has(day)) byDay.set(day, []);
+    byDay.get(day).push([Date.parse(t), v, t]);
+  }
+  const now = Date.now(), today = new Date(now + MYT).toISOString().slice(0, 10);
+  const full = Math.max(1, Math.round(86400 / interval));
+  const rows = [];
+  for (let d = new Date(`${startDay}T00:00:00Z`); d.toISOString().slice(0, 10) <= endDay; d.setUTCDate(d.getUTCDate() + 1)) {
+    const day = d.toISOString().slice(0, 10);
+    const expected = day === today ? Math.max(1, Math.floor((now - Date.parse(`${day}T00:00:00+08:00`)) / 1000 / interval)) : full;
+    const pts = (byDay.get(day) || []).sort((a, b) => a[0] - b[0]);
+    if (!pts.length) { rows.push({ date: day, count: 0, expected, completeness: 0, max: null, max_time: null, min: null, mean: null, energy_mwh: null }); continue; }
+    let peak = pts[0], energy = 0, sum = 0, min = Infinity;
+    pts.forEach((p, i) => {
+      if (p[1] > peak[1]) peak = p;
+      sum += p[1]; min = Math.min(min, p[1]);
+      if (i) { const dt = (p[0] - pts[i - 1][0]) / 1000; if (dt <= 1.5 * interval) energy += ((p[1] + pts[i - 1][1]) / 2) * dt / 3600; }
+    });
+    rows.push({ date: day, count: pts.length, expected, completeness: Math.min(1, pts.length / expected), max: peak[1], max_time: peak[2],
+      min, mean: sum / pts.length, energy_mwh: unit === "MW" ? energy : null });
+  }
+  return { rows };
+}

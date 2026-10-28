@@ -122,6 +122,8 @@ main, .page { padding: 20px 24px 32px; display: flex; flex-direction: column; ga
 .section-h p { margin: 2px 0 0; color: var(--text-2); font-size: 14px; }
 .chart { width: 100%; height: 330px; }
 .chart.tall { height: 400px; } .chart.short { height: 240px; }
+.chart.map { height: 560px; }
+.region-row { margin: 2px 0 6px; font-size: 14px; gap: 8px 22px; }
 
 .kpi { padding: 14px 16px; position: relative; overflow: hidden; container-type: inline-size; }
 .kpi .label { color: var(--text-2); font-size: 14px; font-weight: 600; display: flex; gap: 10px; align-items: center; }
@@ -219,7 +221,7 @@ td.num, th.num { text-align: right; }
   .kpi .label { flex-direction: column; align-items: flex-start; gap: 6px; }
   .hero .kpi { padding: 12px; }
   .span-2 { grid-column: auto; }
-  .chart { height: 300px; } .chart.tall { height: 440px; }
+  .chart { height: 300px; } .chart.tall { height: 440px; } .chart.map { height: 470px; }
   .site-foot { padding: 12px 16px 20px; }
   #freshness-pill .pill:not(:first-child) { display: none; }
   .topbar h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

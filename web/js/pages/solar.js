@@ -1,15 +1,15 @@
 // Solar dashboard: the archive's primary page.
 import { getDaily, getPoints, exportUrl, rollup } from "../data.js";
-import { COLORS, FUELS, SOLAR_PARTS, categoryChart, profileChart, timeChart } from "../charts.js";
-import { combine, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
+import { COLORS, FUELS, SOLAR_PARTS, solarMap, categoryChart, profileChart, timeChart } from "../charts.js";
+import { combine, dailyFromPoints, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
 import {
-  addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtNum, fmtTime,
+  addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtLong, fmtNum, fmtTime,
   freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, verificationTag,
 } from "../ui.js";
 
 const RAW_LIMIT_DAYS = 370;
 // Plain names for the series a visitor picks from.
-const nice = (s) => [...FUELS, ...SOLAR_PARTS].find((x) => x.key === s.key)?.label || s.name;
+const nice = (s) => (s.derived ? "All solar" : [...FUELS, ...SOLAR_PARTS].find((x) => x.key === s.key)?.label || s.name);
 
 export async function render(main, { meta, isCurrent }) {
   // Solar farms (60+ series) have their own table; they are not offered as the page's main series.
@@ -29,7 +29,16 @@ export async function render(main, { meta, isCurrent }) {
     return;
   }
 
-  const primary = actuals.find((s) => s.key === getParam("primary")) || actuals.find((s) => s.key === "generation_mix.solar") || actuals[0];
+  // "All solar" = Grid + Distribution + NEM + FiT + SELCO, the same total as GSO's Solar page and the Solar Profile chart.
+  // It is the default, so the cards describe the same thing as the chart next to them.
+  if (PROFILE.length === 5) {
+    const same = PROFILE.every((s) => s.latest_value != null && s.last === PROFILE[0].last);
+    actuals.unshift({ key: "all", name: "All solar", derived: true, kind: "actual", unit: "MW", interval_s: PROFILE[0].interval_s || 600,
+      verification: PROFILE[0].verification, first: PROFILE[0].first, last: same ? PROFILE[0].last : null,
+      latest_value: same ? PROFILE.reduce((t, s) => t + s.latest_value, 0) : null });
+  }
+  const DEFAULT_PRIMARY = actuals[0].key === "all" ? "all" : "generation_mix.solar";
+  const primary = actuals.find((s) => s.key === getParam("primary")) || actuals.find((s) => s.key === DEFAULT_PRIMARY) || actuals[0];
   const demo = meta.is_demo;
 
   const toolbarSlot = h("<div></div>");
@@ -37,7 +46,7 @@ export async function render(main, { meta, isCurrent }) {
 
   const sourceBar = h(`<div class="toolbar">
       <label class="inline">Primary solar series
-        <select name="primary">${actuals.map((s) => `<option value="${esc(s.key)}" ${s.key === primary.key ? "selected" : ""}>${esc(nice(s))}</option>`).join("")}</select></label>
+        <select name="primary">${actuals.map((s) => `<option value="${esc(s.key)}" ${s.key === primary.key ? "selected" : ""}>${esc(s.derived ? "All solar (Grid + Distribution + NEM + FiT + SELCO)" : nice(s))}</option>`).join("")}</select></label>
       <label class="inline"><input type="checkbox" name="demand" ${!demand ? "disabled" : getParam("demand") === "0" ? "" : "checked"}> Overlay system demand</label>
       <span class="grow"></span>
       <span id="solar-tags" class="small"></span>
@@ -58,7 +67,7 @@ export async function render(main, { meta, isCurrent }) {
   picker.firstDay = primary.first ? new Date(Date.parse(primary.first) + 8 * 3600e3).toISOString().slice(0, 10) : null;
   sourceBar.querySelector('[name="primary"]').addEventListener("change", (e) => {
     current.primaryKey = e.target.value;
-    setParams({ primary: current.primaryKey === "generation_mix.solar" ? null : current.primaryKey });
+    setParams({ primary: current.primaryKey === DEFAULT_PRIMARY ? null : current.primaryKey });
     draw();
   });
   sourceBar.querySelector('[name="demand"]').addEventListener("change", (e) => {
@@ -68,7 +77,7 @@ export async function render(main, { meta, isCurrent }) {
   });
 
   async function draw() {
-    const p = meta.series.find((s) => s.key === current.primaryKey);
+    const p = actuals.find((s) => s.key === current.primaryKey);
     sourceBar.querySelector("#solar-tags").innerHTML = `${verificationTag(p.verification)} ${p.auto_discovered ? '<span class="tag unverified">auto-discovered field</span>' : ""} ${freshnessPill(p.last, p.interval_s)}`;
     const start = mytDayStart(range.startDay), end = mytDayStart(addDays(range.endDay, 1));
     const days = Math.round((end - start) / 864e5);
@@ -76,22 +85,25 @@ export async function render(main, { meta, isCurrent }) {
     body.innerHTML = loading(120) + loading(400);
     try {
       const others = [];
-      const [pts, daily, dem, fc, comps, prof] = await Promise.all([
-        rawOk ? getPoints(p.key, start, end) : null,
-        getDaily(p.key, range.startDay, range.endDay),
+      const [pts0, daily0, dem, fc, comps, prof] = await Promise.all([
+        rawOk && !p.derived ? getPoints(p.key, start, end) : null,
+        p.derived ? null : getDaily(p.key, range.startDay, range.endDay),
         rawOk && demand ? getPoints(demand.key, start, end) : null,
         rawOk ? Promise.all(forecasts.map((f) => getPoints(f.key, start, end))) : [],
         rawOk ? Promise.all(others.map((c) => getPoints(c.key, start, end))) : [],
-        rawOk ? Promise.all(PROFILE.map((c) => getPoints(c.key, start, end))) : [],
+        rawOk || p.derived ? Promise.all(PROFILE.map((c) => getPoints(c.key, start, end))) : [],
       ]);
       if (!isCurrent()) return;
-      layout({ p, pts, daily, dem, fc, comps, others, prof, rawOk, days });
+      // All solar: add the five parts up at each moment (a moment missing any part stays a gap) and work out the daily figures.
+      const pts = p.derived ? { series: "solar_total (derived: grid+distribution+nem+fit+selco)", unit: "MW", is_demo: meta.is_demo, points: sumSeries(prof.map((x) => x.points)), interval_s: p.interval_s } : pts0;
+      const daily = p.derived ? dailyFromPoints(pts.points, p.interval_s, range.startDay, range.endDay) : daily0;
+      await layout({ p, pts, daily, dem, fc, comps, others, prof, rawOk, days });
     } catch (err) {
       body.innerHTML = errorState(err);
     }
   }
 
-  function layout({ p, pts, daily, dem, fc, comps, others, prof, rawOk, days }) {
+  async function layout({ p, pts, daily, dem, fc, comps, others, prof, rawOk, days }) {
     const rows = daily.rows;
     const withData = rows.filter((r) => r.count);
     const points = pts ? pts.points : [];
@@ -105,17 +117,17 @@ export async function render(main, { meta, isCurrent }) {
 
     body.innerHTML = "";
     body.appendChild(h(`<div class="grid kpis">
-      ${kpi({ big: true, icon: "solar", label: "Current Solar Generation", cls: "solar", value: p.latest_value != null ? fmtNum(p.latest_value) : null, unit: "MW",
+      ${kpi({ big: true, icon: "solar", label: p.derived ? "Current Solar Generation" : `Latest ${nice(p)}`, cls: "solar", value: p.latest_value != null ? fmtNum(p.latest_value) : null, unit: "MW",
         meta: p.last ? `Observed ${fmtDateTime(p.last)} MYT` : "No readings yet" })}
-      ${kpi({ big: true, icon: "peak", label: "Peak Solar Generation", cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
+      ${kpi({ big: true, icon: "peak", label: p.derived ? "Peak Solar Generation" : `Peak ${nice(p)}`, cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
         meta: peakDay ? `${fmtDate(peakDay.max_time)} at ${fmtTime(peakDay.max_time)}` : "" })}
-      ${kpi({ icon: "energy", label: "Solar Energy", cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
-        meta: "In this period, worked out from the readings" })}
+      ${kpi({ icon: "energy", label: p.derived ? "Solar Energy" : `${nice(p)} Energy`, cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
+        meta: `${withData.length} of ${rows.length} days with readings, worked out from the readings` })}
       ${kpi({ icon: "rise", label: "Fastest Ramp-Up", value: rampExt.max ? `+${fmtNum(rampExt.max[1], 1)}` : null, unit: "MW/min",
         meta: rampExt.min ? `Fastest fall ${fmtNum(rampExt.min[1], 1)} MW/min` : rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps" })}
       ${kpi({ icon: "share", label: "Peak Solar Share", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",
         meta: shareExt.max ? `${fmtDateTime(shareExt.max[0])} MYT` : demand ? "Needs overlapping demand data" : "Demand not archived" })}
-      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Expected ${rows[0] ? rows[0].expected : "—"} readings/day` })}
+      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: "Readings archived ÷ readings GSO has published so far (one every 10 minutes)" })}
     </div>`));
     body.appendChild(h(shortForms(["MW", "MWh", "MW/min", "MYT", "Grid", "Distribution", "NEM", "FiT", "SELCO", "LSS"])));
 
@@ -137,8 +149,9 @@ export async function render(main, { meta, isCurrent }) {
     }
 
     // ---- main time-series
+    const xlKeys = p.derived ? PROFILE.map((x) => x.key) : [p.key];
     const main1 = h(card({ title: "Solar Generation vs System Demand", cls: "", desc: current.overlay && dem ? "Yellow area: solar (left scale). Blue line: System Demand, the electricity Peninsular Malaysia is using (right scale). Breaks mean no reading, never zero." : "Yellow area: solar generation. Breaks mean no reading, never zero.", sub: rawOk ? `${fmtNum(points.filter((x) => x[1] != null).length)} readings · gaps shown as breaks` : "",
-      right: `<button class="btn" data-act="csv">CSV</button>${exportUrl([p.key], range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl([p.key, ...(demand ? [demand.key] : [])], range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
+      right: `<button class="btn" data-act="csv">CSV</button>${exportUrl(xlKeys, range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl([...xlKeys, ...(demand ? [demand.key] : [])], range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
       body: rawOk ? '<div class="chart tall"></div>' : `<div class="notice">The selected range is ${days} days. Raw readings are charted for ranges up to ${RAW_LIMIT_DAYS} days; daily statistics are shown below.</div>` }));
     body.appendChild(main1);
     if (rawOk) {
@@ -220,11 +233,26 @@ export async function render(main, { meta, isCurrent }) {
         const m = s.name.match(/Solar farm (\S+) \(([^,]+), ([^,]+), ([^)]+)\)/) || [];
         const cap = capOf[s.key];
         return { code: m[1] || s.key, state: m[2] || "", region: m[3] || "", conn: m[4] || "", mw: s.latest_value, cap,
-                 pct: cap ? (100 * s.latest_value) / cap : null, last: s.last, key: s.key };
+                 pct: cap && s.latest_value != null ? (100 * s.latest_value) / cap : null, last: s.last, key: s.key, lat: s.lat, lon: s.lon };
       }).sort((a, b) => (b.mw ?? -1) - (a.mw ?? -1));
       const totalMw = rows2.reduce((t, r) => t + (r.mw || 0), 0), totalCap = rows2.reduce((t, r) => t + (r.cap || 0), 0);
+      const newest = rows2.map((r) => r.last).filter(Boolean).sort().pop();
+      // GSO's solar map: each LSS farm at its place, coloured by how much of its capacity it is producing.
+      const regions = ["North", "Central", "South", "East"].map((name) => {
+        const rs = rows2.filter((r) => r.region === name);
+        const mw = rs.reduce((t, r) => t + (r.mw || 0), 0), cap = rs.reduce((t, r) => t + (r.cap || 0), 0);
+        return { name, n: rs.length, mw, cap };
+      }).filter((r) => r.n);
+      const mapCard = h(card({ title: "Solar Map (Peninsular Malaysia)", when: newest ? fmtLong(newest) : "",
+        desc: "Each dot is one LSS solar farm on GSO's solar map, at its location. The colour shows how much of its capacity it is producing right now (grey = little or none, orange = close to full); bigger dots are bigger farms. Circles are grid-connected, diamonds distribution-connected. Drag or pinch to zoom.",
+        body: `<div class="stat-row region-row">${regions.map((r) => `<span>${r.name} <b>${r.cap ? fmtNum((100 * r.mw) / r.cap, 0) : "—"}%</b> <small class="muted">${fmtNum(r.mw)} of ${fmtNum(r.cap)} MW</small></span>`).join("")}
+          <span>All <b>${totalCap ? fmtNum((100 * totalMw) / totalCap, 0) : "—"}%</b> <small class="muted">${fmtNum(totalMw)} of ${fmtNum(totalCap)} MW, ${rows2.length} farms</small></span></div>
+          <div class="chart map"></div>` }));
+      body.appendChild(mapCard);
+      if (!rows2.some((r) => r.lat != null)) mapCard.querySelector(".chart").innerHTML = emptyState("Farm locations not archived yet", "They are saved from GSO's solar map on the next collection.", "◌");
+      else await solarMap(mapCard.querySelector(".chart"), { farms: rows2, demo }).catch((err) => { mapCard.querySelector(".chart").innerHTML = errorState(err); });
       const farmCard = h(card({ title: "LSS Solar Farms Now", desc: "Every solar farm on GSO's solar map, highest output first. \"Of capacity\" shows how hard each farm is working.",
-        sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity · ${rows2[0].last ? fmtDateTime(rows2[0].last) + " MYT" : ""}`,
+        sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity`,
         body: '<div class="tbl"></div>' }));
       body.appendChild(farmCard);
       renderTable(farmCard.querySelector(".tbl"), [

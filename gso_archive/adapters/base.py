@@ -55,6 +55,9 @@ class Reading:
     # Optional series description for series created on the fly (e.g. one per solar farm).
     name: str | None = None
     unit: str | None = None
+    # Where it is measured, if the source says (the solar farms on GSO's solar map).
+    latitude: float | None = None
+    longitude: float | None = None
 
 
 @dataclass

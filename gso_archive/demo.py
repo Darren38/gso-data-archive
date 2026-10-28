@@ -31,8 +31,10 @@ DEMO_NOTE = " DEMONSTRATION copy of the real layout: values are invented."
 DEMO_SPECS = {key: dataclasses.replace(spec, verification="demo", description=spec.description + DEMO_NOTE)
               for key, spec in {"solar": SOLAR_PROFILE, "forecast": SOLAR_FORECAST, "genmix": GENMIX_LIVE,
                                 "avail": AVAILABILITY, "farms": SOLAR_FARMS}.items()}
-DEMO_FARMS = [("DMOA", "KDAH", "North", "GRID", 50), ("DMOB", "PRAK", "North", "GRID", 30), ("DMOC", "SGOR", "Central", "DN", 13),
-              ("DMOD", "NSLN", "Central", "GRID", 50), ("DMOE", "KLTN", "East", "GRID", 30), ("DMOF", "JHOR", "South", "DN", 20)]
+# Demo farms placed roughly in their state (made up, like every demo value) so the solar map has something to show.
+DEMO_FARMS = [("DMOA", "KDAH", "North", "GRID", 50, 5.95, 100.55), ("DMOB", "PRAK", "North", "GRID", 30, 4.35, 101.05),
+              ("DMOC", "SGOR", "Central", "DN", 13, 3.15, 101.45), ("DMOD", "NSLN", "Central", "GRID", 50, 2.75, 102.15),
+              ("DMOE", "KLTN", "East", "GRID", 30, 5.70, 102.10), ("DMOF", "JHOR", "South", "DN", 20, 1.75, 103.50)]
 
 
 class DemoRefused(Exception):
@@ -97,13 +99,13 @@ def seed_demo(engine: Engine, days: int = 60, interval_minutes: int = 30, seed: 
         readings["genmix"].append(Reading("bess_charge", "r[12]", utc_t, round(-midday * rng.uniform(20, 60), 1)))
         readings["genmix"].append(Reading("other_re", "r[7]", utc_t, round(170 + rng.gauss(0, 3), 1)))
         readings["genmix"].append(Reading("distribution_solar", "r[9]", utc_t, round(solar_dx * 0.3 + sum(rooftop.values()), 1)))
-        for code, state, region, conn, cap in DEMO_FARMS:
+        for code, state, region, conn, cap, lat, lon in DEMO_FARMS:
             label = f"{code} ({state}, {region}, {'grid' if conn == 'GRID' else 'distribution'})"
             readings["farms"].append(Reading(code.lower(), code, utc_t, round(cap * shape * rng.uniform(0.8, 1.0), 1),
-                                             name=f"Solar farm {label} — live output", unit="MW"))
+                                             name=f"Solar farm {label} — live output", unit="MW", latitude=lat, longitude=lon))
             if t.hour == 0 and t.minute == 0:
                 readings["farms"].append(Reading(f"{code.lower()}_capacity", code, utc_t, float(cap), kind="capacity",
-                                                 name=f"Solar farm {label} — capacity", unit="MW"))
+                                                 name=f"Solar farm {label} — capacity", unit="MW", latitude=lat, longitude=lon))
         if t.minute == 0:
             for k, v in (("coal", 11250), ("gas", 10700), ("cogen", 0), ("hydro", 2090), ("transmission_solar", round(solar_tx)),
                          ("distribution_solar", round(solar_dx * 0.3 + sum(rooftop.values()))), ("bess", 100)):

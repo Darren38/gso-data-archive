@@ -68,6 +68,8 @@ series = Table(
     Column("expected_interval_s", Integer, nullable=True),
     Column("is_demo", Boolean, nullable=False, default=False),
     Column("created_at", TS, nullable=False),
+    Column("latitude", Float, nullable=True),  # where it is measured, if known (solar farms); migration 3
+    Column("longitude", Float, nullable=True),
 )
 
 # Current best-known value for each (series, observation time).

@@ -134,3 +134,46 @@ def test_series_are_named_and_time_asked_once(engine, settings, client, fake):
         rows = {r.key: r for r in c.execute(select(db.series))}
     assert rows["solar_profile.grid"].name == "Grid (transmission) solar" and not rows["solar_profile.grid"].auto_discovered
     assert rows["solar_forecast.total"].kind == "forecast" and not rows["solar_forecast.total"].auto_discovered
+
+
+# Real answers saved just after midnight, 00:32 MYT on 29 October 2026: before sunrise GSO's "last available" is
+# 07:00 of the coming morning, a time still in the future, and the forecast is already the new day's.
+NIGHT_LAST = parse_last_available(json.loads(fixture_bytes("real/solar_last_available_night.json"))["d"])
+NIGHT_NOW = datetime(2026, 10, 29, 0, 32, tzinfo=MYT).astimezone(UTC)
+NEW_DAY = date(2026, 10, 29)
+
+
+def test_night_last_available_is_in_the_future():
+    assert NIGHT_LAST == datetime(2026, 10, 29, 7, 0, tzinfo=MYT)
+
+
+def test_night_solar_farm_readings_are_not_dated_in_the_future():
+    p = parse(get_adapter("solar_farms"), fixture_bytes("real/landing_solar_map.json"), NEW_DAY,
+              {"last_available": NIGHT_LAST, "now": NIGHT_NOW})
+    live = [r for r in p.readings if r.kind == "actual"]
+    # the clock rounded down to GSO's 10-minute steps, not 07:00
+    assert {r.obs_time for r in live} == {datetime(2026, 10, 29, 0, 30, tzinfo=MYT).astimezone(UTC)}
+
+
+def test_solar_farms_keep_their_location():
+    p = parse(get_adapter("solar_farms"), fixture_bytes("real/landing_solar_map.json"), DAY, {"last_available": REF})
+    ajns = next(r for r in p.readings if r.series == "ajns")
+    assert (ajns.latitude, ajns.longitude) == (5.738311, 100.561308)
+
+
+def test_solar_actual_just_after_midnight_belongs_to_the_new_day():
+    p = parse(get_adapter("solar_profile"), fixture_bytes("real/solar_actual_after_midnight.json"), NEW_DAY,
+              {"last_available": NIGHT_LAST, "now": NIGHT_NOW})
+    grid = by_series(p)["grid"]
+    assert [r.obs_time for r in grid] == [datetime(2026, 10, 29, 0, m, tzinfo=MYT).astimezone(UTC) for m in (0, 10)]
+
+
+def test_forecast_day_comes_from_the_clock():
+    spec, body = get_adapter("solar_forecast"), fixture_bytes("real/solar_forecast_after_midnight.json")
+    p = parse(spec, body, NEW_DAY, {"last_available": NIGHT_LAST, "now": NIGHT_NOW})
+    peak = max(p.readings, key=lambda r: r.value)
+    # GSO's own label for this answer: "3,661 MW @ 12:20" — the new day's forecast, not a copy of yesterday's
+    assert peak.value == 3661 and peak.obs_time == datetime(2026, 10, 29, 12, 20, tzinfo=MYT).astimezone(UTC)
+    # within half an hour of midnight it is still skipped, whatever "last available" says
+    early = parse(spec, body, NEW_DAY, {"last_available": NIGHT_LAST, "now": datetime(2026, 10, 29, 0, 10, tzinfo=MYT)})
+    assert not early.readings and early.rejected

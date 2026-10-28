@@ -1,5 +1,17 @@
 # Changelog
 
+## 29 October 2026 (twelfth update) — GSO Grid Archive 5.6
+
+A solar map like GSO's, and every number checked again.
+
+- **New: Solar Map.** The Solar page now has a map of Peninsular Malaysia with every LSS solar farm from GSO's solar map at its location. The colour shows how much of its capacity each farm is producing right now (grey = little or none, orange = close to full), bigger dots are bigger farms, and circles and diamonds show grid and distribution connection. Above the map: each region's output as a share of its capacity (North, Central, South, East and all together). Tap or hover a farm for its numbers; drag or pinch to zoom. The farms' locations come from GSO's own map data. The outline of the land is from Natural Earth (free to use).
+- **Fixed: solar-farm readings at night were dated 07:00 the next morning.** Before sunrise GSO's "time of the latest reading" says 07:00, a time still to come. Farm readings now use the real time of collection, any reading dated in the future is refused, and the wrongly dated readings already in the archive are removed.
+- **Fixed: "Data Completeness" counted a whole day's readings for today.** Just after midnight it showed about 50% for "48 h". Today now only counts the readings GSO could have published so far.
+- **Clearer: the Solar page's numbers now match its chart.** They describe all solar together (Grid + Distribution + NEM + FiT + SELCO), the same total as the Solar Profile chart. Before, they described Transmission Solar alone (for example a peak of 1,669 MW next to a chart reaching about 4,000 MW). You can still pick one kind of solar, and the cards then say which one ("Peak Transmission Solar").
+- **Fixed: "Solar Share of Demand" could divide readings from different times.** It now only uses a solar and a demand reading taken at the same moment.
+- **Checked, and correct:** the forecast line for the new day just after midnight is GSO's genuinely new forecast (for 29 October GSO forecast a peak of 3,661 MW at 12:20; for 28 October it was 3,616 MW at 13:20), not a copy of the day before.
+- Chart time labels no longer run together on half-width charts showing two days.
+
 ## 28 October 2026 (eleventh update) — GSO Grid Archive 5.5
 
 Easier to find on Bing and other search engines, the same way as Tech Comparison Hub.

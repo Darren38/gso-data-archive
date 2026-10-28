@@ -15,7 +15,7 @@
 ## What it is
 
 - **Solar first**, straight from [GSO's Solar page](https://www.gso.org.my/SystemData/Solar.aspx): grid (transmission) solar, distribution solar, and NEM, FiT and SELCO rooftop solar (GSO's own estimates), with GSO's solar forecast to compare against. Plus daily peaks and when they happened, energy per day, how fast output rises and falls, solar's share of demand, and day / week / month / year comparisons.
-- **Every large solar farm**: live output and capacity of the 60 or so solar farms on GSO's solar map, with state, region and grid or distribution connection.
+- **Every large solar farm, on a map**: a solar map of Peninsular Malaysia like GSO's, with each of the 60 or so LSS farms at its location, coloured by how much of its capacity it is producing, plus a table with state, region and grid or distribution connection.
 - **The rest of the grid too**: system demand, generation by fuel (coal, gas, hydro, solar, co-generation, oil), other renewables, total generation, system availability, installed capacity, battery storage (BESS) charge and discharge, and the links to Thailand and Singapore.
 - **Nothing is ever lost or overwritten**: if GSO changes a reading later, the new value is shown and the old one is kept. Gaps stay gaps. A missing reading is never shown as zero.
 - **Collects by itself, often**: new readings about every 2–3 minutes. Several of GSO's pages only show *today*, so collecting all day long is what builds the history.

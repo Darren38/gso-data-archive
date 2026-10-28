@@ -86,6 +86,16 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 22. **Grid and flex children with text that never wraps widen the page.** Give them `min-width:0`, and write
     `minmax(min(330px,100%),1fr)` rather than a bare `minmax(330px,1fr)`.
 23. **Saved settings can be old or damaged**, like values from links (lesson 8): accept only known choices.
+24. **GSO's "last available" time is in the future before sunrise** (07:00 of the coming morning). Date readings with
+    `_reading_time` (never later than the real clock), decide the forecast's day by the clock, and `apply_readings`
+    refuses anything dated more than 15 minutes after collection. Real midnight answers: `tests/fixtures/real/*night*`,
+    `*after_midnight*`. Migration 2 removed the readings this had misdated.
+25. **A summary card must describe the same thing as the chart next to it.** The Solar page's cards follow the chosen
+    series ("All solar" by default, the same total as the Solar Profile chart) and name it when it is a single kind.
+26. **"Today" is never a full day.** Completeness and "expected readings" for today count only the time so far
+    (`analytics.daily`, `dailyFromPoints` in `analysis.js`).
+27. **Check a surprise against GSO's raw answers before calling it a bug.** The new day's forecast looked like a copy of
+    yesterday's; the probe (`archive.yml` with `probe: true`) showed GSO really had published a new one.
 
 ## How to check a change
 

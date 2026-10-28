@@ -44,6 +44,7 @@ def _high_water(engine: Engine) -> tuple[int, str]:
 
 def merge_archive(src: Engine, dst: Engine) -> dict:
     """Copy everything in `src` that `dst` lacks into `dst`. Safe to repeat."""
+    migrate(src)  # an older copy may predate a migration (e.g. one that adds a column or removes bad readings)
     migrate(dst)
     s_hw, d_hw = _high_water(src), _high_water(dst)
     if d_hw[0] >= s_hw[0] and d_hw[1] >= s_hw[1]:
@@ -64,9 +65,11 @@ def merge_archive(src: Engine, dst: Engine) -> dict:
             stats["datasets"] += 1
         se_map: dict[int, int] = {}
         for row in s.execute(select(db.series)):
-            hit = d.execute(select(db.series.c.id, db.series.c.expected_interval_s).where(db.series.c.key == row.key)).first()
+            hit = d.execute(select(db.series.c.id, db.series.c.latitude).where(db.series.c.key == row.key)).first()
             if hit:
                 se_map[row.id] = hit.id
+                if hit.latitude is None and row.latitude is not None:
+                    d.execute(db.series.update().where(db.series.c.id == hit.id).values(latitude=row.latitude, longitude=row.longitude))
                 continue
             values = {k: v for k, v in row._mapping.items() if k != "id"}
             values["dataset_id"] = ds_map[row.dataset_id]

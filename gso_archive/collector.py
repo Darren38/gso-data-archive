@@ -156,6 +156,7 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
         snapshot_id = None
 
     try:
+        context["now"] = fetched_at  # the real clock: GSO's "last available" can be in the future (07:00 before sunrise)
         payload = parse(spec, fetched.content, day, context)
     except SourceError as exc:
         return fail(exc.error_type, str(exc), fetched.status, snapshot_id)
@@ -172,7 +173,7 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                 conn, result.run_id, status="success", http_status=fetched.status,
                 records_seen=len(payload.readings), records_new=stats.new, records_revised=stats.revised,
                 records_unchanged=stats.unchanged, records_missing=payload.missing,
-                records_suspect=stats.suspect, records_rejected=len(payload.rejected),
+                records_suspect=stats.suspect, records_rejected=len(payload.rejected) + stats.future,
                 schema_signature=payload.signature[:500], schema_changed=schema_changed,
                 latest_obs_time=stats.latest_obs_time, raw_snapshot_id=snapshot_id,
                 error_message=("; ".join(payload.rejected[:20]) or None),

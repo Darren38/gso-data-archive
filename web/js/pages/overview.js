@@ -34,7 +34,11 @@ export async function render(main, { meta, isCurrent }) {
   const solarNow = partsNow ? parts.reduce((t, s) => t + s.latest_value, 0) : by["generation_mix.solar"]?.latest_value ?? null;
   const solarAt = partsNow ? parts[0].last : by["generation_mix.solar"]?.last;
   const demand = by["system_demand.demand"];
-  const share = solarNow != null && demand?.latest_value ? (100 * solarNow) / demand.latest_value : null;
+  // Solar ÷ demand only for readings taken at the same moment (the two come from different GSO pages).
+  const shareAt = (demandMw) => (solarNow != null && demandMw > 0 ? (100 * solarNow) / demandMw : null);
+  const share = demand?.last === solarAt ? shareAt(demand.latest_value) : null;
+  const shareKpi = (v) => kpi({ big: true, cls: "solar", icon: "share", label: "Solar Share of Demand", value: v != null ? fmtNum(v, 1) : null, unit: "%",
+    meta: v != null ? `Current Solar Generation ÷ System Demand at ${fmtTime(solarAt)} MYT` : "Needs solar and demand readings for the same time" });
   const dis = by["genmix_live.bess_discharge"], chg = by["genmix_live.bess_charge"];
   const bess = dis && chg && dis.latest_value != null && chg.latest_value != null ? dis.latest_value + chg.latest_value : null;
   const mixSeries = MIX.filter((m) => by[m.key]);
@@ -45,7 +49,7 @@ export async function render(main, { meta, isCurrent }) {
       meta: solarAt ? `${partsNow ? "Grid + Distribution + NEM + FiT + SELCO" : "Transmission Solar"} · ${fmtTime(solarAt)} MYT` : "" })}
     ${kpi({ big: true, cls: "demand", icon: "demand", label: "Current System Demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
       meta: demand?.last ? `Peninsular Malaysia · ${fmtTime(demand.last)} MYT` : "" })}
-    ${kpi({ big: true, cls: "solar", icon: "share", label: "Solar Share of Demand", value: share != null ? fmtNum(share, 1) : null, unit: "%", meta: "Current Solar Generation ÷ System Demand" })}
+    ${shareKpi(share)}
     ${kpi({ big: true, cls: "bess", icon: "battery", label: "Current BESS Status", value: bess != null ? fmtNum(Math.abs(bess)) : null, unit: "MW",
       meta: bess == null ? "" : bess > 0 ? "Discharging to the grid" : bess < 0 ? "Charging from the grid" : "Idle" })}
   </div>`));
@@ -82,6 +86,12 @@ export async function render(main, { meta, isCurrent }) {
     ]);
     if (!isCurrent()) return;
 
+    if (share == null && solarAt && demToday) {
+      // The newest demand reading may be newer or older than the newest solar one: use demand at the solar reading's time.
+      const d = [...(demYest?.points || []), ...demToday.points].find((p) => p[0] === solarAt || Date.parse(p[0]) === Date.parse(solarAt));
+      const hero = main.querySelector(".hero");
+      if (d && d[1] != null && hero) hero.children[2].outerHTML = shareKpi(shareAt(d[1]));
+    }
     const totalToday = partPts.length === SOLAR_PARTS.length ? sumSeries(partPts.map((p) => p.points)) : solarPts?.points || [];
     const peak = extent(totalToday).max;
     const fcPeak = fcPts ? extent(fcPts.points).max : null;

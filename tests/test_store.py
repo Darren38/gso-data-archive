@@ -81,3 +81,34 @@ def test_forecasts_only_stored_when_changed(engine):
     assert (a.new, b.new, c.new) == (1, 0, 1)
     assert _count(engine, db.forecasts) == 2
     assert _count(engine, db.observations) == 0  # forecasts never mix with actuals
+
+
+def test_readings_dated_in_the_future_are_refused(engine):
+    collected = T0 + timedelta(minutes=5)
+    rs = [Reading("solar", "Solar", T0, 1.0), Reading("solar", "Solar", T0 + timedelta(hours=7), 2.0)]
+    stats, _ = _apply(engine, rs, collected_at=collected)
+    assert (stats.new, stats.future) == (1, 1)
+    assert _count(engine, db.observations) == 1
+
+
+def test_migration_removes_readings_dated_after_collection(engine):
+    from gso_archive.migrations import _m002_drop_future_readings
+
+    _, ids = _apply(engine, [Reading("solar", "Solar", T0, 1.0)], collected_at=T0 + timedelta(minutes=5))
+    sid = ids["solar"]
+    with engine.begin() as conn:  # a reading stored before the check existed, dated 7 hours after it was collected
+        late = T0 + timedelta(hours=7)
+        conn.execute(db.observations.insert().values(series_id=sid, obs_time=late, value=9.0, quality="ok",
+                                                     first_collected_at=T0, last_changed_at=T0, revision_count=1))
+        conn.execute(db.observation_revisions.insert().values(series_id=sid, obs_time=late, value=9.0, quality="ok", collected_at=T0))
+        _m002_drop_future_readings(conn)
+    assert _count(engine, db.observations) == 1
+    assert _count(engine, db.observation_revisions, db.observation_revisions.c.obs_time == T0 + timedelta(hours=7)) == 0
+
+
+def test_series_location_is_kept(engine):
+    r = Reading("ajns", "AJNS", T0, 24.0, name="Solar farm AJNS", unit="MW", latitude=5.738311, longitude=100.561308)
+    _, ids = _apply(engine, [r])
+    with engine.connect() as conn:
+        row = conn.execute(select(db.series.c.latitude, db.series.c.longitude).where(db.series.c.id == ids["ajns"])).first()
+    assert (row.latitude, row.longitude) == (5.738311, 100.561308)

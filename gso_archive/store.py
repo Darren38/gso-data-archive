@@ -13,7 +13,7 @@ from __future__ import annotations
 import statistics
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import and_, desc, func, select, update
 from sqlalchemy.engine import Connection
@@ -30,7 +30,11 @@ class ApplyStats:
     unchanged: int = 0
     suspect: int = 0
     duplicates_in_payload: int = 0
+    future: int = 0  # readings dated after they were collected (never stored)
     latest_obs_time: datetime | None = None
+
+
+FUTURE_TOLERANCE = timedelta(minutes=15)
 
 
 def _same(a: float, b: float) -> bool:
@@ -62,9 +66,13 @@ def ensure_series(
     *,
     auto_discovered: bool,
     is_demo: bool = False,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> int:
-    row = conn.execute(select(db.series.c.id).where(db.series.c.key == key)).first()
+    row = conn.execute(select(db.series.c.id, db.series.c.latitude, db.series.c.longitude).where(db.series.c.key == key)).first()
     if row:
+        if latitude is not None and (row.latitude, row.longitude) != (latitude, longitude):
+            conn.execute(update(db.series).where(db.series.c.id == row.id).values(latitude=latitude, longitude=longitude))
         return row.id
     return conn.execute(
         db.series.insert().values(
@@ -77,6 +85,8 @@ def ensure_series(
             auto_discovered=auto_discovered,
             is_demo=is_demo,
             created_at=utcnow(),
+            latitude=latitude,
+            longitude=longitude,
         )
     ).inserted_primary_key[0]
 
@@ -101,7 +111,8 @@ def resolve_series(
         else:
             fspec, auto = spec.field_spec(r.source_field), True
         ids[r.series] = ensure_series(
-            conn, dataset_id, spec.series_key(r.series), fspec, r.source_field, auto_discovered=auto, is_demo=is_demo
+            conn, dataset_id, spec.series_key(r.series), fspec, r.source_field, auto_discovered=auto, is_demo=is_demo,
+            latitude=r.latitude, longitude=r.longitude,
         )
     return ids
 
@@ -116,9 +127,15 @@ def apply_readings(
     collected_at: datetime,
 ) -> ApplyStats:
     stats = ApplyStats()
+    # A reading can't be from the future. GSO's "last available" time once dated night-time solar-farm readings at
+    # 07:00 the next morning; anything stamped more than 15 minutes after collection is refused, never stored.
+    too_late = ensure_utc(collected_at) + FUTURE_TOLERANCE
     # Deduplicate within the payload: last occurrence wins, but count it.
     latest: dict[tuple[int, datetime], Reading] = {}
     for r in readings:
+        if r.kind != "forecast" and ensure_utc(r.obs_time) > too_late:
+            stats.future += 1
+            continue
         key = (series_ids[r.series], ensure_utc(r.obs_time))
         if key in latest:
             stats.duplicates_in_payload += 1

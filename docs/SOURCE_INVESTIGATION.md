@@ -30,10 +30,10 @@ Labels: **[OBSERVED]** seen first-hand by this project · **[GSO SCRIPT]** read 
 | `power_station` | `SystemData/PowerStation.aspx/GetDataSource` | none | `Name`, `Fuel` (padded, e.g. `"Water     "`), `Type`, `Capacity (MW)`, `PPAExpiry` … | Installed capacity |
 | `solar_profile` | `SystemData/Solar.aspx/GetSolarActualData` | `{}` | `"$"`-joined text, see §4 | **Today only** |
 | `solar_forecast` | `SystemData/Solar.aspx/GetSolarForecastData` | `{}` | 144 values + summary, see §4 | **Today only** |
-| (time stamp) | `SystemData/Solar.aspx/GetLastAvailableData` | `{}` | `"2026-10-28 13:30\|28/10/2026 13:30"` | Time of newest solar reading |
+| (time stamp) | `SystemData/Solar.aspx/GetLastAvailableData` | `{}` | `"2026-10-28 13:30\|28/10/2026 13:30"` | Time of newest solar reading. **Before sunrise it is 07:00 of the coming morning** (`"2026-10-29 07:00\|29/10/2026 07:00"` at 00:32 MYT on 29 Oct 2026; GSO's script compares it with 07:00 too), so the archive never dates a reading later than the real clock |
 | `genmix_live` | `LandingPage.aspx/GetGenMixData` | `{}` | `"$"`-joined text, see §5 | **Today only** |
 | `availability` | `LandingPage.aspx/GetSysAVData` | `{}` | `"28 October 2026 1:20 PM$11252$10705$0$2093$1615$2324$100"` | Snapshot with its own time |
-| `solar_farms` | `LandingPage.aspx/GetSolarMap` | `{}` | rows `state,lat,lon,code,%,region,live MW,capacity MW,state %,GRID/DN` | Live snapshot |
+| `solar_farms` | `LandingPage.aspx/GetSolarMap` | `{}` | rows `state,lat,lon,code,%,region,live MW,capacity MW,state %,GRID/DN` | Live snapshot; latitude and longitude are kept for the Solar Map |
 
 Timestamps without a timezone are Malaysia time (UTC+8). The first value of each "today" list is 00:00, then
 every 10 minutes **[OBSERVED, GSO SCRIPT]**.

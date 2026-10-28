@@ -125,7 +125,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       right: yAxes.length > 1 ? (el.clientWidth < 400 ? 46 : 60) : 24 },
     xAxis: { type: "time", ...b._axis, splitLine: { show: false },
       // Narrow charts (phones) get fewer ticks so labels like "27 Oct" and "12:00" never run together.
-      splitNumber: el.clientWidth < 400 ? 2 : el.clientWidth < 520 ? 3 : undefined,
+      splitNumber: el.clientWidth < 400 ? 2 : el.clientWidth < 520 ? 3 : el.clientWidth < 760 ? 5 : undefined,
       axisLabel: { ...b._axis.axisLabel, fontSize: el.clientWidth < 400 ? 11 : 12.5, formatter: axisTime } },
     yAxis: yAxes.map((y, i) => ({ type: "value", name: y.name, nameTextStyle: { color: css("--text-3"), align: i ? "right" : "left" },
       position: i ? "right" : "left", scale: !!y.scale, min: y.min, max: y.max, ...b._axis, splitLine: i ? { show: false } : b._axis.splitLine,
@@ -225,3 +225,51 @@ export function profileChart(el, { groups, demo = false, unit = "MW" }) {
 
 /** Re-render hook for theme switches. */
 export function onThemeChange(fn) { document.addEventListener("gso-theme", fn); }
+
+let mapReady = null;
+/** Peninsular Malaysia outline (Natural Earth, see vendor/peninsular-malaysia.geo.LICENSE), loaded once. */
+function loadMap() {
+  if (!mapReady) {
+    mapReady = fetch("vendor/peninsular-malaysia.geo.json").then((r) => {
+      if (!r.ok) throw new Error(`map outline: HTTP ${r.status}`);
+      return r.json();
+    }).then((geo) => { window.echarts.registerMap("peninsular", geo); }).catch((e) => { mapReady = null; throw e; });
+  }
+  return mapReady;
+}
+
+/** Solar map like GSO's: every LSS farm at its place, coloured by output as a % of its capacity, sized by capacity.
+ * farms: [{code, state, region, conn, mw, cap, pct, lat, lon}] */
+export async function solarMap(el, { farms, demo = false }) {
+  if (!window.echarts) { el.innerHTML = '<div class="state error"><h3>Chart library failed to load</h3></div>'; return null; }
+  await loadMap();
+  const b = base(demo);
+  const narrow = el.clientWidth < 480;
+  const maxCap = Math.max(1, ...farms.map((f) => f.cap || 0));
+  const point = (f) => ({ name: f.code, value: [f.lon, f.lat, f.pct], farm: f,
+    symbol: f.conn === "distribution" ? "diamond" : "circle",
+    symbolSize: (narrow ? 7 : 9) + (narrow ? 12 : 18) * Math.sqrt((f.cap || 0) / maxCap) });
+  return mount(el, {
+    ...b,
+    tooltip: { trigger: "item", backgroundColor: css("--surface"), borderColor: css("--border"), textStyle: { color: css("--text"), fontSize: 13 },
+      formatter: (p) => {
+        const f = p.data?.farm;
+        if (!f) return "";
+        return `<b>${f.code}</b> · ${f.state}, ${f.region}<br>${f.conn === "distribution" ? "Distribution" : "Grid"} connected<br>` +
+          `<b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b> of capacity)`);
+      } },
+    geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 8 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
+      // keep the true shape: near the equator a degree east is about as long as a degree north (aspectScale 1)
+      aspectScale: 1, layoutCenter: ["50%", "46%"], layoutSize: "90%",
+      itemStyle: { areaColor: css("--surface-2"), borderColor: css("--border"), borderWidth: 0.8 },
+      regions: [{ name: "Malaysia", itemStyle: { areaColor: "rgba(31, 166, 74, 0.10)", borderColor: css("--text-3"), borderWidth: 1 } }],
+      emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: false }, silent: true },
+    visualMap: { type: "continuous", min: 0, max: 100, dimension: 2, calculable: false, orient: "horizontal",
+      left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220, text: ["100% of capacity", "0%"],
+      textStyle: { color: css("--text-2"), fontSize: 12 },
+      inRange: { color: ["#9aa5b1", "#FFE066", "#F2AD00", "#E06D00"] }, outOfRange: { color: "#9aa5b1" } },
+    series: [{ type: "scatter", coordinateSystem: "geo", data: farms.filter((f) => f.lat != null && f.lon != null).map(point),
+      itemStyle: { borderColor: css("--surface"), borderWidth: 1, opacity: 0.95 },
+      emphasis: { scale: 1.3, label: { show: true, formatter: "{b}", position: "top", color: css("--text"), fontWeight: 600 } } }],
+  });
+}

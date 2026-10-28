@@ -44,7 +44,7 @@ class SeriesInfo:
 def _series_query():
     s, d = db.series.c, db.datasets.c
     return select(
-        s.id, s.key, s.name, s.unit, s.kind, s.expected_interval_s, s.is_demo, s.auto_discovered,
+        s.id, s.key, s.name, s.unit, s.kind, s.expected_interval_s, s.is_demo, s.auto_discovered, s.latitude, s.longitude,
         d.key.label("dataset_key"), d.category, d.verification,
     ).join(db.datasets, db.datasets.c.id == db.series.c.dataset_id)
 
@@ -94,6 +94,7 @@ def meta(conn: Connection) -> dict:
             "last": to_utc_iso(st.last) if st and st.last else None,
             "latest_value": latest_value.value if latest_value else None,
             "latest_quality": latest_value.quality if latest_value else None,
+            **({"lat": row.latitude, "lon": row.longitude} if row.latitude is not None else {}),
         })
     datasets = [
         {"key": r.key, "name": r.name, "category": r.category, "source_url": r.source_url,
@@ -185,11 +186,18 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
     for r in rows:
         t = ensure_utc(r.obs_time)
         per_day[t.astimezone(MYT).date()].append((t, r.value))
-    expected = max(1, round(86400 / interval))
+    full_day = max(1, round(86400 / interval))
+    now_myt = utcnow().astimezone(MYT)
     out = []
     day = start_day
     while day <= end_day:
         pts = per_day.get(day, [])
+        # Today only counts the readings that could exist so far, not a whole day's worth.
+        if day == now_myt.date():
+            elapsed = (now_myt - now_myt.replace(hour=0, minute=0, second=0, microsecond=0)).total_seconds()
+            expected = max(1, int(elapsed // interval))
+        else:
+            expected = full_day
         if not pts:
             out.append({"date": day.isoformat(), "count": 0, "expected": expected, "completeness": 0.0,
                         "max": None, "max_time": None, "min": None, "mean": None, "energy_mwh": None})
