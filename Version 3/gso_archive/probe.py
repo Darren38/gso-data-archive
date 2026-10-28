@@ -53,6 +53,81 @@ def _extract(html: str) -> dict:
     return out
 
 
+# Page-specific scripts that load data (the Solar page and the home page keep their data calls in separate files).
+SCRIPT_HINT = re.compile(r"solar|landing", re.I)
+SKIP_METHODS = re.compile(r"download|admin|access|quicklink|news", re.I)
+AJAX_URL = re.compile(r"""url\s*:\s*["']([^"']*?\.aspx/\w+)["']""", re.I)
+TIELINES = ["HVDC", "PLTG", "EGAT"]
+
+
+def _probe_scripts(client: GsoClient, settings: Settings, report: dict, out_dir: Path, day: date) -> None:
+    """Read the page-specific scripts, note every data call with the code around it, and try each call once."""
+    from urllib.parse import urljoin
+
+    report["scripts"] = {}
+    seen: set[str] = set()
+    for page, info in list(report["pages"].items()):
+        page_url = f"{settings.gso_base_url}/{'' if page == '/' else page}"
+        for src in info.get("script_src", []):
+            if not SCRIPT_HINT.search(src) or src.startswith("http") and settings.gso_base_url not in src:
+                continue
+            url = urljoin(page_url, src)
+            if url in seen:
+                continue
+            seen.add(url)
+            try:
+                res = client.get(url)
+            except FetchError as exc:
+                report["scripts"][url] = {"error": str(exc)}
+                continue
+            js = res.content.decode("utf-8", errors="replace")
+            (out_dir / ("script_" + Path(src).name)).write_text(js, encoding="utf-8")
+            lines = js.splitlines()
+            calls = []
+            for i, line in enumerate(lines):
+                m = AJAX_URL.search(line)
+                if m:
+                    calls.append({"line": i + 1, "url": m.group(1),
+                                  "context": [ln.strip()[:200] for ln in lines[max(0, i - 6): i + 10]]})
+            report["scripts"][url] = {"bytes": len(js), "calls": calls}
+            for call in calls:
+                method_url = urljoin(page_url, call["url"])  # AJAX addresses resolve against the page, not the script
+                if SKIP_METHODS.search(call["url"]) or method_url in report["methods"]:
+                    continue
+                bodies = [{}]
+                ctx = " ".join(call["context"])
+                if re.search(r"fromdate|todate", ctx, re.I):
+                    bodies.append({"Fromdate": gso_date_param(day), "Todate": gso_date_param(day)})
+                for body in bodies:
+                    key = f"{method_url} {json.dumps(body)}"
+                    entry: dict = {"url": method_url, "request": body}
+                    try:
+                        mres = client.post_pagemethod(method_url, body, referer=page_url)
+                        entry["status"] = mres.status
+                        entry["raw_start"] = mres.content[:1500].decode("utf-8", errors="replace")
+                        try:
+                            records = decode_pagemethod(mres.content)
+                            entry.update(records=len(records), fields=schema_signature(records), sample=records[:3])
+                        except Exception as exc:  # noqa: BLE001
+                            entry["decode_error"] = str(exc)
+                    except FetchError as exc:
+                        entry["error"] = f"{exc.error_type}: {exc}"
+                    report["methods"][key] = entry
+    # Tie-lines need a Line parameter.
+    base = f"{settings.gso_base_url}/SystemData/TieLine.aspx"
+    for line in TIELINES:
+        body = {"Fromdate": gso_date_param(day), "Todate": gso_date_param(day), "Line": line}
+        entry = {"url": f"{base}/GetChartDataSource", "request": body}
+        try:
+            mres = client.post_pagemethod(f"{base}/GetChartDataSource", body, referer=base)
+            entry["status"] = mres.status
+            records = decode_pagemethod(mres.content)
+            entry.update(records=len(records), fields=schema_signature(records), sample=records[:3])
+        except Exception as exc:  # noqa: BLE001
+            entry["error"] = str(exc)[:300]
+        report["methods"][f"TieLine {line}"] = entry
+
+
 def run_probe(settings: Settings, out_dir: Path, try_methods: bool = True, day: date | None = None) -> dict:
     day = day or myt_today()
     out_dir = Path(out_dir) / utcnow().strftime("%Y%m%dT%H%M%SZ")
@@ -94,6 +169,7 @@ def run_probe(settings: Settings, out_dir: Path, try_methods: bool = True, day: 
                 except FetchError as exc:
                     entry["error"] = f"{exc.error_type}: {exc}"
                 report["methods"][f"{page}/{method}"] = entry
+        _probe_scripts(client, settings, report, out_dir, day)
     (out_dir / "report.json").write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
     report["saved_to"] = str(out_dir)
     return report

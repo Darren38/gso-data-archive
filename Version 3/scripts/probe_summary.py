@@ -34,6 +34,19 @@ def main(report_path: str, out_dir: str) -> None:
             print(f"   fields: {m['fields']}")
         for row in (m.get("sample") or [])[:3]:
             print(f"   sample: {json.dumps(row)[:400]}")
+    print("\n" + "=" * 100)
+    print("PAGE SCRIPTS AND THEIR DATA CALLS")
+    for url, info in report.get("scripts", {}).items():
+        print(f"\n## {url}: {info.get('error') or str(info.get('bytes')) + ' bytes'}")
+        for call in info.get("calls", []):
+            print(f"\n   line {call['line']}: {call['url']}")
+            for ln in call["context"]:
+                print(f"      | {ln}")
+    print("\n" + "=" * 100)
+    print("RAW STARTS OF SCRIPT-CALL ANSWERS")
+    for name, m in report.get("methods", {}).items():
+        if m.get("raw_start"):
+            print(f"\n## {name}: {m['raw_start'][:1200]}")
     saved = Path(report.get("saved_to") or out_dir)
     folders = [saved] if saved.is_dir() and list(saved.glob("*.html")) else sorted(Path(out_dir).glob("*"))
     for folder in folders[-1:]:
