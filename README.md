@@ -49,22 +49,13 @@ of guessing. Collection is on; to pause it, set the repository variable `GSO_LIV
 (Settings → Secrets and variables → Actions → Variables). GSO's terms of use apply to the data. Another project
 reports they require TNB's written consent to download or store it, so it's worth checking them on gso.org.my.
 
-## Run it locally
+## Open it
 
-Needs Python 3.11 or newer.
+Click **[OPEN THE SITE](https://darren38.github.io/gso-data-archive/)** above. It works in any browser on a phone,
+tablet or computer, with nothing to install and no sign-up, and it keeps itself up to date while it's open.
 
-```bash
-pip install -r requirements.txt
-python -m gso_archive seed-demo
-DATABASE_URL="sqlite:///$PWD/data/demo.sqlite3" python -m gso_archive serve
-```
-
-Then open http://127.0.0.1:8000. That shows *demonstration* data, clearly marked on every page. Run the tests
-with `python -m pytest`. Other commands: `collect`, `schedule`, `backfill --start YYYY-MM-DD`, `status`, `probe`
-(look at GSO's pages), `backup`, `restore-portable`. All are run as `python -m gso_archive <command>`.
-
-More: [design and data model](docs/ARCHITECTURE.md) · [deployment](docs/DEPLOYMENT.md) · [backups](docs/BACKUP_RESTORE.md) ·
-[status and next steps](docs/STATUS.md) · [what changed and when](CHANGELOG.md)
+More: [what is known about GSO's data](docs/SOURCE_INVESTIGATION.md) · [design and data model](docs/ARCHITECTURE.md) ·
+[status and next steps](docs/STATUS.md) · [what changed and when](CHANGELOG.md) · [for developers](docs/DEVELOPMENT.md)
 
 ## Credits and licence
 

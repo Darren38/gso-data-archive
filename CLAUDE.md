@@ -13,7 +13,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
 - READMEs follow the owner's format: centred title, bold one-line description, green "OPEN THE SITE" badge, a clickable
-  screenshot, then "What it is", "How current is it?", running it locally, and credits.
+  screenshot, then "What it is", "How current is it?", "Open it" (the site is online only: no install or local-run
+  steps in the README; developer instructions live in docs/DEVELOPMENT.md), and credits.
 - GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
 - No `Version N/` folders on `main` (the owner asked for them to be hidden). Like Physics Fruit Rush, a substantial
