@@ -203,15 +203,18 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
             expected = full_day
         if not pts:
             out.append({"date": day.isoformat(), "count": 0, "expected": expected, "completeness": 0.0,
-                        "max": None, "max_time": None, "min": None, "mean": None, "energy_mwh": None})
+                        "max": None, "max_time": None, "min": None, "min_time": None, "mean": None,
+                        "energy_mwh": None})
         else:
             values = [v for _, v in pts]
             peak_t, peak_v = max(pts, key=lambda p: p[1])
+            low_t, low_v = min(pts, key=lambda p: p[1])
             energy = energy_by_day.get(day, 0.0)
             out.append({
                 "date": day.isoformat(), "count": len(pts), "expected": expected,
                 "completeness": round(min(1.0, len(pts) / expected), 4),
-                "max": peak_v, "max_time": to_utc_iso(peak_t), "min": min(values),
+                "max": peak_v, "max_time": to_utc_iso(peak_t), "min": low_v,
+                "min_time": to_utc_iso(low_t),
                 "mean": sum(values) / len(values),
                 "energy_mwh": round(energy, 3) if info.unit == "MW" else None,
             })

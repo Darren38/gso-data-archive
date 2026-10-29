@@ -32,7 +32,7 @@ export async function render(main, { meta, isCurrent }) {
       body.appendChild(h(`<div class="grid kpis">
         ${kpi({ big: true, icon: "demand", label: "Current System Demand", cls: "demand", value: s.latest_value != null ? fmtNum(s.latest_value) : null, unit: "MW", meta: s.last ? `${fmtDateTime(s.last)} MYT` : "" })}
         ${kpi({ big: true, icon: "peak", label: "Peak System Demand", cls: "demand", value: peak ? fmtNum(peak.max) : null, unit: "MW", meta: peak ? `${fmtDateTime(peak.max_time)} MYT` : "" })}
-        ${kpi({ icon: "low", label: "Minimum System Demand", value: low ? fmtNum(low.min) : null, unit: "MW", meta: low ? low.date : "" })}
+        ${kpi({ icon: "low", label: "Minimum System Demand", value: low ? fmtNum(low.min) : null, unit: "MW", meta: low ? (low.min_time ? `${fmtDateTime(low.min_time)} MYT` : low.date) : "" })}
         ${kpi({ icon: "energy", label: "Energy Demand", value: wd.length ? fmtEnergy(energy) : null, meta: `${wd.length}/${rows.length} days with data` })}
       </div>`));
       body.appendChild(h(shortForms(["MW", "MWh", "MYT"])));

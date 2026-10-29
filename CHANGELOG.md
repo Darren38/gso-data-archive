@@ -1,5 +1,15 @@
 # Changelog
 
+## 29 October 2026 (fifteenth update) — GSO Grid Archive 5.7
+
+Fixed: every evening the Solar page's readings were filed under the day before.
+
+- GSO's Solar page lists today's readings only. After sunset, GSO's "time of the latest reading" stops moving forward, but the list of readings keeps growing through the night. The archive used that time to decide which day a list belonged to, so each evening the list looked "too long for today" and the whole day was saved under the previous day.
+- What this did: the archive's "27 October" was really a copy of 28 October (none of its Solar page readings were collected on the 27th itself), and 28 October was missing its evening from 8:20 pm. Left alone, tonight's readings would have overwritten the 28th's.
+- Now the real clock decides the day. The readings already misfiled were moved back to the right day and the copied day removed. Nothing was made up: every reading kept is one GSO published. The Solar page now correctly says collection began on 28 October, and its peak (3,969 MW at 1:30 pm) is dated 28 October.
+- Clearer: the Demand page's "Minimum System Demand" now shows the time it happened, like the peak does (for example "25 Oct 2026, 07:40 MYT" instead of "2026-10-25").
+- Checked again with the real archive saved on GitHub this morning: every number on the Overview, Solar, Demand, Tie-Line and BESS pages was worked out separately and matches. Every page at 7 screen widths (phone to large desktop), light and dark, both clocks, and every button: no errors, nothing cut off or spilling sideways.
+
 ## 29 October 2026 (fourteenth update) — GSO Grid Archive 5.6.2
 
 Another full check of the site and its numbers, with real GSO answers.

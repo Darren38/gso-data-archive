@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
-from sqlalchemy import and_, delete, inspect, select, text
+from sqlalchemy import and_, delete, inspect, select, text, update
 from sqlalchemy.engine import Connection, Engine
 
 from .. import db
-from ..timeutil import utcnow
+from ..timeutil import MYT, ensure_utc, utcnow
 
 
 def _m001_initial(conn: Connection) -> None:
@@ -51,10 +51,62 @@ def _m003_series_location(conn: Connection) -> None:
             conn.execute(text(f"ALTER TABLE series ADD COLUMN {col} FLOAT"))
 
 
+def _m004_refile_evening_solar(conn: Connection) -> None:
+    """Put Solar page readings filed under the wrong day back on their own day. GSO's Solar page lists today only,
+    but after sunset its "last available" time stops moving while the list keeps growing, and the collector judged
+    the day by that time: each evening the whole list was filed under the day before (fixed in 5.7). A reading
+    collected on day D after 01:00 can only be D's (just after midnight GSO may still serve yesterday's list), so
+    each such write moves to the same time on D, and the earlier day keeps only the readings collected for it."""
+    o, rv, s = db.observations.c, db.observation_revisions.c, db.series.c
+    sids = [r.id for r in conn.execute(select(s.id).where(s.key.like("solar_profile.%")))]
+    for sid in sids:
+        revs = conn.execute(select(rv.id, rv.obs_time, rv.value, rv.quality, rv.collected_at, rv.run_id)
+                            .where(rv.series_id == sid).order_by(rv.collected_at, rv.id)).all()
+        wrong: dict[datetime, list] = {}  # right obs_time -> its misfiled writes
+        touched: set[datetime] = set()
+        for r in revs:
+            t, got = ensure_utc(r.obs_time).astimezone(MYT), ensure_utc(r.collected_at).astimezone(MYT)
+            if t.date() < got.date() and got.time() >= time(1, 0):
+                right = datetime.combine(got.date(), t.time(), tzinfo=MYT).astimezone(ensure_utc(r.obs_time).tzinfo)
+                touched.add(ensure_utc(r.obs_time))
+                conn.execute(delete(db.observation_revisions).where(rv.id == r.id))
+                if right - ensure_utc(r.collected_at) <= timedelta(minutes=15):
+                    wrong.setdefault(right, []).append(r)
+        # the earlier day: back to its last write collected for it, or no reading at all
+        for t in touched:
+            keep = conn.execute(select(rv.value, rv.quality, rv.collected_at, rv.run_id)
+                                .where(and_(rv.series_id == sid, rv.obs_time == t))
+                                .order_by(rv.collected_at, rv.id)).all()
+            where = and_(o.series_id == sid, o.obs_time == t)
+            if not keep:
+                conn.execute(delete(db.observations).where(where))
+            else:
+                last = keep[-1]
+                conn.execute(update(db.observations).where(where).values(
+                    value=last.value, quality=last.quality, first_collected_at=keep[0].collected_at,
+                    last_changed_at=last.collected_at, revision_count=len(keep), last_run_id=last.run_id))
+        # the right day: only where it has no reading of its own
+        for t, writes in wrong.items():
+            if conn.execute(select(o.obs_time).where(and_(o.series_id == sid, o.obs_time == t))).first():
+                continue
+            prev = None
+            for w in writes:
+                conn.execute(db.observation_revisions.insert().values(
+                    series_id=sid, obs_time=t, value=w.value, previous_value=prev, quality=w.quality,
+                    collected_at=w.collected_at, run_id=w.run_id))
+                prev = w.value
+            last = writes[-1]
+            conn.execute(db.observations.insert().values(
+                series_id=sid, obs_time=t, value=last.value, quality=last.quality,
+                first_collected_at=writes[0].collected_at, last_changed_at=last.collected_at,
+                revision_count=len(writes), last_run_id=last.run_id))
+
+
 MIGRATIONS: list[tuple[int, str, Callable[[Connection], None]]] = [
     (1, "initial schema", _m001_initial),
     (2, "drop readings dated after they were collected", _m002_drop_future_readings),
     (3, "series latitude and longitude", _m003_series_location),
+    (4, "put evening Solar page readings back on their own day", _m004_refile_evening_solar),
 ]
 
 

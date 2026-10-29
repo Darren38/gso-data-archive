@@ -112,3 +112,35 @@ def test_series_location_is_kept(engine):
     with engine.connect() as conn:
         row = conn.execute(select(db.series.c.latitude, db.series.c.longitude).where(db.series.c.id == ids["ajns"])).first()
     assert (row.latitude, row.longitude) == (5.738311, 100.561308)
+
+
+def test_migration_puts_evening_solar_readings_back_on_their_own_day(engine):
+    from gso_archive.migrations import _m004_refile_evening_solar
+    from gso_archive.timeutil import MYT
+
+    spec = get_adapter("solar_profile")
+
+    def put(when, value, collected):
+        r = [Reading("grid", "Grid", datetime(2026, 10, *when, tzinfo=MYT).astimezone(UTC), value)]
+        with engine.begin() as conn:
+            ds = store.ensure_dataset(conn, spec)
+            ids = store.resolve_series(conn, spec, ds, r)
+            store.apply_readings(conn, r, ids, run_id=None, snapshot_id=None,
+                                 collected_at=datetime(2026, 10, *collected, tzinfo=MYT).astimezone(UTC))
+            return ids["grid"]
+
+    sid = put((27, 18, 0), 100.0, (27, 18, 5))   # collected on its own day
+    put((28, 18, 0), 120.0, (28, 18, 5))
+    put((27, 18, 0), 120.0, (28, 20, 40))        # the 28th's evening list, filed under the 27th
+    put((27, 20, 30), 0.0, (28, 20, 40))
+    put((28, 23, 50), 0.0, (29, 0, 5))           # just after midnight: yesterday's list, rightly yesterday's
+    with engine.begin() as conn:
+        _m004_refile_evening_solar(conn)
+    with engine.connect() as conn:
+        o = db.observations.c
+        rows = {r.obs_time.replace(tzinfo=UTC) if r.obs_time.tzinfo is None else r.obs_time: (r.value, r.revision_count)
+                for r in conn.execute(select(o.obs_time, o.value, o.revision_count).where(o.series_id == sid))}
+    at = lambda *d: datetime(2026, 10, *d, tzinfo=MYT).astimezone(UTC)  # noqa: E731
+    assert rows == {at(27, 18, 0): (100.0, 1), at(28, 18, 0): (120.0, 1), at(28, 20, 30): (0.0, 1),
+                    at(28, 23, 50): (0.0, 1)}
+    assert _count(engine, db.observation_revisions) == 4

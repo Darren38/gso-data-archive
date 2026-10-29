@@ -109,6 +109,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     the geo instead. The browser check asks the solar map for a farm's tooltip.
 31. **Check numbers, not just pages.** Recompute the headline figures from the archive and GSO's own totals (e.g. the
     Solar page's "currentMW") and compare with what the pages show; a page can render cleanly and still be wrong.
+32. **GSO's "last available" time stops moving after sunset, but the Solar page's list keeps growing.** Judged by that
+    time, every evening list looked too long for today and was filed under yesterday (the archive's "27 Oct" was a copy
+    of the 28th). `_solar_actual` picks the day by the real clock (`ctx["now"]`); migration 4 refiled the old readings.
+    Look for this by counting readings per day and comparing a day's values with the next day's.
 
 ## How to check a change
 
