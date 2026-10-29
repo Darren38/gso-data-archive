@@ -94,7 +94,9 @@ def _solar_actual(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     lists = [_values(p) for p in parts[:5]]
     if len({len(x) for x in lists}) != 1:
         raise SchemaError(f"solar series have different lengths: {[len(x) for x in lists]}")
-    day = _pick_day(len(lists[0]), _reading_time(ctx))
+    # The day comes from the real clock: after sunset GSO's "last available" stops moving while the list keeps
+    # growing, so judged by that time every evening list looked "too long for today" and was filed under yesterday.
+    day = _pick_day(len(lists[0]), ctx.get("now") or _reading_time(ctx))
     out = ParsedPayload(signature=f"solar_actual:{len(parts)} parts")
     for (series, source), values in zip(SOLAR_PARTS, lists):
         _series(spec, out, values, day, series, source, quality="estimate" if series in ("nem", "fit", "selco") else None)

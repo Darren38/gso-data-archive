@@ -177,3 +177,21 @@ def test_forecast_day_comes_from_the_clock():
     # within half an hour of midnight it is still skipped, whatever "last available" says
     early = parse(spec, body, NEW_DAY, {"last_available": NIGHT_LAST, "now": datetime(2026, 10, 29, 0, 10, tzinfo=MYT)})
     assert not early.readings and early.rejected
+
+
+def test_evening_list_stays_on_its_own_day():
+    # Seen on 28 October 2026: after sunset GSO's "last available" stayed at the last daylight reading while the list
+    # kept growing. Judged by that time, the 20:40 list (124 readings) looked too long for the day and was filed under
+    # the day before, so 27 October became a copy of the 28th. The real clock decides the day.
+    parts = json.loads(fixture_bytes("real/solar_actual.json"))["d"].split("$")
+    for i in range(5):
+        vals = parts[i].split(",")
+        parts[i] = ",".join(vals + ["0"] * (124 - len(vals)))
+    sunset = datetime(2026, 10, 28, 18, 30, tzinfo=MYT)
+    now = datetime(2026, 10, 28, 20, 42, tzinfo=MYT)
+    p = parse(get_adapter("solar_profile"), json.dumps({"d": "$".join(parts)}), DAY,
+              {"last_available": sunset, "now": now})
+    grid = by_series(p)["grid"]
+    assert len(grid) == 124
+    assert grid[0].obs_time == datetime(2026, 10, 28, 0, 0, tzinfo=MYT).astimezone(UTC)
+    assert grid[-1].obs_time == datetime(2026, 10, 28, 20, 30, tzinfo=MYT).astimezone(UTC)
