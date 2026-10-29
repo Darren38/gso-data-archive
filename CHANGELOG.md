@@ -1,5 +1,14 @@
 # Changelog
 
+## 29 October 2026 (thirteenth update) — GSO Grid Archive 5.6.1
+
+Fixed: the live site stopped showing new readings for hours at a time.
+
+- Collection never stopped. Every run kept saving GSO's readings into the archive every 2 minutes, but from early on 29 October the published site stayed hours behind (for example still showing 6:40 am at 9:41 am).
+- The cause was how the site was published. GitHub names each published copy, and the publishing step always used the code's version number. Because the site is republished every few minutes from the same version, hundreds of copies shared one name. GitHub kept serving an older copy and reported "success" each time.
+- Now every run publishes under its own name and waits until that exact copy is live. If publishing really fails, the run fails and GitHub emails the owner.
+- The hourly check of the live site is what caught this: it marked the 6, 7 and 9 am checks as failed because the site's last collection was hours old.
+
 ## 29 October 2026 (twelfth update) — GSO Grid Archive 5.6
 
 A solar map like GSO's, and every number checked again.

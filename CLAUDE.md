@@ -96,6 +96,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (`analytics.daily`, `dailyFromPoints` in `analysis.js`).
 27. **Check a surprise against GSO's raw answers before calling it a bug.** The new day's forecast looked like a copy of
     yesterday's; the probe (`archive.yml` with `probe: true`) showed GSO really had published a new one.
+28. **Every GitHub Pages deployment needs its own build version.** `actions/deploy-pages` sends the commit as
+    `pages_build_version` and checks the deployment with that id, so republishing the same commit every few minutes made
+    hundreds of deployments share one identity: GitHub served an old copy and the step said "success" in seconds.
+    `scripts/deploy_pages.py` publishes as `<commit>-run<id>-<attempt>` and waits for that deployment. The hourly
+    live-site check ("last collection N min ago") is what showed it.
 
 ## How to check a change
 
