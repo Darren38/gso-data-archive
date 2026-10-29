@@ -61,6 +61,15 @@ async function visit(page, base, route, wait = 1200) {
     await page.click('[data-preset="30d"]'); await page.waitForTimeout(1500);
     await page.click('[data-period="week"]'); await page.waitForTimeout(500);
     if (!(await page.textContent("main")).includes("W")) fail.push("weekly comparison did not render");
+    // Solar map: every farm placed, and pointing at one shows its numbers (a geo tooltip setting once hid them all).
+    const map = await page.evaluate(async () => {
+      const el = document.querySelector(".chart.map"); const c = el && window.echarts.getInstanceByDom(el);
+      if (!c) return { farms: 0, tip: "" };
+      c.dispatchAction({ type: "showTip", seriesIndex: 0, dataIndex: 0 }); await new Promise((r) => setTimeout(r, 400));
+      return { farms: c.getOption().series[0].data.length, tip: [...el.querySelectorAll("div")].map((d) => d.innerText).join(" ") };
+    });
+    if (!map.farms) fail.push("solar map has no farms");
+    if (!/MW of [\d,]+ MW/.test(map.tip)) fail.push("solar map shows no farm details");
   } else if (scenario === "api-error") {
     await page.route("**/api/v1/meta", (route) => route.fulfill({ status: 503, body: '{"detail":"database unavailable"}', contentType: "application/json" }));
     out.pages.overview = await visit(page, base, "overview");

@@ -1,5 +1,16 @@
 # Changelog
 
+## 29 October 2026 (fourteenth update) — GSO Grid Archive 5.6.2
+
+Another full check of the site and its numbers, with real GSO answers.
+
+- Every main number was worked out again separately from the archive and from GSO's own totals, then compared with what the pages show. They match: current solar (3,939 MW, the same as GSO's own figure), demand, battery status, the forecast peak, the Generation Mix and Generation Availability totals, the solar farms (58 farms, 1,813 of 2,359 MW), solar energy, ramps and solar's share of demand.
+- Fixed: daily energy totals left out the last few minutes of each day (from the last reading before midnight to the first one after). Energy figures for solar, demand and batteries were about 1% too low; for example a week of demand showed 2.00 TWh instead of 2.04 TWh.
+- Fixed: on the Solar Map, pointing at or tapping a farm didn't show its output and capacity. A setting that hid pop-ups for the land also hid them for the farms.
+- Fixed: "Data Completeness" on the Solar page counted the days before the archive started collecting as missing (GSO's Solar page only ever shows today, so those days can't be filled). It now counts from the day collection began and says so.
+- Fixed: long date ranges asked for monthly data files from before the archive began, which don't exist. Only months with readings are fetched now.
+- Checked: every page at 7 screen widths, light and dark, both clocks, and every button, range, menu and map interaction: no errors, nothing cut off or spilling sideways, no "NaN" or "undefined".
+
 ## 29 October 2026 (thirteenth update) — GSO Grid Archive 5.6.1
 
 Fixed: the live site stopped showing new readings for hours at a time.

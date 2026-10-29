@@ -115,6 +115,19 @@ export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW"
     if (!byDay.has(day)) byDay.set(day, []);
     byDay.get(day).push([Date.parse(t), v, t]);
   }
+  // Energy per day across all readings, splitting a slice that crosses midnight so no day loses its last slice.
+  const all = points.filter((p) => p[1] != null).map(([t, v]) => [Date.parse(t), v]).sort((a, b) => a[0] - b[0]);
+  const energyByDay = new Map();
+  const dayOf = (ms) => new Date(ms + MYT).toISOString().slice(0, 10);
+  const add = (day, mwh) => energyByDay.set(day, (energyByDay.get(day) || 0) + mwh);
+  for (let i = 1; i < all.length; i += 1) {
+    const [t0, v0] = all[i - 1], [t1, v1] = all[i], dt = (t1 - t0) / 1000;
+    if (dt <= 0 || dt > 1.5 * interval) continue;
+    const d0 = dayOf(t0), d1 = dayOf(t1), midnight = Date.parse(`${d1}T00:00:00+08:00`);
+    if (d0 === d1 || t1 === midnight) { add(d0, ((v0 + v1) / 2) * dt / 3600); continue; }
+    const a = (midnight - t0) / 1000, vm = v0 + ((v1 - v0) * a) / dt;
+    add(d0, ((v0 + vm) / 2) * a / 3600); add(d1, ((vm + v1) / 2) * (dt - a) / 3600);
+  }
   const now = Date.now(), today = new Date(now + MYT).toISOString().slice(0, 10);
   const full = Math.max(1, Math.round(86400 / interval));
   const rows = [];
@@ -123,12 +136,12 @@ export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW"
     const expected = day === today ? Math.max(1, Math.floor((now - Date.parse(`${day}T00:00:00+08:00`)) / 1000 / interval)) : full;
     const pts = (byDay.get(day) || []).sort((a, b) => a[0] - b[0]);
     if (!pts.length) { rows.push({ date: day, count: 0, expected, completeness: 0, max: null, max_time: null, min: null, mean: null, energy_mwh: null }); continue; }
-    let peak = pts[0], energy = 0, sum = 0, min = Infinity;
-    pts.forEach((p, i) => {
+    let peak = pts[0], sum = 0, min = Infinity;
+    pts.forEach((p) => {
       if (p[1] > peak[1]) peak = p;
       sum += p[1]; min = Math.min(min, p[1]);
-      if (i) { const dt = (p[0] - pts[i - 1][0]) / 1000; if (dt <= 1.5 * interval) energy += ((p[1] + pts[i - 1][1]) / 2) * dt / 3600; }
     });
+    const energy = energyByDay.get(day) || 0;
     rows.push({ date: day, count: pts.length, expected, completeness: Math.min(1, pts.length / expected), max: peak[1], max_time: peak[2],
       min, mean: sum / pts.length, energy_mwh: unit === "MW" ? energy : null });
   }

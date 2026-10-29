@@ -103,6 +103,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     per run (same tree, parent = the real commit, on no branch: not in history or contributors), publishes under it and
     waits for that deployment. A same-version republish shows "succeed" with no queued/syncing steps: that's the tell.
     The hourly live-site check ("last collection N min ago") is what showed it.
+29. **Daily energy must keep the slice across midnight.** Integrating each day's readings on their own drops 23:50→00:00
+    (about 1% of a day). `_daily_energy` (analytics.py) and `dailyFromPoints` (analysis.js) split that slice at midnight.
+30. **A geo component's `tooltip: {show: false}` also hides the tooltips of series drawn on it.** Use `silent: true` on
+    the geo instead. The browser check asks the solar map for a farm's tooltip.
+31. **Check numbers, not just pages.** Recompute the headline figures from the archive and GSO's own totals (e.g. the
+    Solar page's "currentMW") and compare with what the pages show; a page can render cleanly and still be wrong.
 
 ## How to check a change
 

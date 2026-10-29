@@ -149,3 +149,22 @@ def test_observed_interval_from_run_log(engine, settings, api):
         assert observed_interval(conn) == 120
     c = api.get("/api/v1/meta").json()["collection"]
     assert c["observed_interval_seconds"] == 120 and c["interval_seconds"] == settings.collect_interval_seconds
+
+
+def test_daily_energy_keeps_the_slice_across_midnight():
+    from datetime import date, datetime, timedelta, timezone
+
+    from gso_archive.analytics import _daily_energy
+    from gso_archive.timeutil import MYT
+
+    # 100 MW, every 10 minutes from 23:00 to 01:00 MYT: one full hour on each side of midnight
+    t0 = datetime(2026, 10, 27, 23, 0, tzinfo=MYT).astimezone(timezone.utc)
+    pts = [(t0 + timedelta(minutes=10 * k), 100.0) for k in range(13)]
+    e = _daily_energy(pts, 600)
+    assert round(e[date(2026, 10, 27)], 6) == 100.0  # before the fix: 83.3 (the 23:50-00:00 slice was lost)
+    assert round(e[date(2026, 10, 28)], 6) == 100.0
+    # a slice that straddles midnight (23:55 to 00:05, 100 then 200 MW) is split at midnight, 150 MW there
+    a = datetime(2026, 10, 27, 23, 55, tzinfo=MYT).astimezone(timezone.utc)
+    e = _daily_energy([(a, 100.0), (a + timedelta(minutes=10), 200.0)], 600)
+    assert round(e[date(2026, 10, 27)], 6) == round((100 + 150) / 2 * 5 / 60, 6)
+    assert round(e[date(2026, 10, 28)], 6) == round((150 + 200) / 2 * 5 / 60, 6)

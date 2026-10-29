@@ -177,15 +177,18 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
     start, _ = myt_day_bounds_utc(start_day)
     _, end = myt_day_bounds_utc(end_day)
     o = db.observations.c
+    interval = info.interval_s or DEFAULT_INTERVAL_S
+    pad = timedelta(seconds=2 * interval)  # the readings just outside the range, for the slices across midnight
     rows = conn.execute(
-        select(o.obs_time, o.value).where(and_(o.series_id == info.id, o.obs_time >= start, o.obs_time < end))
+        select(o.obs_time, o.value).where(and_(o.series_id == info.id, o.obs_time >= start - pad, o.obs_time < end + pad))
         .order_by(o.obs_time)
     ).all()
-    interval = info.interval_s or DEFAULT_INTERVAL_S
+    every = [(ensure_utc(r.obs_time), r.value) for r in rows]
     per_day: dict[date, list[tuple[datetime, float]]] = defaultdict(list)
-    for r in rows:
-        t = ensure_utc(r.obs_time)
-        per_day[t.astimezone(MYT).date()].append((t, r.value))
+    for t, v in every:
+        if start <= t < end:
+            per_day[t.astimezone(MYT).date()].append((t, v))
+    energy_by_day = _daily_energy(every, interval)
     full_day = max(1, round(86400 / interval))
     now_myt = utcnow().astimezone(MYT)
     out = []
@@ -204,11 +207,7 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
         else:
             values = [v for _, v in pts]
             peak_t, peak_v = max(pts, key=lambda p: p[1])
-            energy = 0.0
-            for (t0, v0), (t1, v1) in zip(pts, pts[1:]):
-                dt = (t1 - t0).total_seconds()
-                if dt <= 1.5 * interval:
-                    energy += (v0 + v1) / 2 * dt / 3600
+            energy = energy_by_day.get(day, 0.0)
             out.append({
                 "date": day.isoformat(), "count": len(pts), "expected": expected,
                 "completeness": round(min(1.0, len(pts) / expected), 4),
@@ -217,6 +216,26 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
                 "energy_mwh": round(energy, 3) if info.unit == "MW" else None,
             })
         day += timedelta(days=1)
+    return out
+
+
+def _daily_energy(points: list[tuple[datetime, float]], interval: float) -> dict[date, float]:
+    """MWh per MYT day by the trapezium rule between readings at most 1.5 intervals apart. A slice that crosses
+    midnight (e.g. 23:50 to 00:00) is split there, so no day loses its last slice."""
+    out: dict[date, float] = defaultdict(float)
+    for (t0, v0), (t1, v1) in zip(points, points[1:]):
+        dt = (t1 - t0).total_seconds()
+        if dt <= 0 or dt > 1.5 * interval:
+            continue
+        d0, d1 = t0.astimezone(MYT).date(), t1.astimezone(MYT).date()
+        if d0 == d1 or t1.astimezone(MYT).time() == datetime.min.time():
+            out[d0] += (v0 + v1) / 2 * dt / 3600  # a reading at exactly 00:00 closes the day before
+        else:
+            midnight = datetime(d1.year, d1.month, d1.day, tzinfo=MYT).astimezone(t0.tzinfo)
+            a = (midnight - t0).total_seconds()
+            vm = v0 + (v1 - v0) * a / dt
+            out[d0] += (v0 + vm) / 2 * a / 3600
+            out[d1] += (vm + v1) / 2 * (dt - a) / 3600
     return out
 
 

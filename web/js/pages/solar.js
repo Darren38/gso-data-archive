@@ -109,7 +109,11 @@ export async function render(main, { meta, isCurrent }) {
     const points = pts ? pts.points : [];
     const peakDay = withData.reduce((b, r) => (b && b.max >= r.max ? b : r), null);
     const energy = withData.reduce((s, r) => s + (r.energy_mwh || 0), 0);
-    const completeness = rows.length ? rows.reduce((s, r) => s + r.completeness, 0) / rows.length : 0;
+    // Only days since this series began to be archived: GSO's Solar page shows today only, so earlier days can never
+    // be filled and would make a fully collected day look incomplete.
+    const since = p.first ? new Date(Date.parse(p.first) + 8 * 3600e3).toISOString().slice(0, 10) : null;
+    const counted = rows.filter((r) => !since || r.date >= since);
+    const completeness = counted.length ? counted.reduce((s, r) => s + r.completeness, 0) / counted.length : 0;
     const rampPts = rawOk ? ramps(points, pts.interval_s || p.interval_s) : [];
     const rampExt = extent(rampPts);
     const share = rawOk && dem ? combine(points, dem.points, (s, d) => (d > 0 ? (100 * s) / d : null)) : [];
@@ -127,7 +131,7 @@ export async function render(main, { meta, isCurrent }) {
         meta: rampExt.min ? `Fastest fall ${fmtNum(rampExt.min[1], 1)} MW/min` : rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps" })}
       ${kpi({ icon: "share", label: "Peak Solar Share", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",
         meta: shareExt.max ? `${fmtDateTime(shareExt.max[0])} MYT` : demand ? "Needs overlapping demand data" : "Demand not archived" })}
-      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: "Readings archived ÷ readings GSO has published so far (one every 10 minutes)" })}
+      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Readings archived ÷ readings GSO has published (one every 10 minutes)${since && since > range.startDay ? `, since collection began on ${fmtDate(since)}` : ""}` })}
     </div>`));
     body.appendChild(h(shortForms(["MW", "MWh", "MW/min", "MYT", "Grid", "Distribution", "NEM", "FiT", "SELCO", "LSS"])));
 

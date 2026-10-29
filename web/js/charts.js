@@ -263,7 +263,8 @@ export async function solarMap(el, { farms, demo = false }) {
       aspectScale: 1, layoutCenter: ["50%", "46%"], layoutSize: "90%",
       itemStyle: { areaColor: css("--surface-2"), borderColor: css("--border"), borderWidth: 0.8 },
       regions: [{ name: "Malaysia", itemStyle: { areaColor: "rgba(31, 166, 74, 0.10)", borderColor: css("--text-3"), borderWidth: 1 } }],
-      emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: false }, silent: true },
+      // silent: the land ignores the pointer. (geo tooltip show:false would also hide every farm's tooltip.)
+      emphasis: { disabled: true }, select: { disabled: true }, silent: true },
     visualMap: { type: "continuous", min: 0, max: 100, dimension: 2, calculable: false, orient: "horizontal",
       left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220, text: ["100% of capacity", "0%"],
       textStyle: { color: css("--text-2"), fontSize: 12 },

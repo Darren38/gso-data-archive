@@ -52,7 +52,12 @@ export async function getPoints(key, start, end) {
     const q = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });
     return getJSON(api(`/series/${encodeURIComponent(key)}/points?${q}`));
   }
-  const parts = await Promise.all(monthsBetween(start, end).map((m) => getJSON(stat(`points/${key}/${m}.json`))));
+  // Only the months this series has readings in: asking for earlier or later months just fetches missing files.
+  const info = (await getMeta().catch(() => null))?.series?.find((x) => x.key === key);
+  const from = info?.first ? new Date(Math.max(start.getTime(), Date.parse(info.first))) : start;
+  const to = info?.last ? new Date(Math.min(end.getTime(), Date.parse(info.last) + 1)) : end;
+  const months = from < to ? monthsBetween(from, to) : [];
+  const parts = await Promise.all(months.map((m) => getJSON(stat(`points/${key}/${m}.json`))));
   const found = parts.filter(Boolean);
   const points = [];
   for (const part of found) {
