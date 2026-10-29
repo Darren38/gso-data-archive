@@ -53,3 +53,20 @@ def test_failure_fails_the_run():
 def test_gives_up_after_the_timeout():
     with pytest.raises(SystemExit, match="did not finish"):
         dp.deploy(ENV, req=FakeGitHub(["deployment_queued"] * 10), sleep=lambda s: None, timeout_s=10, every_s=5)
+
+
+def test_falls_back_to_the_commit_when_the_version_is_refused():
+    import io
+    import urllib.error
+
+    gh = FakeGitHub(["succeed"])
+    real = gh.__call__
+
+    def refuse_unique(method, url, token=None, body=None, timeout=30):
+        if method == "POST" and body and body.get("pages_build_version", "").endswith("-run41-1"):
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, io.BytesIO(b'{"message":"Not Found"}'))
+        return real(method, url, token, body, timeout)
+
+    result = dp.deploy(ENV, req=refuse_unique, sleep=lambda s: None)
+    assert result["status"] == "succeed"
+    assert [c[2]["pages_build_version"] for c in gh.calls if c[0] == "POST"] == ["e32f370c"]

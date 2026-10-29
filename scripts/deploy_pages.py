@@ -50,6 +50,13 @@ def request(method: str, url: str, token: str | None = None, body: dict | None =
         return json.loads(raw) if raw else {}
 
 
+def _body(exc: urllib.error.HTTPError) -> str:
+    try:
+        return exc.read().decode("utf-8", "replace")[:500]
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def oidc_token(env: dict, req=request) -> str:
     # What @actions/core getIDToken() does without an audience.
     return req("GET", env["ACTIONS_ID_TOKEN_REQUEST_URL"], env["ACTIONS_ID_TOKEN_REQUEST_TOKEN"])["value"]
@@ -60,8 +67,16 @@ def deploy(env: dict, req=request, sleep=time.sleep, timeout_s: float = 600, eve
     api = env.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
     base = f"{api}/repos/{env['GITHUB_REPOSITORY']}/pages/deployments"
     token, version = env["GITHUB_TOKEN"], build_version(env)
-    created = req("POST", base, token, {"artifact_id": int(env["ARTIFACT_ID"]), "pages_build_version": version,
-                                        "oidc_token": oidc_token(env, req)})
+    try:
+        created = req("POST", base, token, {"artifact_id": int(env["ARTIFACT_ID"]), "pages_build_version": version,
+                                            "oidc_token": oidc_token(env, req)})
+    except urllib.error.HTTPError as exc:
+        # Seen on 29 Oct 2026: a build version that isn't a commit was refused with 404. Show GitHub's reason and
+        # publish under the commit (what deploy-pages does) so the site is never left unpublished.
+        print(f"Build version {version} refused: HTTP {exc.code} {_body(exc)}")
+        version = env["GITHUB_SHA"]
+        created = req("POST", base, token, {"artifact_id": int(env["ARTIFACT_ID"]), "pages_build_version": version,
+                                            "oidc_token": oidc_token(env, req)})
     dep_id = created.get("id") or (created.get("status_url") or "").rstrip("/").split("/")[-1] or version
     print(f"Created deployment {dep_id} for build version {version}")
     status_url = created.get("status_url") or f"{base}/{dep_id}"
@@ -70,6 +85,7 @@ def deploy(env: dict, req=request, sleep=time.sleep, timeout_s: float = 600, eve
         try:
             state = req("GET", status_url, token)
         except urllib.error.HTTPError as exc:
+            print(f"Status check: HTTP {exc.code} {_body(exc)}")
             state = {"status": f"http_{exc.code}"}
         status = state.get("status")
         if status == SUCCEEDED:
