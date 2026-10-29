@@ -126,6 +126,7 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      contents: write  # only to make each run's commit object (on no branch) that names its deployment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -148,7 +149,8 @@ jobs:
           sparse-checkout: scripts
       # Not actions/deploy-pages: it names every deployment after the commit, and this site is republished every few
       # minutes from the same commit, so GitHub kept serving one old copy while reporting success (29 Oct 2026).
-      # scripts/deploy_pages.py gives each run its own build version and waits until that copy is live.
+      # GitHub only accepts a commit as the name, so scripts/deploy_pages.py makes a commit object for each run (same
+      # files, on no branch, never in the history), publishes under it and waits until that copy is live.
       - id: deployment
         if: steps.pages.outputs.on == 'true'
         run: python3 scripts/deploy_pages.py

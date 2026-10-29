@@ -8,7 +8,10 @@ this site is republished every few minutes from the same commit, so hundreds of 
 GitHub kept serving one older copy, and deploy-pages, which checks the deployment with that same identity, reported
 "success" within seconds every time. Found on 29 October 2026, when the live site stayed hours behind the archive.
 
-Here every run gets its own version (commit, run number and attempt), and the script waits for that deployment.
+GitHub only accepts a commit as the build version (any other text is refused with 404), so every run first creates a
+commit object of its own with the same files as the commit it was built from, attached to no branch: it never appears
+in the history, branches or contributors, and GitHub cleans it up later. The site is published under that commit, and
+the script waits for that deployment. If the commit can't be made, it publishes under the usual commit.
 
 Environment: GITHUB_TOKEN, GITHUB_REPOSITORY, GITHUB_SHA, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, GITHUB_API_URL,
 ACTIONS_ID_TOKEN_REQUEST_URL and ACTIONS_ID_TOKEN_REQUEST_TOKEN (set by GitHub), ARTIFACT_ID (from
@@ -33,9 +36,16 @@ FAILED = {  # final; the same list as deploy-pages
 UA = "gso-data-archive (deploy)"
 
 
-def build_version(env: dict) -> str:
-    """Unique per run and attempt, and still shows which commit it was built from."""
-    return f"{env['GITHUB_SHA']}-run{env['GITHUB_RUN_ID']}-{env.get('GITHUB_RUN_ATTEMPT', '1')}"
+def publish_commit(env: dict, req=None) -> str:
+    """A commit made for this run only (same files as GITHUB_SHA, on no branch), to use as its build version."""
+    req = req or request
+    api = env.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+    repo, sha, token = env["GITHUB_REPOSITORY"], env["GITHUB_SHA"], env["GITHUB_TOKEN"]
+    tree = req("GET", f"{api}/repos/{repo}/git/commits/{sha}", token)["tree"]["sha"]
+    made = req("POST", f"{api}/repos/{repo}/git/commits", token, {
+        "message": f"Publish the site, run {env['GITHUB_RUN_ID']}-{env.get('GITHUB_RUN_ATTEMPT', '1')} (not on any branch)",
+        "tree": tree, "parents": [sha]})
+    return made["sha"]
 
 
 def request(method: str, url: str, token: str | None = None, body: dict | None = None, timeout: float = 30):
@@ -66,13 +76,19 @@ def deploy(env: dict, req=request, sleep=time.sleep, timeout_s: float = 600, eve
     """Create the deployment and wait for it. Returns the final status; raises SystemExit on failure."""
     api = env.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
     base = f"{api}/repos/{env['GITHUB_REPOSITORY']}/pages/deployments"
-    token, version = env["GITHUB_TOKEN"], build_version(env)
+    token = env["GITHUB_TOKEN"]
+    try:
+        version = publish_commit(env, req)
+    except Exception as exc:  # noqa: BLE001 - publishing must still happen
+        print(f"Couldn't make this run's commit ({exc}); publishing under {env['GITHUB_SHA']}")
+        version = env["GITHUB_SHA"]
     try:
         created = req("POST", base, token, {"artifact_id": int(env["ARTIFACT_ID"]), "pages_build_version": version,
                                             "oidc_token": oidc_token(env, req)})
     except urllib.error.HTTPError as exc:
-        # Seen on 29 Oct 2026: a build version that isn't a commit was refused with 404. Show GitHub's reason and
-        # publish under the commit (what deploy-pages does) so the site is never left unpublished.
+        if version == env["GITHUB_SHA"]:
+            raise
+        # Show GitHub's reason and publish under the usual commit so the site is never left unpublished.
         print(f"Build version {version} refused: HTTP {exc.code} {_body(exc)}")
         version = env["GITHUB_SHA"]
         created = req("POST", base, token, {"artifact_id": int(env["ARTIFACT_ID"]), "pages_build_version": version,

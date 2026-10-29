@@ -99,8 +99,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 28. **Every GitHub Pages deployment needs its own build version.** `actions/deploy-pages` sends the commit as
     `pages_build_version` and checks the deployment with that id, so republishing the same commit every few minutes made
     hundreds of deployments share one identity: GitHub served an old copy and the step said "success" in seconds.
-    `scripts/deploy_pages.py` publishes as `<commit>-run<id>-<attempt>` and waits for that deployment. The hourly
-    live-site check ("last collection N min ago") is what showed it.
+    GitHub only accepts a commit as the version (other text: 404), so `scripts/deploy_pages.py` makes a commit object
+    per run (same tree, parent = the real commit, on no branch: not in history or contributors), publishes under it and
+    waits for that deployment. A same-version republish shows "succeed" with no queued/syncing steps: that's the tell.
+    The hourly live-site check ("last collection N min ago") is what showed it.
 
 ## How to check a change
 
