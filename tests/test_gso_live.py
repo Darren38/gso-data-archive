@@ -26,6 +26,13 @@ def by_series(payload):
     return out
 
 
+@pytest.fixture
+def at_fixture_time(monkeypatch):
+    """Collect as if at the moment the real answers were saved, so the result doesn't depend on when tests run
+    (between 23:30 and 00:30 the forecast is skipped, and just after midnight a full list belongs to yesterday)."""
+    monkeypatch.setattr("gso_archive.collector.utcnow", lambda: datetime(2026, 10, 28, 13, 31, tzinfo=MYT).astimezone(UTC))
+
+
 def test_last_available():
     d = json.loads(fixture_bytes("real/solar_last_available.json"))["d"]
     assert parse_last_available(d) == REF
@@ -109,7 +116,7 @@ def test_wrong_shapes_rejected():
         parse(get_adapter("genmix_live"), json.dumps({"d": [1, 2]}), DAY, {})
 
 
-def test_collect_solar_end_to_end(engine, settings, client, fake):
+def test_collect_solar_end_to_end(engine, settings, client, fake, at_fixture_time):
     fake.add("SystemData/Solar.aspx/GetLastAvailableData", "real/solar_last_available.json")
     fake.add("SystemData/Solar.aspx/GetSolarActualData", "real/solar_actual.json")
     r = collect_one(engine, client, settings, get_adapter("solar_profile"), DAY)
@@ -122,7 +129,7 @@ def test_collect_solar_end_to_end(engine, settings, client, fake):
         assert c.execute(select(func.count()).select_from(db.observations)).scalar() == 405
 
 
-def test_series_are_named_and_time_asked_once(engine, settings, client, fake):
+def test_series_are_named_and_time_asked_once(engine, settings, client, fake, at_fixture_time):
     fake.add("SystemData/Solar.aspx/GetLastAvailableData", "real/solar_last_available.json")
     fake.add("SystemData/Solar.aspx/GetSolarActualData", "real/solar_actual.json")
     fake.add("SystemData/Solar.aspx/GetSolarForecastData", "real/solar_forecast.json")

@@ -63,13 +63,14 @@ export function intradayProfiles(points, groupKey) {
   }));
 }
 
-/** Forecast-vs-actual error stats at matching timestamps. */
+/** How far a forecast was from what happened. Moments where both are zero (solar at night) are left out: they
+ * are no test of the forecast, and counting them made the typical miss look less than half its daylight size. */
 export function forecastError(actual, forecast) {
   const f = toMap(forecast);
   let n = 0, abs = 0, bias = 0, sq = 0;
   for (const [t, v] of actual) {
     const w = f.get(t);
-    if (v == null || w == null) continue;
+    if (v == null || w == null || (v === 0 && w === 0)) continue;
     const e = w - v; n += 1; abs += Math.abs(e); bias += e; sq += e * e;
   }
   return n ? { n, mae: abs / n, bias: bias / n, rmse: Math.sqrt(sq / n) } : null;

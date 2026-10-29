@@ -1,5 +1,17 @@
 # Changelog
 
+## 30 October 2026 (sixteenth update) — GSO Grid Archive 5.8
+
+More trustworthy for people who use this site instead of GSO's own.
+
+- **New: a clear warning when readings are late.** If the newest GSO reading on the site is more than 45 minutes old (because GSO's website or this archive's collection has a problem), every page now says so in a yellow note at the top, with the time of that reading, so old figures are never taken for current ones. The note goes away by itself when fresh readings arrive. Normally readings arrive 15 to 25 minutes after the time they are for.
+- **New: GSO's pages are checked against each other.** GSO publishes two figures on two different pages, and in the real archive they agree at every daylight reading: the Solar page's Grid solar equals the Generation page's Solar, and the home page's Distribution Solar equals the Solar page's Distribution + NEM + FiT + SELCO. GSO's Solar page and home page send unlabelled lists, so if GSO ever changed their order, numbers could be filed under the wrong names without anyone noticing. Now the Collection Status page shows whether the pages still agree, and the hourly check emails the owner if they stop agreeing.
+- **The hourly check also catches old data.** Before, it only noticed if collection stopped. Now it also fails if collection runs but GSO's newest reading is more than 3 hours old.
+- **Fixed: the forecast looked twice as accurate as it is.** The Solar page's "Forecast vs Actual" counted every night-time moment, when both the forecast and the actual are zero. That halved the "typical miss". With night left out, the typical miss on 28 October was 115 MW, not 48 MW, and actual solar was on average 95 MW above GSO's forecast, not 39 MW.
+- **Checked:** the Solar page's readings are on the right times. Its Grid figures equal the Generation page's solar at exactly the same times (78 of 78 daylight readings). The repair in 5.7 was run on a copy of the real archive: it put every misfiled Solar page reading back on its own day and removed the copied day, and both checks above pass on it.
+- **Known and unavoidable:** GSO's Solar page and home page start the new day's list at midnight, before the readings for 11:40 pm and 11:50 pm are published, so those two night-time readings are always missing on those pages. They are shown as gaps; nothing is made up.
+- A test that depended on the time of day (it failed between 11:30 pm and 12:30 am) now always uses the time the real GSO answers were saved.
+
 ## 29 October 2026 (fifteenth update) — GSO Grid Archive 5.7
 
 Fixed: every evening the Solar page's readings were filed under the day before.

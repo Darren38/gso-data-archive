@@ -158,6 +158,23 @@ def test_health_check(two_archives, settings, tmp_path):
         result = check_site(base, max_age_minutes=120)
         assert not result["ok"]
         assert any("min ago" in p for p in result["problems"]) and any("20 times" in p for p in result["problems"])
+        # The collector runs, but GSO's pages disagree and the newest reading is hours old.
+        now = datetime.now(timezone.utc)
+        status["collector_heartbeat"] = {"cycle_started_at": (now - timedelta(minutes=3)).isoformat()}
+        status["adapters"][0].update(consecutive_failures=0)
+        status["cross_checks"] = [{"key": "grid_solar", "name": "Solar page Grid solar = Generation page Solar", "state": "failed",
+                                   "compared": 40, "agreeing": 0, "worst": {"time": "2026-10-28T05:00:00Z", "left": 3000, "right": 2900}}]
+        status["freshness"] = [{"series": "system_demand.demand", "kind": "actual",
+                                "latest_obs_time": (now - timedelta(hours=5)).isoformat().replace("+00:00", "Z")}]
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        problems = check_site(base)["problems"]
+        assert len(problems) == 2
+        assert "disagree" in problems[0] and "3000 vs 2900" in problems[0]
+        assert "newest GSO reading is 300 min old" in problems[1]
+        status["cross_checks"][0].update(state="passed", agreeing=40)
+        status["freshness"][0]["latest_obs_time"] = (now - timedelta(minutes=20)).isoformat()
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        assert check_site(base)["ok"]
     finally:
         httpd.shutdown()
     assert not check_site("http://127.0.0.1:9/")["ok"]

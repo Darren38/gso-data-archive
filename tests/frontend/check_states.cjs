@@ -178,10 +178,14 @@ async function visit(page, base, route, wait = 1200) {
     if (await page.$eval("#sidebar", (e) => e.classList.contains("open"))) fail.push("Escape did not close the menu");
   } else if (scenario === "refresh") {
     // New readings arrive while the page is open: it redraws in place, keeps the view and the scroll position.
-    let bump = 0;
+    let bump = 0, newest = null;
     await page.route("**/api/v1/meta", async (route) => {
       const res = await route.fetch(); const meta = await res.json();
       if (bump) meta.series[0].count += bump;
+      if (newest) { // real (not demo) readings whose newest GSO 10-minute reading is from `newest`
+        meta.is_demo = false;
+        for (const x of meta.series) { x.dataset = "system_demand"; x.kind = "actual"; x.last = newest; }
+      }
       route.fulfill({ response: res, json: meta });
     });
     await page.goto(`${base}/#/solar?range=30d`); await page.waitForTimeout(2500);
@@ -201,6 +205,16 @@ async function visit(page, base, route, wait = 1200) {
     if (after !== canvases) fail.push(`charts after refresh: ${after}, before: ${canvases}`);
     if (await page.$(".render-buffer")) fail.push("hidden render buffer left behind");
     if (!(await page.textContent("#freshness-pill")).includes("Checked")) fail.push("no 'Checked' time shown");
+    // Collection or GSO stops: an open page must warn that its "current" figures are old, and stop warning once
+    // readings are fresh again.
+    if (await page.$(".banner.warn")) fail.push("delay warning shown for demo data");
+    newest = new Date(Date.now() - 3 * 3600e3).toISOString();
+    await page.evaluate(() => window.gsoCheckNow()); await page.waitForTimeout(3000);
+    const warn = await page.$eval(".banner.warn", (b) => b.textContent).catch(() => "");
+    if (!/Readings are delayed[\s\S]*3 h ago/.test(warn)) fail.push(`no delay warning for 3-hour-old readings: "${warn}"`);
+    newest = new Date(Date.now() - 20 * 60e3).toISOString();
+    await page.evaluate(() => window.gsoCheckNow()); await page.waitForTimeout(3000);
+    if (await page.$(".banner.warn")) fail.push("delay warning stayed after fresh readings arrived");
   }
   if (pageErrors.length) fail.push(`page errors: ${pageErrors.join(" | ")}`);
   out.fail = fail;

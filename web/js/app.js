@@ -1,7 +1,7 @@
 // App shell: hash router, theme, banners, freshness indicator, and live refresh.
 import { clearCache, getMeta, MODE } from "./data.js";
 import { disposeAll, disposeDetached } from "./charts.js";
-import { errorState, freshnessPill, esc, fmtTime, isHour12, setHour12 } from "./ui.js";
+import { ageOf, errorState, freshnessPill, esc, fmtAge, fmtLong, fmtTime, isHour12, setHour12 } from "./ui.js";
 
 const ROUTES = {
   overview: { title: "Overview", load: () => import("./pages/overview.js") },
@@ -36,12 +36,33 @@ function signature(meta) {
   return meta ? meta.series.map((s) => `${s.key}:${s.last}:${s.count}`).join("|") + `|${meta.is_demo}` : "";
 }
 
+// GSO's 10-minute feeds. Their readings normally reach the archive 15-25 minutes after the time they are for.
+const LIVE_DATASETS = new Set(["system_demand", "generation_mix", "genmix_live"]);
+const DELAYED_AFTER_S = 45 * 60;
+
+/** Time of the newest reading from GSO's 10-minute feeds, or null. */
+export function newestLive(meta) {
+  let newest = null;
+  for (const s of meta?.series || []) {
+    if (LIVE_DATASETS.has(s.dataset) && s.kind === "actual" && s.last && (!newest || s.last > newest)) newest = s.last;
+  }
+  return newest;
+}
+
 function setBanner(meta) {
   const slot = document.getElementById("banner-slot");
   const parts = [];
   if (meta && meta.is_demo) {
     parts.push(`<div class="banner demo" role="note"><strong>Demonstration data.</strong>
       <span>Every value on this site is synthetic, generated to exercise the dashboard. These are <b>not</b> GSO readings.</span></div>`);
+  }
+  const newest = meta && !meta.is_demo ? newestLive(meta) : null;
+  if (newest && ageOf(newest) > DELAYED_AFTER_S) {
+    // Visitors may rely on this site instead of GSO's: never let old figures pass for current ones.
+    parts.push(`<div class="banner warn" role="status"><strong>Readings are delayed.</strong>
+      <span>The newest GSO reading here is from ${esc(fmtLong(newest))} (${fmtAge(ageOf(newest))}). Figures called "current" or "now" are from then.
+      GSO's website or this archive's collection may be having a problem: see <a href="#/status">Collection Status</a>,
+      or GSO's own site at <a href="https://www.gso.org.my/" target="_blank" rel="noopener">gso.org.my</a>.</span></div>`);
   }
   slot.innerHTML = parts.join("");
 }
@@ -147,6 +168,7 @@ async function checkForNewData({ force = false } = {}) {
   let meta;
   try { meta = await loadMeta(); } catch { return; }
   lastChecked = new Date();
+  setBanner(meta);
   setFreshness(meta);
   if (signature(meta) !== shownSignature && (force || !busy)) {
     await route({ silent: true });

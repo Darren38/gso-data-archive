@@ -19,6 +19,7 @@ from sqlalchemy import and_, desc, func, select
 from sqlalchemy.engine import Connection
 
 from . import db, store
+from .crosscheck import cross_checks
 from .adapters import ADAPTERS, NOT_IMPLEMENTED
 from .timeutil import MYT, ensure_utc, myt_day_bounds_utc, to_utc_iso, utcnow
 
@@ -359,6 +360,7 @@ def status(conn: Connection, configured_adapters: list[str], live_enabled: bool)
         "backup": backup,
         "adapters": adapters_out,
         "freshness": freshness,
+        "cross_checks": cross_checks(conn, now),
         "totals": totals,
         "not_implemented": NOT_IMPLEMENTED,
     }

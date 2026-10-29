@@ -21,6 +21,23 @@ export async function render(main, { isCurrent }) {
     ${kpi({ label: "Last backup", value: st.backup ? fmtAge(ageOf(st.backup.at)) : null, meta: st.backup ? `${esc(st.backup.kind)} · ${esc(st.backup.file)}` : "No backup recorded by this database" })}
   </div>`));
 
+  // Cross-checks: two figures GSO publishes on two pages must agree, or numbers are being filed under the wrong name.
+  const checks = st.cross_checks || [];
+  if (checks.length) {
+    const pill = (c) => (c.state === "passed" ? '<span class="pill ok">agree</span>'
+      : c.state === "failed" ? '<span class="pill bad">disagree</span>' : '<span class="pill">waiting for daylight readings</span>');
+    const x = h(card({ title: "Cross-checks between GSO's pages",
+      desc: "GSO publishes these figures on two different pages. If they stop agreeing, GSO has probably changed its data and some numbers here may be filed under the wrong name; the owner is emailed. Last 48 hours, daylight only.",
+      body: '<div class="tbl"></div>' }));
+    main.appendChild(x);
+    renderTable(x.querySelector(".tbl"), [
+      { key: "state", label: "Result", fmt: (v, r) => pill(r) },
+      { key: "name", label: "Check", fmt: (v) => `<span style="white-space:normal">${esc(v)}</span>` },
+      { key: "agreeing", label: "Readings that agree", num: true, fmt: (v, r) => `${fmtNum(v)} of ${fmtNum(r.compared)}` },
+      { key: "worst", label: "Largest difference", fmt: (v) => (v ? `${fmtNum(v.left)} vs ${fmtNum(v.right)} MW at ${fmtDateTime(v.time)}` : "—") },
+    ], checks);
+  }
+
   const a = h(card({ title: "Adapters", sub: "Collection runs (success = the request and storage worked, regardless of whether new data was published)", body: '<div class="tbl"></div>' }));
   main.appendChild(a);
   renderTable(a.querySelector(".tbl"), [

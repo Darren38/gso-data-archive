@@ -2,8 +2,11 @@
 
 It only reads the site. It fails (so GitHub marks the run red and emails the owner) when:
   * the page or its data files don't load,
-  * live collection is switched on but the collector hasn't run recently, or
-  * an enabled source has failed many times in a row.
+  * live collection is switched on but the collector hasn't run recently,
+  * an enabled source has failed many times in a row,
+  * GSO's own pages no longer agree on the figures they both publish (crosscheck.py: a sign that GSO changed its
+    lists and numbers are being filed under the wrong names), or
+  * the newest reading is hours old although the collector runs (GSO answering with old data).
 """
 
 from __future__ import annotations
@@ -22,7 +25,8 @@ def _get(url: str, timeout: float = 30) -> bytes:
         return res.read()
 
 
-def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12) -> dict:
+def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
+               max_reading_age_minutes: int = 180) -> dict:
     base = base_url.rstrip("/") + "/"
     problems: list[str] = []
     notes: list[str] = []
@@ -51,6 +55,17 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
             for a in status.get("adapters", []):
                 if a.get("enabled") and (a.get("consecutive_failures") or 0) >= max_failures:
                     problems.append(f"{a['adapter']} has failed {a['consecutive_failures']} times in a row: {a.get('last_error')}")
+            for c in status.get("cross_checks", []):
+                if c.get("state") == "failed":
+                    w = c.get("worst") or {}
+                    problems.append(f"GSO's pages disagree: {c['name']} held for only {c['agreeing']} of {c['compared']} "
+                                    f"daylight readings (e.g. {w.get('left')} vs {w.get('right')} at {w.get('time')})")
+            newest = max((f["latest_obs_time"] for f in status.get("freshness", [])
+                          if f.get("latest_obs_time") and f.get("kind") == "actual"), default=None)
+            if newest:
+                age = (now - datetime.fromisoformat(newest.replace("Z", "+00:00"))).total_seconds() / 60
+                if age > max_reading_age_minutes:
+                    problems.append(f"the newest GSO reading is {age:.0f} min old although the collector runs")
             stale = [f["series"] for f in status.get("freshness", []) if f.get("stale")]
             if stale:
                 notes.append(f"{len(stale)} series without a new reading lately: {', '.join(stale[:6])}")

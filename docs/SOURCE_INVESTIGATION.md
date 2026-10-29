@@ -52,6 +52,16 @@ forecast answer: list(144) $ 4520 $ "3,616 MW <br />@ 13:20" $ -518 $ 22-Oct-202
 Checks against the saved real answers (tests/fixtures/real) **[OBSERVED]**: the five latest values add up to
 GSO's `currentMW` (3,939 MW), and the forecast's largest value, 3,616 MW, lands at 13:20, matching GSO's own label.
 
+Checks against the archive (28-29 October 2026) **[OBSERVED]**: GSO's "last available" (13:30) runs one step ahead
+of the list (81 values, 00:00-13:20); the list's own times are right, because its Grid values equal the Generation
+page's Solar at exactly the same written times (78 of 78 daylight readings; shifted 10 minutes either way, almost
+none). At night the Generation page shows 1-2 MW of solar where the Solar page shows 0.
+
+**The last two readings of each day can't be collected** **[OBSERVED]**: the Solar page and the home page switch
+to the new day's list at midnight, before 23:40 and 23:50 are published (readings arrive about 20 minutes after
+their time). Those slots stay gaps in `solar_profile` and `genmix_live` (142 of 144 a day); nothing is filled in.
+The Generation and System Demand pages, which serve any past day, have all 144.
+
 ## 5. GSO's home page **[GSO SCRIPT: `Scripts/SolarLandingPage.v5.js`]**
 
 `GetGenMixData`, `DrawGenMixChart(r)`: r[0] Coal, r[1] Gas, r[2] CoGen, r[3] Oil, r[4] TieLine, r[5] Hydro,
@@ -60,6 +70,11 @@ r[10] null flag, r[11] BessDischarge, r[12] BessCharge (negative), r[13] registr
 r[14] `"Wednesday, 28 October 2026 1:20 PM"` (time of the newest value). The archive keeps r[4], r[7]–r[9] and
 r[11]–r[12]; the fuels are already archived from the generation page. GSO fills gaps by interpolation for its chart;
 the archive does not.
+
+The home page's Distribution Solar (r[9]) equals the Solar page's Distribution + NEM + FiT + SELCO at every reading
+**[OBSERVED, 28-29 Oct 2026]**. These two agreements are checked continuously (`crosscheck.py`, shown on the
+Collection Status page; the hourly health check fails if they stop holding), because the "$" lists are unlabelled
+and a change in GSO's order would otherwise file numbers under the wrong names unnoticed.
 
 `GetSysAVData`, `DrawSysAvPieChart`: time, Coal, Gas, CoGen, Hydro, Solar, DNSolar, Bess ("System Availability").
 

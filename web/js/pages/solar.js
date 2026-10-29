@@ -209,7 +209,7 @@ export async function render(main, { meta, isCurrent }) {
       ] });
       const err = forecastError(actualForFc, fc[0].points);
       fcCard.querySelector(".fc-stats").innerHTML = err
-        ? `<span>Typical miss <b>${fmtNum(err.mae, 0)} MW</b></span><span>Actual was on average <b>${fmtNum(Math.abs(err.bias), 0)} MW</b> ${err.bias >= 0 ? "below" : "above"} the forecast</span><span class="muted">${fmtNum(err.n)} times compared</span>${fc[0].issue_time_inferred ? '<span class="muted">Issue time = archive collection time (GSO gives none)</span>' : ""}`
+        ? `<span>Typical miss <b>${fmtNum(err.mae, 0)} MW</b></span><span>Actual was on average <b>${fmtNum(Math.abs(err.bias), 0)} MW</b> ${err.bias >= 0 ? "below" : "above"} the forecast</span><span class="muted">${fmtNum(err.n)} daylight readings compared (night, when both are zero, left out)</span>${fc[0].issue_time_inferred ? '<span class="muted">Issue time = archive collection time (GSO gives none)</span>' : ""}`
         : '<span class="muted">No overlapping timestamps to score.</span>';
     } else {
       fcCard.querySelector(".card-b").innerHTML = emptyState("No solar forecast in this range",

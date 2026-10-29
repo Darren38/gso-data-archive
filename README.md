@@ -38,7 +38,13 @@
 
 GitHub sometimes starts scheduled runs late. For the pages that take a date, nothing is lost, because each
 request returns the whole day. For the today-only pages, a long GitHub delay late in the evening could miss the
-last few readings of that day. The site's **Auto** label shows the collection interval measured from recent runs.
+last few readings of that day; the readings for 11:40 pm and 11:50 pm on those pages are never available, because
+GSO starts the new day's list at midnight before publishing them. The site's **Auto** label shows the collection
+interval measured from recent runs.
+
+If the newest GSO reading on the site is more than 45 minutes old, every page says so in a yellow note at the top,
+so old figures are never mistaken for current ones. The Collection Status page also shows two checks that GSO's own
+pages agree with each other on figures they both publish.
 
 ## Where the data comes from
 
