@@ -160,6 +160,9 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
         payload = parse(spec, fetched.content, day, context)
     except SourceError as exc:
         return fail(exc.error_type, str(exc), fetched.status, snapshot_id)
+    except Exception as exc:  # noqa: BLE001 - a bug in one parser must never stop the other collectors
+        log.exception("%s: unexpected error while reading GSO's answer", spec.key)
+        return fail("parse_error", f"unexpected {type(exc).__name__}: {exc}", fetched.status, snapshot_id)
 
     try:
         with engine.begin() as conn:
@@ -240,7 +243,12 @@ def run_cycle(engine: Engine, settings: Settings, client: GsoClient | None = Non
         with collector_lock(engine):
             client.time_cache.clear()
             for spec, day, trigger in plan_cycle(engine, settings, cycle.started_at):
-                cycle.results.append(collect_one(engine, client, settings, spec, day, trigger))
+                try:
+                    cycle.results.append(collect_one(engine, client, settings, spec, day, trigger))
+                except Exception as exc:  # noqa: BLE001 - one collector's bug must not stop the others
+                    log.exception("%s: unexpected error; the other collectors carry on", spec.key)
+                    cycle.results.append(RunResult(spec.key, day if spec.takes_date else None, trigger, "failed",
+                                                   error_type="unexpected_error", error=f"{type(exc).__name__}: {exc}"))
             _heartbeat(engine, cycle)
     except LockBusy as exc:
         cycle.skipped_reason = str(exc)

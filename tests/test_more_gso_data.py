@@ -134,3 +134,42 @@ def test_record_values_are_never_stale(engine, settings):
         st = {f["series"]: f for f in analytics.status(c, ["headlines"], True)["freshness"]}
     rec = st["headlines.highest_grid_demand_recorded"]
     assert rec["kind"] == "record" and rec["stale"] is False and rec["missing_24h"] is None
+
+
+def test_cross_border_part_sent_as_null_is_no_data():
+    # Seen live on 30 Oct 2026: a part came as a bare null; that crashed the whole collection cycle.
+    d = json.loads(fixture_bytes("real/cbpe_forecastchart.json"))["d"].split("$")
+    d[0] = "null"
+    p = parse(get_adapter("cbpe"), json.dumps({"d": "$".join(d)}), T.date())
+    assert {r.series for r in p.readings} == {"cbesre", "msbi"}
+
+
+def test_one_collectors_bug_never_stops_the_others(engine, settings, client, fake, monkeypatch):
+    from dataclasses import replace
+
+    import gso_archive.collector as collector
+
+    real_parse, real_collect = collector.parse, collector.collect_one
+
+    def parse_with_bug(spec, *args, **kwargs):  # a bug while reading GSO's answer
+        if spec.key == "headlines":
+            raise TypeError("'NoneType' object is not iterable")
+        return real_parse(spec, *args, **kwargs)
+
+    monkeypatch.setattr(collector, "parse", parse_with_bug)
+    s = replace(settings, adapters=["headlines", "other_re"], gso_live_enabled=True)
+    fake.add("LandingPage.aspx/GetFeatureSectionData", "real/landing_headlines.json")
+    fake.add("LandingPage.aspx/GetOtherREData", "real/landing_other_re.json")
+    by = {r.adapter: r for r in collector.run_cycle(engine, s, client=client).results}
+    assert by["headlines"].status == "failed" and by["headlines"].error_type == "parse_error"
+    assert by["other_re"].status == "success"  # it still ran
+
+    def collect_with_bug(engine, client, settings, spec, day, trigger="manual"):  # a bug anywhere else
+        if spec.key == "headlines":
+            raise RuntimeError("a bug outside the parser")
+        return real_collect(engine, client, settings, spec, day, trigger)
+
+    monkeypatch.setattr(collector, "collect_one", collect_with_bug)
+    by = {r.adapter: r for r in collector.run_cycle(engine, s, client=client).results}
+    assert by["headlines"].status == "failed" and by["headlines"].error_type == "unexpected_error"
+    assert by["other_re"].status == "success"

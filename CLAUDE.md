@@ -143,6 +143,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (category "demand" at first) would have made the Demand page chart "headlines.current_bess", because it took the
     first demand series and keys sort alphabetically. New collectors get their own category ("headline"), and
     `demand.js` now asks for `system_demand.demand` by name.
+40. **One collector's bug must never stop the others.** On its first live run the new `cbpe` collector met a part GSO
+    sent as a bare `null`, raised a TypeError, and the whole collection cycle stopped: the collectors after it
+    (availability, solar farms) didn't run. `collect_one` now records any unexpected error while reading an answer
+    as that collector's failure, and `run_cycle` guards each collector. Real answers can be `null` where a list is
+    expected: test new parsers with that too.
 
 ## How to check a change
 

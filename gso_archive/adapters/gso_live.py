@@ -451,6 +451,10 @@ def _cbpe(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
             points = json.loads(parts[i])
         except ValueError:
             raise SchemaError(f"cross-border part {i} is not a list of points") from None
+        if points is None:  # seen live on 30 Oct 2026: GSO sends a bare null when a trade has no data at all
+            continue
+        if not isinstance(points, list):
+            raise SchemaError(f"cross-border part {i} is not a list of points: {str(points)[:80]!r}")
         fspec = spec.fields[series]
         for p in points:
             try:
