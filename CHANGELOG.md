@@ -1,5 +1,9 @@
 # Changelog
 
+## 31 October 2026 (twenty-eighth update) — GSO Grid Archive 5.14.2
+
+- **Overview in GSO's exact order:** the latest look at GSO's home page listed its sections in order: the seven figures, the System Demand Profile, then **Generation Availability** and then **Generation Mix**. The two rings on the Overview now come in that order too. GSO's home page then shows its solar profile and solar map, which stay on this site's Solar page.
+
 ## 31 October 2026 (twenty-seventh update) — GSO Grid Archive 5.14.1
 
 Small follow-ups to 5.14.

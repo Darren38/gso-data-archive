@@ -25,8 +25,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Requests to other sites name the project, never the owner (no name or email in the User-Agent).
 - Never invent readings, endpoints or source capabilities. Demonstration data is watermarked and labelled everywhere.
 - The Overview follows GSO's home page: its seven headline boxes in GSO's order, then the generation chart ("System
-  Demand Profile for Peninsular Malaysia", confirmed by the probe on 31 Oct 2026) and rings. The probe's "sections in
-  LandingPage.aspx.html" list shows GSO's order.
+  Demand Profile for Peninsular Malaysia"), then Generation Availability, then Generation Mix (GSO's order, from the
+  probe's "sections in LandingPage.aspx.html" list, 31 Oct 2026). GSO's home page puts the Other RE split inside its
+  Generation Mix ring; ours is a separate ring after it. GSO's solar profile and map, next on its page, stay on Solar.
   Solar detail belongs on the Solar page, demand comparisons on the Demand page.
 - Where GSO has the same chart (for example its System Demand Profile), draw ours the way GSO draws it: same
   stacking order, colours and key order. Charts this site works out itself (comparisons, profiles, ramps) stay as they are.

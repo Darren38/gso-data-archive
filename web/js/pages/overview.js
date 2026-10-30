@@ -90,7 +90,7 @@ export async function render(main, { meta, isCurrent }) {
     body: '<div class="chart"></div>' }));
   const avCard = h(card({ title: "Generation Availability", desc: "Share of each kind of plant ready to run. The middle shows the total available.",
     body: '<div class="chart"></div>' }));
-  row.append(mixCard, avCard);
+  row.append(avCard, mixCard); // GSO's order: Generation Availability, then Generation Mix
   const oreCard = ore.length ? h(card({ title: "Other Renewables", desc: "GSO's \"Other RE\" split, as its home page labels it. The middle shows the total.",
     body: '<div class="chart"></div>' })) : null;
   if (oreCard) main.appendChild(oreCard);
