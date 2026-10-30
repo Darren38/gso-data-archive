@@ -4,7 +4,7 @@
 
 Fixed within minutes: the new cross-border collector stopped the other collectors on its first run.
 
-- GSO sent one of its cross-border trades as an empty value ("null") instead of a list. The new collector didn't expect that, and the error stopped that whole round of collection, so generation availability and the solar farms missed one round (about 2 minutes). Nothing else was lost: the other pages had already been read.
+- GSO sent one of its cross-border trades as an empty value ("null") instead of a list. The new collector didn't expect that, and the error stopped that round of collection before generation availability and the solar farms were read. It happened once, and no reading was lost: the next round, two minutes later, collected the same readings.
 - Now an empty trade simply means no readings, and more importantly, an unexpected error in any one collector is recorded as that collector failing while all the others carry on.
 
 ## 30 October 2026 (twentieth update) — GSO Grid Archive 5.11
