@@ -61,6 +61,9 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
         _write(data / "meta.json", meta)
         _write(data / "status.json", analytics.status(conn, settings.adapters, settings.gso_live_enabled))
         files += 2
+        for key in analytics.TABLES:
+            _write(data / "tables" / f"{key}.json", analytics.table(conn, key))
+            files += 1
         o = db.observations.c
         for s in meta["series"]:
             info = analytics.get_series(conn, s["key"])

@@ -57,6 +57,7 @@ DEFAULT_ADAPTERS = [
     "solar_profile",
     "solar_forecast",
     "genmix_live",
+    "other_re",  # after genmix_live: it is dated by the home page reading of the same run
     "availability",
     "solar_farms",
 ]

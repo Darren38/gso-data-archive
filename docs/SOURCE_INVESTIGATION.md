@@ -27,7 +27,7 @@ Labels: **[OBSERVED]** seen first-hand by this project · **[GSO SCRIPT]** read 
 | `generation_mix` | `SystemData/CurrentGen.aspx/GetChartDataSource` | `Fromdate`, `Todate` (`DD/MM/YYYY`) | JSON list: `DT`, `Coal`, `Gas`, `CoGen`, `Oil`, `Hydro`, `Solar`, **every 10 min** | MW by fuel; any past day |
 | `system_demand` | `SystemData/SystemDemand.aspx/GetChartDataSource` | same | `DT`, `MW`, every 10 min | MW; any past day |
 | `tieline_*` | `SystemData/TieLine.aspx/GetChartDataSource` | + `Line` = `HVDC` / `PLTG` / `EGAT` | `Tarikhmasa`, `MW`, `Line`, **every 30 min**, newest first | MW. GSO's menu (`LoadLine`) lists only HVDC (Thailand) and PLTG (Singapore), but EGAT still answers |
-| `power_station` | `SystemData/PowerStation.aspx/GetDataSource` | none | `Name`, `Fuel` (padded, e.g. `"Water     "`), `Type`, `Capacity (MW)`, `PPAExpiry` … | Installed capacity |
+| `power_station` | `SystemData/PowerStation.aspx/GetDataSource` | none | `Name`, `Fuel` (padded, e.g. `"Water     "`), `Type`, `Capacity (MW)`, `PPAExpiry` … | Every station (kept with its changes, `store.keep_table`) and capacity by fuel |
 | `solar_profile` | `SystemData/Solar.aspx/GetSolarActualData` | `{}` | `"$"`-joined text, see §4 | **Today only** |
 | `solar_forecast` | `SystemData/Solar.aspx/GetSolarForecastData` | `{}` | 144 values + summary, see §4 | **Today only** |
 | (time stamp) | `SystemData/Solar.aspx/GetLastAvailableData` | `{}` | `"2026-10-28 13:30\|28/10/2026 13:30"` | Time of newest solar reading. **Before sunrise it is 07:00 of the coming morning** (`"2026-10-29 07:00\|29/10/2026 07:00"` at 00:32 MYT on 29 Oct 2026; GSO's script compares it with 07:00 too), so the archive never dates a reading later than the real clock |
@@ -90,6 +90,11 @@ revisions) are checked continuously (`crosscheck.py`, shown on the
 Collection Status page; the hourly health check fails if they stop holding), because the "$" lists are unlabelled
 and a change in GSO's order would otherwise file numbers under the wrong names unnoticed.
 
+`GetOtherREData` **[OBSERVED, 30 Oct 2026]**: `[{"y":175,"drilldown":{"name":"Other RE","categories":["Biogas",
+"Biomass","Mini Hydro"],"data":[101, 24, 50]}}]`, labelled but with no time. "y" is the newest value of
+`GetGenMixData`'s r[7], so the `other_re` collector (run after `genmix_live`) files the split at that reading's time,
+and only when the two totals agree.
+
 `GetSysAVData`, `DrawSysAvPieChart`: time, Coal, Gas, CoGen, Hydro, Solar, DNSolar, Bess ("System Availability").
 
 `GetSolarMap`, `getData(point)`: [3] station code, [4] MW percentage, [5] region, [6] live generation, [7] capacity,
@@ -100,7 +105,6 @@ and a change in GSO's order would otherwise file numbers under the wrong names u
 | Address | Why not |
 |---|---|
 | `LandingPage.aspx/GetFeatureSectionData` | Seven headline figures (e.g. 18,356 MW; record 22,014 MW on 6 Aug 2026 20:30) without labels in the answer. Needs the labels from the page before archiving |
-| `LandingPage.aspx/GetOtherREData` | Other renewables split (biogas 99, biomass 18, mini hydro 51) with no time stamp. Total is archived via `genmix_live.other_re` |
 | `SystemData/CBPE.aspx/ForecastChart*` | A forecast page; the answer format isn't decoded yet |
 | `*/DownloadFile`, `*/Plot_Click` | A file token and an HTML table of the same data |
 

@@ -117,7 +117,7 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
     body = spec.request_body(day)
     body_json = json.dumps(body, sort_keys=True) if body else None
 
-    context: dict = {}
+    context: dict = {"shared": client.time_cache}  # answers shared by the adapters of one run
     try:
         if settings.warm_up:
             client.warm_up(spec.page_url(settings.gso_base_url))
@@ -167,6 +167,8 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
             series_ids = store.resolve_series(conn, spec, dataset_id, payload.readings)
             stats = store.apply_readings(conn, payload.readings, series_ids, run_id=result.run_id,
                                          snapshot_id=snapshot_id, collected_at=fetched_at)
+            if payload.table is not None:
+                store.keep_table(conn, spec.key, payload.table, fetched_at)
             previous_sig = store.last_signature(conn, spec.key)
             schema_changed = bool(previous_sig and payload.signature and previous_sig != payload.signature)
             store.finish_run(

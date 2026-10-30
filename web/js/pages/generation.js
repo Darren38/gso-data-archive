@@ -1,9 +1,9 @@
 // Generation mix page.
-import { getDaily, getPoints, exportUrl } from "../data.js";
+import { getDaily, getPoints, getTable, exportUrl } from "../data.js";
 import { COLORS, FUELS, categoryChart, pieChart, timeChart } from "../charts.js";
-import { sumSeries } from "../analysis.js";
+import { alignStack, sumSeries } from "../analysis.js";
 import { drawProfile } from "../profile.js";
-import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtLong, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, verificationTag } from "../ui.js";
+import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtLong, fmtNum, fmtEnergy, h, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, verificationTag } from "../ui.js";
 
 const FUEL = Object.fromEntries(FUELS.map((f) => [f.key, f]));
 const AVAIL_COLOR = { coal: COLORS.coal, gas: COLORS.gas, cogen: COLORS.cogen, hydro: COLORS.hydro, transmission_solar: COLORS.gridSolar, distribution_solar: COLORS.dnSolar, bess: COLORS.bessDischarge };
@@ -56,6 +56,24 @@ export async function render(main, { meta, isCurrent }) {
       const sumE = energies.reduce((t, e) => t + e.value, 0);
       c2.querySelector(".card-b").insertAdjacentHTML("beforeend", `<p class="small muted">Total ${fmtEnergy(sumE)} across ${energies.length} fuels.</p>`);
 
+      // Other renewables split, as GSO labels it on its home page (biogas, biomass, mini hydro).
+      const ore = meta.series.filter((s) => s.dataset === "other_re" && s.count);
+      if (ore.length) {
+        const orePts = await Promise.all(ore.map((s) => getPoints(s.key, start, end)));
+        if (!isCurrent()) return;
+        const aligned = alignStack(orePts.map((p) => p.points));
+        const cR = h(card({ title: "Other Renewables", sub: verificationTag(ore[0].verification),
+          desc: "GSO's \"Other RE\" split as its home page labels it, stacked so the top edge is all other renewables. GSO gives no time with this split; it is filed at the time of the home page's newest Other RE reading, only when the two totals agree.",
+          body: '<div class="chart"></div>' }));
+        body.appendChild(cR);
+        const oreColor = { biogas: "#8d6e63", biomass: "#7cb342", mini_hydro: "#26a69a" };
+        if (aligned.some((pts) => pts.some((x) => x[1] != null))) {
+          timeChart(cR.querySelector(".chart"), { demo: meta.is_demo, series: ore.map((s, i) => ({
+            name: s.name.replace("Other renewables — ", ""), points: aligned[i], stack: "ore", area: true,
+            color: oreColor[s.key.split(".")[1]] || COLORS.other })) });
+        } else cR.querySelector(".card-b").innerHTML = emptyState("No readings in this range", "The split is kept from 30 October 2026.");
+      }
+
       const av = meta.series.filter((s) => s.dataset === "availability" && s.latest_value != null);
       if (av.length) {
         const cA = h(card({ title: "Generation Availability", when: av[0].last ? fmtLong(av[0].last) : "", sub: verificationTag(av[0].verification), desc: "MW of each kind of plant available to the grid right now, as on GSO's home page.", body: '<div class="chart"></div>' }));
@@ -71,6 +89,35 @@ export async function render(main, { meta, isCurrent }) {
           series: [{ name: "Installed capacity", data: capSeries.map((c) => c.latest_value), color: COLORS.net, unit: "MW" }] });
         c4.querySelector(".card-b").insertAdjacentHTML("beforeend", `<p class="small muted">Sum of station capacities by fuel from the PowerStation page, archived daily. Snapshot taken ${esc(capSeries[0].last?.slice(0, 10) || "")}.</p>`);
       } else c4.querySelector(".card-b").innerHTML = emptyState("No capacity snapshot archived", "The <code>power_station</code> adapter archives installed capacity once a day when enabled.");
+
+      // Every power station on GSO's Power Station Info, with the changes GSO has made since the archive began.
+      const st = await getTable("power_station").catch(() => null);
+      if (!isCurrent()) return;
+      if (st && st.rows.length) {
+        const listed = st.rows.filter((r) => r.listed !== false);
+        const c5 = h(card({ title: "Power Stations", sub: caps.length ? verificationTag(caps[0].verification) : "",
+          desc: `Every power station on GSO's Power Station Info: ${fmtNum(listed.length)} stations, ${fmtNum(listed.reduce((t, r) => t + (r.capacity_mw || 0), 0))} MW. PPA/SLA expiry is when the station's agreement ends, as GSO lists it.`,
+          right: '<button class="btn" data-a="st-csv">CSV</button>',
+          body: `<div class="tbl"></div><p class="small muted">Checked ${esc(fmtDateTime(st.checked_at))} MYT.</p><div class="changes"></div>` }));
+        body.appendChild(c5);
+        renderTable(c5.querySelector(".tbl"), [
+          { key: "name", label: "Station", fmt: (v, r) => `${esc(v)}${r.listed === false ? ` <span class="pill warn" title="Last on GSO's list ${esc(fmtDateTime(r.last_seen))} MYT">no longer listed</span>` : ""}` },
+          { key: "fuel", label: "Fuel" },
+          { key: "type", label: "Type" },
+          { key: "capacity_mw", label: "Capacity (MW)", num: true, fmt: (v) => fmtNum(v) },
+          { key: "ppa_expiry_label", label: "PPA/SLA expiry", fmt: (v) => esc(v || "—") },
+        ], st.rows, 20);
+        const changes = st.changes || [];
+        const what = (c) => c.change === "capacity_mw" ? `capacity ${fmtNum(c.old)} → ${fmtNum(c.new)} MW`
+          : ["added", "no longer listed", "listed again"].includes(c.change) ? c.change : `${esc(c.change)}: ${esc(c.old ?? "—")} → ${esc(c.new ?? "—")}`;
+        c5.querySelector(".changes").innerHTML = changes.length
+          ? `<h3 class="small">Changes GSO made to this list</h3><ul class="small">${changes.slice(0, 30).map((c) => `<li>${esc(fmtDateTime(c.at))}: <b>${esc(c.name || c.id)}</b> ${what(c)}</li>`).join("")}</ul>`
+          : '<p class="small muted">No changes to GSO\'s list since the archive began keeping it.</p>';
+        const csvCell = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
+        c5.querySelector('[data-a="st-csv"]').addEventListener("click", () => downloadText("gso_power_stations.csv",
+          ["id,name,fuel,type,capacity_mw,ppa_expiry,ppa_expiry_label,listed,first_seen,last_seen",
+            ...st.rows.map((r) => [r.id, r.name, r.fuel, r.type, r.capacity_mw, r.ppa_expiry, r.ppa_expiry_label, r.listed !== false, r.first_seen, r.last_seen].map(csvCell).join(","))].join("\n")));
+      }
     } catch (err) { body.innerHTML = errorState(err); }
   }
   await picker.start();

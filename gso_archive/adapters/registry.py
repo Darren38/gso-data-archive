@@ -130,24 +130,50 @@ def _power_station_transform(spec: AdapterSpec, records: list[dict], day: date) 
         )
     if totals:
         out.readings.append(Reading("capacity_total", "*", stamp, sum(totals.values()), kind="capacity"))
+    out.table = [_station(rec, cap_key, fuel_key) for rec in records]
     return out
+
+
+def _station(rec: dict, cap_key: str, fuel_key: str) -> dict:
+    """One row of GSO's Power Station Info, as GSO gives it (seen 30 Oct 2026: ID, Name, Fuel (padded), Type,
+    "Capacity (MW)", PPAExpiry "2037-02-01T00:00:00" and "PPA/SLA Expiry Year" "2037 Feb")."""
+    def text(key):
+        value = rec.get(key)
+        return str(value).strip() or None if value is not None else None
+
+    try:
+        capacity = to_number(rec.get(cap_key))
+    except ValueError:
+        capacity = None
+    ident = rec.get("ID")
+    expiry = text("PPAExpiry")
+    return {
+        "id": str(int(ident)) if isinstance(ident, (int, float)) else text("Name") or text("Station"),
+        "name": text("Name") or text("Station"),
+        "fuel": text(fuel_key),
+        "type": text("Type"),
+        "capacity_mw": capacity,
+        "ppa_expiry": expiry[:10] if expiry else None,
+        "ppa_expiry_label": text("PPA/SLA Expiry Year"),
+    }
 
 
 POWER_STATION = AdapterSpec(
     key="power_station",
-    name="Installed capacity by fuel",
+    name="Power stations and installed capacity",
     category="capacity",
     page="SystemData/PowerStation.aspx",
     method="GetDataSource",
     verification="verified",
-    description="Power station list with installed capacity; archived as a daily snapshot summed by fuel.",
+    description="GSO's Power Station Info, once a day: every station (name, fuel, type, capacity, PPA/SLA expiry), "
+                "kept with every change GSO makes, and the capacity summed by fuel.",
     takes_date=False,
     min_interval_seconds=24 * 3600,
     default_unit="MW",
     transform=_power_station_transform,
 )
 
-from .gso_live import AVAILABILITY, GENMIX_LIVE, SOLAR_FARMS, SOLAR_FORECAST, SOLAR_PROFILE  # noqa: E402
+from .gso_live import AVAILABILITY, GENMIX_LIVE, OTHER_RE, SOLAR_FARMS, SOLAR_FORECAST, SOLAR_PROFILE  # noqa: E402
 
 # System constraints: no public data address was found on gso.org.my (checked 28 Oct 2026).
 NOT_IMPLEMENTED = {
@@ -166,6 +192,7 @@ ADAPTERS: dict[str, AdapterSpec] = {
         SOLAR_PROFILE,
         SOLAR_FORECAST,
         GENMIX_LIVE,
+        OTHER_RE,
         AVAILABILITY,
         SOLAR_FARMS,
     )

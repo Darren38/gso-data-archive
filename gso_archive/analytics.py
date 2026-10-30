@@ -381,3 +381,19 @@ def observed_interval(conn: Connection, sample: int = 30) -> int | None:
     if len(gaps) < 3:
         return None
     return gaps[len(gaps) // 2]
+
+
+TABLES = {"power_station": "GSO's Power Station Info"}
+
+
+def table(conn: Connection, key: str) -> dict | None:
+    """A list GSO publishes as rows (store.keep_table), newest rows first by capacity, with its recorded changes."""
+    if key not in TABLES:
+        return None
+    state = store.get_state(conn, f"table:{key}")
+    if not state:
+        return {"key": key, "name": TABLES[key], "checked_at": None, "rows": [], "changes": []}
+    rows = [{"id": rid, **row} for rid, row in state.get("rows", {}).items()]
+    rows.sort(key=lambda r: (not r.get("listed", True), -(r.get("capacity_mw") or 0), r.get("name") or ""))
+    return {"key": key, "name": TABLES[key], "checked_at": state.get("checked_at"), "rows": rows,
+            "changes": list(reversed(state.get("changes", [])))}

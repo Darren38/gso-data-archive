@@ -55,7 +55,7 @@ jobs:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
       GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
-      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile,solar_forecast,genmix_live,availability,solar_farms' }}
+      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile,solar_forecast,genmix_live,other_re,availability,solar_farms' }}
       GSO_COLLECTION_MODE: github
       COLLECT_INTERVAL_SECONDS: "60"  # what the schedule asks for; the site shows the measured interval
       RAW_RETENTION: none  # the runner's disk is thrown away after each run

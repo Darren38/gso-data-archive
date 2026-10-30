@@ -67,6 +67,8 @@ class ParsedPayload:
     rejected: list[str] = field(default_factory=list)
     signature: str = ""
     unknown_fields: list[str] = field(default_factory=list)
+    # A list GSO publishes as rows with text (e.g. the power stations), kept with its changes (store.keep_table).
+    table: list[dict] | None = None
 
 
 @dataclass(frozen=True)

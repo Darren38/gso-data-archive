@@ -31,7 +31,8 @@
 | Solar (grid, distribution, rooftop estimates), forecast, solar farms, BESS, availability | About every 2–3 minutes. GSO publishes these every 10 minutes, for today only |
 | Generation by fuel, system demand | About every 2–3 minutes (every 10 minutes at GSO); yesterday is re-checked every hour for corrections; missed days are fetched again automatically |
 | Tie-lines | About every 2–3 minutes (every 30 minutes at GSO) |
-| Installed capacity | Once a day |
+| Other renewables split (biogas, biomass, mini hydro) | About every 2–3 minutes, from GSO's home page, for today only |
+| Power stations (each station's fuel, type, capacity and agreement end date) and installed capacity | Once a day; every change GSO makes to the list is kept |
 | Backup of the whole archive | Once a day, to the `archive-backups` release |
 | An open page | Checks for new readings every minute and updates itself |
 | The site itself | Every visit checks for newer files, so an update shows on the next refresh |

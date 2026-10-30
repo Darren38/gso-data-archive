@@ -101,6 +101,14 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
         with engine.connect() as conn:
             return analytics.status(conn, settings.adapters, settings.gso_live_enabled)
 
+    @app.get("/api/v1/tables/{key}")
+    def table(key: str):
+        with engine.connect() as conn:
+            found = analytics.table(conn, key)
+        if found is None:
+            raise HTTPException(status_code=404, detail=f"unknown table {key!r}")
+        return found
+
     @app.get("/api/v1/series/{key}/points")
     def points(key: str, start: str | None = None, end: str | None = None):
         now = utcnow()

@@ -1,5 +1,13 @@
 # Changelog
 
+## 30 October 2026 (eighteenth update) — GSO Grid Archive 5.9
+
+More of what GSO publishes is now kept, each figure under GSO's own name and time.
+
+- **New: every power station.** GSO's Power Station Info lists about 55 stations with their fuel, type, capacity and the date each one's power purchase or service agreement ends. The archive kept only the totals by fuel; now it keeps every station, once a day, and records every change GSO makes: a new station, a capacity change, a new agreement date, or a station dropped from the list (which stays in the archive, marked "no longer listed"). The Generation page has a new Power Stations table with these details, the changes, and a CSV download.
+- **New: other renewables split.** GSO's home page splits "Other RE" into biogas, biomass and mini hydro, with GSO's own labels but no time. The archive now keeps the split, filed at the time of the home page's newest "Other RE" reading, and only when the two totals agree, so nothing is dated by guesswork. The Generation page shows it as a stacked chart.
+- **Getting ready to add more:** the probe that looks at GSO's pages now records the full power station list, GSO's home page headline figures and its cross-border power exchange forecasts, with the page code around them. Those figures come without names, so they will only be added once GSO's own code shows what each one means.
+
 ## 30 October 2026 (seventeenth update) — GSO Grid Archive 5.8.1
 
 Closing two of the three gaps found after 5.8, after searching for other sources of GSO's data.

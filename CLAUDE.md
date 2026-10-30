@@ -134,6 +134,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     newest reading is 3 hours old while collection runs. Readings normally arrive 15-25 minutes after their time.
 37. **Tests that run the collector must pin the clock** (`at_fixture_time` in `test_gso_live.py`): the collector uses
     the real time to pick the day and skips the forecast between 23:30 and 00:30.
+38. **Data GSO sends without a time is dated by a figure that has one, or not kept.** The other renewables split
+    (`other_re`) has no time; its total equals the home page's newest "Other RE" reading, which `genmix_live` shares
+    through `ctx["shared"]` (cleared every cycle), so `other_re` must run after `genmix_live`. If the totals differ,
+    nothing is kept. Lists of rows with text (GSO's power stations) go through `store.keep_table`, which records every
+    change GSO makes and keeps stations GSO stops listing.
 
 ## How to check a change
 

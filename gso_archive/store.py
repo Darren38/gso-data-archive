@@ -287,3 +287,44 @@ def get_state(conn: Connection, key: str) -> dict | None:
     if not row:
         return None
     return {**row.value, "_updated_at": ensure_utc(row.updated_at).isoformat()}
+
+
+MAX_TABLE_CHANGES = 2000
+
+
+def keep_table(conn: Connection, key: str, rows: list[dict], at: datetime) -> dict:
+    """Keep a list GSO publishes as rows (e.g. its power stations) under system_state "table:<key>", with every
+    change: a row that appears, disappears or changes a field is recorded with the time it was seen. Rows GSO stops
+    listing are kept, marked as no longer listed. Returns how many rows were added, changed and removed."""
+    state = get_state(conn, f"table:{key}") or {}
+    state.pop("_updated_at", None)
+    known: dict[str, dict] = state.get("rows", {})
+    changes: list[dict] = state.get("changes", [])
+    stamp = ensure_utc(at).isoformat()
+    seen, counts = set(), {"added": 0, "changed": 0, "removed": 0}
+    for row in rows:
+        rid = str(row.get("id"))
+        seen.add(rid)
+        fields = {k: v for k, v in row.items() if k != "id"}
+        old = known.get(rid)
+        if old is None:
+            known[rid] = {**fields, "first_seen": stamp, "last_seen": stamp, "listed": True}
+            if state:  # the first list ever kept is the starting point, not a list of additions
+                changes.append({"at": stamp, "id": rid, "name": row.get("name"), "change": "added"})
+                counts["added"] += 1
+            continue
+        for field, value in fields.items():
+            if old.get(field) != value:
+                changes.append({"at": stamp, "id": rid, "name": row.get("name"), "change": field,
+                                "old": old.get(field), "new": value})
+                counts["changed"] += 1
+        if not old.get("listed", True):
+            changes.append({"at": stamp, "id": rid, "name": row.get("name"), "change": "listed again"})
+        known[rid] = {**old, **fields, "last_seen": stamp, "listed": True}
+    for rid, old in known.items():
+        if rid not in seen and old.get("listed", True):
+            old["listed"] = False
+            changes.append({"at": stamp, "id": rid, "name": old.get("name"), "change": "no longer listed"})
+            counts["removed"] += 1
+    set_state(conn, f"table:{key}", {"rows": known, "changes": changes[-MAX_TABLE_CHANGES:], "checked_at": stamp})
+    return counts

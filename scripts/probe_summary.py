@@ -50,7 +50,8 @@ def main(report_path: str, out_dir: str) -> None:
     print("\n" + "=" * 100)
     print("FULL ANSWERS (for test fixtures)")
     for name, m in report.get("methods", {}).items():
-        if m.get("raw_full") and re.search(r"Solar|GenMix|SysAV|OtherRE|LastAvailable", name):
+        if m.get("raw_full") and re.search(r"Solar|GenMix|SysAV|OtherRE|LastAvailable|PowerStation|FeatureSection|"
+                                           r"ForecastChart", name):
             print(f"\n## FULL {name}\n{m['raw_full']}\n## END")
     saved = Path(report.get("saved_to") or out_dir)
     folders = [saved] if saved.is_dir() and list(saved.glob("*.html")) else sorted(Path(out_dir).glob("*"))
@@ -63,6 +64,22 @@ def main(report_path: str, out_dir: str) -> None:
             print(f"\n## {html.name}: {len(hits)} matching lines")
             for i in hits[:60]:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:300]}")
+        # The page code around data GSO sends without names (headline figures, cross-border forecasts), so their
+        # meaning comes from GSO's own code rather than a guess.
+        unnamed = re.compile(r"GetFeatureSectionData|FeatureSection|ForecastChart|GetOtherREData|GetSolarMap|HistoricalData")
+        for html in sorted(folder.glob("*.html")):
+            lines = html.read_text(encoding="utf-8", errors="replace").splitlines()
+            hits = [i for i, line in enumerate(lines) if unnamed.search(line)]
+            if hits:
+                print(f"\n## code around unlabelled data in {html.name}: {len(hits)} places")
+            shown = -1
+            for i in hits[:12]:
+                if i <= shown:
+                    continue
+                print(f"\n   --- line {i + 1}")
+                for j in range(max(0, i - 5), min(len(lines), i + 90)):
+                    print(f"   {j + 1:5d}: {lines[j].rstrip()[:300]}")
+                shown = i + 90
         # How GSO's own scripts read and label the data (series names, splitting of "$"-joined answers, units).
         keys = re.compile(r"split\(|name\s*:|\.d\b|series|title|text\s*:|forecast|actual|lss|dn\b|rooftop|transmission|"
                           r"distribution|grid|capacity|irradiance|function\s+\w+|\[\d\]|MW|MWp|%", re.I)

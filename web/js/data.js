@@ -82,6 +82,11 @@ export async function getDaily(key, startDay, endDay) {
   return { ...all, rows };
 }
 
+/** A list GSO publishes as rows (e.g. its power stations), with the changes the archive has seen. */
+export async function getTable(key) {
+  return MODE === "static" ? getJSON(stat(`tables/${key}.json`)) : getJSON(api(`/tables/${encodeURIComponent(key)}`));
+}
+
 export async function getRevisions(key, start, end) {
   if (MODE === "static") return { series: key, revisions: null };
   const q = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });

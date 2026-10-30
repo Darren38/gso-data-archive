@@ -195,6 +195,44 @@ def _genmix(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     out = ParsedPayload(signature=f"genmix:{len(parts)} parts")
     for i, series in GENMIX_PARTS.items():
         _series(spec, out, lists[i], day, series, f"r[{i}]")
+    # The newest "Other RE" reading and its time, for the split of other renewables collected next (_other_re).
+    newest = next(((i, v) for i, v in reversed(list(enumerate(lists[7]))) if v is not None), None)
+    if newest and "shared" in ctx:
+        ctx["shared"]["genmix_other_re"] = (_slot(day, newest[0]), newest[1])
+    return out
+
+
+# --- LandingPage.aspx/GetOtherREData ----------------------------------------------------------------------------
+# The home page's "Other RE" split, labelled by GSO and without a time (seen 30 Oct 2026):
+#   [{"y":175,"drilldown":{"name":"Other RE","categories":["Biogas", "Biomass", "Mini Hydro"],"data":[101, 24, 50]}}]
+# "y" is the same figure as the newest value of GetGenMixData's r[7] ("Other RE"), so the split is filed at that
+# reading's time, and only when the two agree: otherwise they are from different moments and nothing is guessed.
+
+def _other_re(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
+    try:
+        pie = json.loads(d) if isinstance(d, str) else d
+        item = pie[0] if isinstance(pie, list) else pie
+        total, drill = float(item["y"]), item["drilldown"]
+        split = dict(zip(drill["categories"], (float(v) for v in drill["data"])))
+    except (ValueError, KeyError, TypeError, IndexError):
+        raise SchemaError(f"unexpected other renewables answer: {str(d)[:200]!r}") from None
+    out = ParsedPayload(signature="other_re:" + ",".join(split))
+    if abs(sum(split.values()) - total) > 0.5:
+        out.rejected.append(f"the split {split} doesn't add up to its total {total}")
+        return out
+    newest = ctx.get("shared", {}).get("genmix_other_re")
+    if newest is None:
+        out.rejected.append("no home page reading in this run to date it by; not kept")
+        return out
+    t, value = newest
+    if abs(value - total) > 0.5:
+        out.rejected.append(f"total {total} is not the home page's newest Other RE ({value}): different moments, not kept")
+        return out
+    for name, v in split.items():
+        slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
+        fspec = spec.fields.get(slug)
+        out.readings.append(Reading(slug, name, t, v, quality=assess_quality(fspec, v, t) if fspec else "ok",
+                                    name=None if fspec else f"Other renewables — {name}", unit="MW"))
     return out
 
 
@@ -328,6 +366,25 @@ GENMIX_LIVE = AdapterSpec(
     },
     takes_date=False,
     raw_transform=_genmix,
+)
+
+OTHER_RE = AdapterSpec(
+    key="other_re",
+    name="Other renewables split (GSO home page)",
+    category="generation",
+    page="LandingPage.aspx",
+    method="GetOtherREData",
+    verification="verified",
+    description="From GSO's home page: the 'Other RE' total split into biogas, biomass and mini hydro, as labelled by "
+                "GSO. GSO gives no time with it, so it is filed at the time of the home page's newest 'Other RE' "
+                "reading, and only when the totals agree.",
+    fields={
+        "biogas": FieldSpec("biogas", "Other renewables — Biogas", "MW", "actual", 0.0, 2000.0),
+        "biomass": FieldSpec("biomass", "Other renewables — Biomass", "MW", "actual", 0.0, 2000.0),
+        "mini_hydro": FieldSpec("mini_hydro", "Other renewables — Mini Hydro", "MW", "actual", 0.0, 2000.0),
+    },
+    takes_date=False,
+    raw_transform=_other_re,
 )
 
 AVAILABILITY = AdapterSpec(
