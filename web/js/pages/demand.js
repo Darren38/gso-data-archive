@@ -3,7 +3,7 @@ import { getDaily, getPoints, exportUrl, rollup } from "../data.js";
 import { COLORS, categoryChart, profileChart, timeChart } from "../charts.js";
 import { intradayProfiles } from "../analysis.js";
 import { drawProfile } from "../profile.js";
-import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, fmtEnergy, fmtTime, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, freshnessPill } from "../ui.js";
+import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, fmtEnergy, fmtTime, h, kpi, loading, mytDay, mytDayStart, pointsToCsv, rangePicker, renderTable, freshnessPill } from "../ui.js";
 
 export async function render(main, { meta, isCurrent }) {
   const demandSeries = meta.series.filter((s) => s.category === "demand" && s.kind === "actual");
@@ -61,6 +61,22 @@ export async function render(main, { meta, isCurrent }) {
         else c1.querySelector(".card-b").innerHTML = emptyState("No readings in this range");
         c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`demand_${range.startDay}_${range.endDay}.csv`, pointsToCsv(csv)));
       }
+      // Today against the same hours yesterday (moved here from the Overview, which now follows GSO's home page).
+      const dc = h(card({ title: "Grid Demand: Today vs Yesterday", sub: freshnessPill(s.last, s.interval_s),
+        desc: "The figure on GSO's System Demand page (GSO's home page calls it Current Grid Demand). Solid line: today. Dashed line: the same hours yesterday.",
+        body: '<div class="chart"></div>' }));
+      body.appendChild(dc);
+      const dayStart = mytDayStart(mytDay(new Date()));
+      const [demToday, demYest] = await Promise.all([getPoints(s.key, dayStart, new Date()), getPoints(s.key, new Date(dayStart.getTime() - 864e5), dayStart)]);
+      if (!isCurrent()) return;
+      if (demToday.points.some((p) => p[1] != null)) {
+        const shifted = demYest.points.map(([t, v, q]) => [new Date(Date.parse(t) + 864e5).toISOString(), v, q]);
+        timeChart(dc.querySelector(".chart"), { demo: meta.is_demo, zoom: false, series: [
+          { name: "Today", points: demToday.points, color: COLORS.demand, width: 2.4 },
+          { name: "Yesterday", points: shifted, color: COLORS.demandLight, dashed: true, width: 1.6 },
+        ] });
+      } else dc.querySelector(".card-b").innerHTML = emptyState("No Grid Demand readings yet today");
+
       const row = h('<div class="grid cols-2"></div>'); body.appendChild(row);
       const c2 = h(card({ title: "Daily Peak & Minimum", desc: "Blue bars: the day's highest demand. Orange line: the day's lowest.", body: '<div class="chart"></div>' }));
       const c3 = h(card({ title: "Daily Profile", sub: days > 92 ? "One line per month" : "One line per week", desc: "Average demand by time of day. The darkest, thickest line is the most recent.", body: '<div class="chart"></div>' }));

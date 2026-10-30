@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -155,7 +156,9 @@ def run_probe(settings: Settings, out_dir: Path, try_methods: bool = True, day: 
     out_dir = Path(out_dir) / utcnow().strftime("%Y%m%dT%H%M%SZ")
     out_dir.mkdir(parents=True, exist_ok=True)
     report: dict = {"base_url": settings.gso_base_url, "probed_at": utcnow().isoformat(), "pages": {}, "methods": {}}
-    with GsoClient(settings) as client:
+    # One try per address: on a slow night GSO times out for 30 s a try, and four tries each ran the probe past its
+    # job's time limit before it printed anything (30 Oct 2026).
+    with GsoClient(replace(settings, max_retries=0)) as client:
         for page in PAGES:
             url = f"{settings.gso_base_url}/{page}"
             try:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 31 October 2026 (twenty-sixth update) — GSO Grid Archive 5.14
+
+The Overview now looks like GSO's home page; solar details live on the Solar page.
+
+- **Overview:** the top now shows GSO's seven home page figures in GSO's order: Current Grid Demand, Current System Demand, Highest Grid Demand Recorded, Highest Energy Recorded, Current Solar Generation, Current BESS Status and Cross-Border Power Exchange. Each shows its time and where it came from. When the home page's figure is missing or late, the same figure from GSO's own page stands in (Grid Demand from the System Demand page, solar from the Solar page, BESS from the generation mix), and the card says so.
+- Below them, as on GSO's home page: the generation chart (each source stacked, with Grid Demand and System Demand on top) for the last 24 hours, so it is never empty just after midnight, then the Generation Mix, Generation Availability and Other Renewables rings.
+- **Moved:** the solar chart with GSO's forecast and the solar share are on the Solar page, which already had them. **Grid Demand: Today vs Yesterday** is now on the Demand page.
+- The check that looks at GSO's pages after every update now tries each address once, so a slow night at GSO can't make it run out of time before it reports anything.
+
 ## 30 October 2026 (twenty-fifth update) — GSO Grid Archive 5.13.2
 
 Fewer false alarms, and collection that restarts itself when GitHub hiccups.

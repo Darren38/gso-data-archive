@@ -24,6 +24,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
 - Requests to other sites name the project, never the owner (no name or email in the User-Agent).
 - Never invent readings, endpoints or source capabilities. Demonstration data is watermarked and labelled everywhere.
+- The Overview follows GSO's home page: its seven headline boxes in GSO's order, then the generation chart and rings.
+  Solar detail belongs on the Solar page, demand comparisons on the Demand page.
 - Where GSO has the same chart (for example its System Demand Profile), draw ours the way GSO draws it: same
   stacking order, colours and key order. Charts this site works out itself (comparisons, profiles, ramps) stay as they are.
 
@@ -158,7 +160,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     lost connections and GSO's 5xx answers as a note until the collector has had no success for 12 hours; any other
     error (a changed answer, a 4xx) still fails after 12 in a row. Visitors see the delay through freshness and the
     "Readings are delayed" note. The same day GitHub answered 502 to the `next` job's `gh workflow run` and collection
-    stopped for 80 minutes, so that step now tries again before giving up.
+    stopped for 80 minutes, so that step now tries again before giving up. The probe also tries each address once
+    (`run_probe`): with four tries it ran out of its 10 minutes on a slow night and printed nothing.
 
 ## How to check a change
 
