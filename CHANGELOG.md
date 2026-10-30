@@ -1,5 +1,13 @@
 # Changelog
 
+## 30 October 2026 (seventeenth update) — GSO Grid Archive 5.8.1
+
+Closing two of the three gaps found after 5.8, after searching for other sources of GSO's data.
+
+- **Rooftop solar can no longer be filed under the wrong name.** GSO's Solar page sends its five solar lists without names. One small part of the same answer does carry names: the split of Distribution Solar into LSS, NEM, FiT and SELCO, with the newest figures. The archive now uses those names to check which list is which, and files them by GSO's own labels if GSO ever changes the order. Before, a swap of NEM and SELCO would have gone unnoticed. This check never stops collection; if the names can't be matched, it is noted on the Collection Status page.
+- **Clearer: why Grid solar can differ between pages.** The Solar page now explains that GSO sometimes revises its figures later in the day, so they can differ by a few percent from GSO's Generation page, which keeps its first figures.
+- **Checked, and can't be filled:** the readings for 11:40 pm and 11:50 pm on the Solar and home pages. None of GSO's Solar or home page addresses accepts a date, and the older solar address some projects used is no longer on GSO's site. They stay as honest gaps.
+
 ## 30 October 2026 (sixteenth update) — GSO Grid Archive 5.8
 
 More trustworthy for people who use this site instead of GSO's own.

@@ -46,6 +46,10 @@ r[0] ActualToday     -> chart series "Grid"          (transmission-connected sol
 r[1] ActualDistToday -> "Distribution"
 r[2] NEM, r[3] FIT ("FiT"), r[4] SELCO   -> "NEM, FiT and SELCO values are estimates based on registered data as of <date>"
 r[5] currentMW (= sum of the five latest values; 3939 in the saved answer)   r[6] pastChange
+r[7] the Distribution Solar pie, the only labelled part:
+     [{"y":2324,"drilldown":{"name":"Distribution Solar","categories":["LSS","NEM","FiT","SELCO"],"data":[324,1511,153,336]}}]
+     (its figures equal r[1]-r[4] at the newest reading; empty just after midnight)
+r[8] date (landing page only)   r[9] history flag ("False")
 forecast answer: list(144) $ 4520 $ "3,616 MW <br />@ 13:20" $ -518 $ 22-Oct-2026
 ```
 
@@ -65,7 +69,11 @@ like this, by up to 77 MW (8.5%). The archive keeps every version (`observation_
 **The last two readings of each day can't be collected** **[OBSERVED]**: the Solar page and the home page switch
 to the new day's list at midnight, before 23:40 and 23:50 are published (readings arrive about 20 minutes after
 their time). Those slots stay gaps in `solar_profile` and `genmix_live` (142 of 144 a day); nothing is filled in.
-The Generation and System Demand pages, which serve any past day, have all 144.
+The Generation and System Demand pages, which serve any past day, have all 144. No other address fills them
+**[OBSERVED, probe of 30 Oct 2026]**: none of the Solar page's or home page's data calls takes a date. The only
+dated solar call is `Solar.aspx/GetSolarMap {timeEnd, replayData}`, the map's "Historical Solar Generation" replay
+(per farm, not the NEM/FiT/SELCO lists). `SystemData/LargeScaleSolar.aspx/ForecastChart`, used in an old
+Electricity Maps parser, is no longer referenced by GSO's pages.
 
 ## 5. GSO's home page **[GSO SCRIPT: `Scripts/SolarLandingPage.v5.js`]**
 

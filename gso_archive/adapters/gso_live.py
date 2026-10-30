@@ -8,6 +8,7 @@ is published, these collectors must run continuously; there is nothing to back-f
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import date, datetime, timedelta
 
@@ -85,6 +86,41 @@ def _series(spec: AdapterSpec, out: ParsedPayload, values: list[float | None], d
 SOLAR_PARTS = [("grid", "Grid"), ("distribution", "Distribution"), ("nem", "NEM"), ("fit", "FiT"), ("selco", "SELCO")]
 
 
+# r[7] is the one labelled part: GSO's Distribution Solar split as its pie draws it, e.g.
+#   [{"y": 2324, "drilldown": {"name": "Distribution Solar", "categories": ["LSS", "NEM", "FiT", "SELCO"],
+#                              "data": [324, 1511, 153, 336]}}]
+# Its four figures equal lists r[1]-r[4] at the newest reading (seen 28 and 30 October 2026), so they name the lists.
+LABELS = {"LSS": 1, "NEM": 2, "FiT": 3, "SELCO": 4}
+
+
+def _order_by_labels(parts: list[str], lists: list[list[float | None]]) -> tuple[list[int], str | None]:
+    """Which list is Distribution, NEM, FiT and SELCO, by GSO's own labels in r[7]: the order to read r[0]-r[4] in,
+    and a note when it isn't the usual one. The labelled figures are looked for at the newest moment first, then
+    earlier ones (after sunset they may stay at an earlier reading, like GSO's "last available"). Moments that can't
+    tell (empty r[7] just after midnight, night zeros, equal figures) keep the usual order. This never stops
+    collection: labels that match nothing only leave a note, which marks the run as a format change."""
+    usual = [0, 1, 2, 3, 4]
+    try:
+        pie = json.loads(parts[7]) if len(parts) > 7 and parts[7].strip() else None
+        drill = (pie[0] if isinstance(pie, list) else pie)["drilldown"]
+        labelled = dict(zip(drill["categories"], (float(v) for v in drill["data"])))
+    except (ValueError, KeyError, TypeError, IndexError):
+        return usual, None  # no labels to check against
+    if set(labelled) != set(LABELS):
+        return usual, f"GSO's distribution solar labels changed: {sorted(labelled)}"
+    want = [labelled[name] for name in sorted(LABELS, key=LABELS.get)]  # in the usual order
+    if not any(want):
+        return usual, None  # night: every list is zero, nothing to tell them apart
+    for j in range(len(lists[1]) - 1, -1, -1):
+        at = [lists[i][j] for i in range(1, 5)]
+        if at == want:
+            return usual, None  # GSO's labels agree with the usual order
+        if None not in at and sorted(at) == sorted(want) and len(set(want)) == 4:
+            order = [0] + [1 + at.index(v) for v in want]
+            return order, f"GSO's lists were not in the usual order; filed by GSO's labels: {order}"
+    return usual, f"GSO's labelled distribution solar {labelled} matches no moment in the lists"
+
+
 def _solar_actual(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     if not isinstance(d, str):
         raise SchemaError("solar actual answer is not text")
@@ -94,10 +130,14 @@ def _solar_actual(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
     lists = [_values(p) for p in parts[:5]]
     if len({len(x) for x in lists}) != 1:
         raise SchemaError(f"solar series have different lengths: {[len(x) for x in lists]}")
+    order, note = _order_by_labels(parts, lists)
+    lists = [lists[i] for i in order]
     # The day comes from the real clock: after sunset GSO's "last available" stops moving while the list keeps
     # growing, so judged by that time every evening list looked "too long for today" and was filed under yesterday.
     day = _pick_day(len(lists[0]), ctx.get("now") or _reading_time(ctx))
-    out = ParsedPayload(signature=f"solar_actual:{len(parts)} parts")
+    out = ParsedPayload(signature=f"solar_actual:{len(parts)} parts" + (";labels: " + note[:40] if note else ""))
+    if note:
+        out.rejected.append(note)
     for (series, source), values in zip(SOLAR_PARTS, lists):
         _series(spec, out, values, day, series, source, quality="estimate" if series in ("nem", "fit", "selco") else None)
     return out

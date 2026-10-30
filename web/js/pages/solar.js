@@ -139,7 +139,7 @@ export async function render(main, { meta, isCurrent }) {
     const profileTotal = prof.length === 5 ? sumSeries(prof.map((x) => x.points)) : [];
     const gsoCard = h(card({ title: "Solar Profile",
       sub: "From GSO's Solar page",
-      desc: "Each colour is one kind of solar, stacked so the top edge is total solar. Grid and Distribution are measured; NEM, FiT and SELCO are GSO's estimates. Dashed green line: GSO's Forecast.",
+      desc: "Each colour is one kind of solar, stacked so the top edge is total solar. Grid and Distribution are measured; NEM, FiT and SELCO are GSO's estimates. Dashed green line: GSO's Forecast. GSO sometimes revises these figures later in the day, so Grid can differ by a few percent from the solar on GSO's Generation page, which keeps its first figures.",
       body: '<div class="chart tall"></div>' }));
     body.appendChild(gsoCard);
     if (prof.length && prof.some((x) => x.points.some((q) => q[1] != null))) {

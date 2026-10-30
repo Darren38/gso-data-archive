@@ -12,6 +12,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - In the owner's other projects changes are committed straight to `main` with no pull requests.
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
+- After every check, end with the possible improvements to the current version that need the owner's decision
+  (what each would do, its cost or risk, and a recommendation), even when everything passed.
 - READMEs follow the owner's format: centred title, bold one-line description, green "OPEN THE SITE" badge, a clickable
   screenshot, then "What it is", "How current is it?", "Open it" (the site is online only: no install or local-run
   steps in the README; developer instructions live in docs/DEVELOPMENT.md), and credits.
@@ -119,7 +121,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 34. **Unlabelled "$" lists need an alarm, not just a parser.** GSO publishes two figures twice (Distribution Solar on
     the home and Solar pages, always exactly equal; Grid solar on the Solar and Generation pages). `crosscheck.py`
     compares them every run (daylight only); the Status page shows the result and the health check fails if they
-    disagree. A pure swap of NEM and SELCO would still pass it.
+    disagree. A swap of NEM and SELCO would pass both (their sum is unchanged), so `_order_by_labels` (gso_live.py)
+    reads GSO's one labelled part, r[7] (the Distribution Solar pie: "LSS", "NEM", "FiT", "SELCO" with the newest
+    figures), and files the lists by those names. It never stops collection: after sunset the labels may refer to
+    an earlier reading (it searches back for the matching moment), and labels that match nothing only leave a note.
 35. **GSO revises its Solar page's figures; its Generation page doesn't follow.** On 29 October the Solar page re-sent
     the morning's Grid values up to 7 times in the afternoon (up to 8.5% lower) while the Generation page kept its own,
     so the Grid cross-check allows 15% or 15 MW. A check that is exact on one day's backup can fail on the next: try

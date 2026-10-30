@@ -202,3 +202,42 @@ def test_evening_list_stays_on_its_own_day():
     assert len(grid) == 124
     assert grid[0].obs_time == datetime(2026, 10, 28, 0, 0, tzinfo=MYT).astimezone(UTC)
     assert grid[-1].obs_time == datetime(2026, 10, 28, 20, 30, tzinfo=MYT).astimezone(UTC)
+
+
+# GSO's answer carries one labelled part (r[7]): the newest Distribution, NEM, FiT and SELCO figures with their names.
+def _swapped(i, j):
+    parts = json.loads(fixture_bytes("real/solar_actual.json"))["d"].split("$")
+    parts[i], parts[j] = parts[j], parts[i]
+    return json.dumps({"d": "$".join(parts)})
+
+
+def test_labels_agree_with_the_usual_order():
+    p = parse(get_adapter("solar_profile"), fixture_bytes("real/solar_actual.json"), DAY, {"last_available": REF})
+    assert not p.rejected and "labels" not in p.signature
+    assert by_series(p)["nem"][-1].value == 1511 and by_series(p)["selco"][-1].value == 336
+
+
+def test_lists_in_a_new_order_are_filed_by_gso_labels():
+    # If GSO ever swapped NEM and SELCO, nothing else would notice: their sum, and so every cross-check, is unchanged.
+    p = parse(get_adapter("solar_profile"), _swapped(2, 4), DAY, {"last_available": REF})
+    s = by_series(p)
+    assert s["nem"][-1].value == 1511 and s["selco"][-1].value == 336  # still the right names
+    assert p.rejected and "labels" in p.signature  # and the run is marked as a format change
+
+
+def test_labels_that_match_nothing_leave_a_note_but_keep_collecting():
+    parts = json.loads(fixture_bytes("real/solar_actual.json"))["d"].split("$")
+    parts[7] = parts[7].replace("1511", "9999")
+    p = parse(get_adapter("solar_profile"), json.dumps({"d": "$".join(parts)}), DAY, {"last_available": REF})
+    assert len(by_series(p)["nem"]) == 81 and p.rejected and "matches no moment" in p.rejected[0]
+
+
+def test_labels_from_an_earlier_reading_still_check_the_order():
+    # After sunset GSO's labelled figures may stay at an earlier reading while the lists keep growing (with zeros).
+    parts = json.loads(fixture_bytes("real/solar_actual.json"))["d"].split("$")
+    for i in range(5):
+        parts[i] += ",0,0,0"
+    parts[2], parts[4] = parts[4], parts[2]
+    now = datetime(2026, 10, 28, 13, 52, tzinfo=MYT)
+    p = parse(get_adapter("solar_profile"), json.dumps({"d": "$".join(parts)}), DAY, {"last_available": REF, "now": now})
+    assert by_series(p)["nem"][-4].value == 1511 and p.rejected
