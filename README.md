@@ -32,6 +32,7 @@
 | Generation by fuel, system demand | About every 2–3 minutes (every 10 minutes at GSO); yesterday is re-checked every hour for corrections; missed days are fetched again automatically |
 | Tie-lines | About every 2–3 minutes (every 30 minutes at GSO) |
 | GSO's home page headline figures (Current Grid Demand, Current System Demand, Highest Grid Demand Recorded, Current Solar Generation, Current BESS Status, Cross-Border Power Exchange) | About every 2–3 minutes |
+| Cross-border power exchange (LTMS 2.0, CBESRE, Malaysia–Singapore Bilateral), every 30 minutes | About every 10 minutes; each request covers three days |
 | Other renewables split (biogas, biomass, mini hydro) | About every 2–3 minutes, from GSO's home page, for today only |
 | Power stations (each station's fuel, type, capacity and agreement end date) and installed capacity | Once a day; every change GSO makes to the list is kept |
 | Backup of the whole archive | Once a day, to the `archive-backups` release |

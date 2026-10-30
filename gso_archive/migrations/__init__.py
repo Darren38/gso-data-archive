@@ -102,11 +102,18 @@ def _m004_refile_evening_solar(conn: Connection) -> None:
                 revision_count=len(writes), last_run_id=last.run_id))
 
 
+def _m005_record_series(conn: Connection) -> None:
+    """GSO's "Highest Grid Demand Recorded" is a record dated when it happened, not a reading that should keep
+    arriving: mark it so the Status page doesn't call it stale."""
+    conn.execute(update(db.series).where(db.series.c.key == "headlines.highest_grid_demand_recorded").values(kind="record"))
+
+
 MIGRATIONS: list[tuple[int, str, Callable[[Connection], None]]] = [
     (1, "initial schema", _m001_initial),
     (2, "drop readings dated after they were collected", _m002_drop_future_readings),
     (3, "series latitude and longitude", _m003_series_location),
     (4, "put evening Solar page readings back on their own day", _m004_refile_evening_solar),
+    (5, "mark record values (highest demand recorded)", _m005_record_series),
 ]
 
 

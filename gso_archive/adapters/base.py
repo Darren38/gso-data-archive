@@ -38,7 +38,7 @@ class FieldSpec:
     series: str  # suffix; full key is "<adapter>.<series>"
     name: str
     unit: str = "MW"
-    kind: str = "actual"  # actual | forecast | capacity
+    kind: str = "actual"  # actual | forecast | capacity | record (a record value at its own date, never "stale")
     min_value: float | None = None  # below this → quality "suspect_negative"/"out_of_range"
     max_value: float | None = None
     daylight_only: bool = False  # solar: flag significant output at night

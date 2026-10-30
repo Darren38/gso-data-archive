@@ -331,14 +331,20 @@ def status(conn: Connection, configured_adapters: list[str], live_enabled: bool)
         interval = row.expected_interval_s or DEFAULT_INTERVAL_S
         window_start = now - timedelta(hours=24)
         got = conn.execute(select(func.count()).where(and_(o.series_id == row.id, o.obs_time >= window_start))).scalar()
-        expected = int(86400 / interval) if row.kind != "capacity" else 1
+        expected = int(86400 / interval) if row.kind not in ("capacity", "record") else 1
         age = (now - ensure_utc(latest)).total_seconds() if latest else None
+        if row.kind == "record":  # e.g. the highest demand ever recorded: dated when it happened, so always "old"
+            stale = latest is None
+        elif row.kind == "capacity":
+            stale = age is None or age > 3 * 86400
+        else:
+            stale = age is None or age > max(3 * interval, 3600)
         freshness.append({
             "series": row.key, "kind": row.kind, "latest_obs_time": to_utc_iso(latest) if latest else None,
             "age_s": int(age) if age is not None else None, "interval_s": row.expected_interval_s,
             "observed_24h": got, "expected_24h": expected,
-            "missing_24h": max(0, expected - got) if row.kind != "capacity" else None,
-            "stale": age is None or age > max(3 * interval, 3600) if row.kind != "capacity" else (age is None or age > 3 * 86400),
+            "missing_24h": max(0, expected - got) if row.kind not in ("capacity", "record") else None,
+            "stale": stale,
         })
 
     heartbeat = store.get_state(conn, "collector_heartbeat")

@@ -107,8 +107,10 @@ figure, and its "Current System Demand" (20,394 MW) is a different, larger figur
 `CBPE.aspx` ("Cross-Border Power Exchange", chart "Transaction Flow", stacked, y axis "MW", 30-minute steps;
 `ForecastChart`, `ForecastChartYesterday`, `ForecastChartLastDay` for today and the two days before, picked as "Last
 Hours" 24/48/72): answer parts `LTMSCOW$CBESRECOW$COW$XScale`, shown as "Laos-Thailand-Malaysia-Singapore (LTMS) 2.0",
-"CBESRE (ENEGEM)", "Malaysia-Singapore Bilateral (MSBI)" and a hidden "xscale". Not archived yet: the complete answers
-haven't been read (the log was cut), and the direction of flow isn't stated.
+"CBESRE (ENEGEM)", "Malaysia-Singapore Bilateral (MSBI)" and a hidden "xscale". Each part is `[{"x":"2026-10-30
+13:30:00","y":0|null}]`; on 30 Oct 2026 LTMS was empty (null) and CBESRE and MSBI were 0 throughout, and xscale (null)
+runs to 23:30. The `cbpe` collector keeps the three as published from `ForecastChartLastDay` (three days a request).
+GSO doesn't say which direction a positive value means, so none is claimed.
 
 `GetSysAVData`, `DrawSysAvPieChart`: time, Coal, Gas, CoGen, Hydro, Solar, DNSolar, Bess ("System Availability").
 
@@ -119,7 +121,6 @@ haven't been read (the log was cut), and the direction of flow isn't stated.
 
 | Address | Why not |
 |---|---|
-| `SystemData/CBPE.aspx/ForecastChart*` | A forecast page; the answer format isn't decoded yet |
 | `*/DownloadFile`, `*/Plot_Click` | A file token and an HTML table of the same data |
 
 System constraints: no page or data address found **[OBSERVED]**.

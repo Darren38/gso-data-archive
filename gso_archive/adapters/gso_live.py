@@ -402,7 +402,8 @@ def _headlines(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
             out.rejected.append(f"figure {i}: unreadable {rec!r}")
             continue
         fspec = spec.fields[series]
-        out.readings.append(Reading(series, f"[{i}]", t.astimezone(UTC), value, quality=assess_quality(fspec, value, t)))
+        out.readings.append(Reading(series, f"[{i}]", t.astimezone(UTC), value, kind=fspec.kind,
+                                    quality=assess_quality(fspec, value, t)))
     return out
 
 
@@ -420,13 +421,68 @@ HEADLINE = AdapterSpec(
     fields={
         "current_grid_demand": FieldSpec("current_grid_demand", "Current Grid Demand (GSO home page)", "MW", "actual", 0.0, MAX),
         "current_system_demand": FieldSpec("current_system_demand", "Current System Demand (GSO home page)", "MW", "actual", 0.0, MAX),
-        "highest_grid_demand_recorded": FieldSpec("highest_grid_demand_recorded", "Highest Grid Demand Recorded (GSO home page)", "MW", "actual", 0.0, MAX),
+        "highest_grid_demand_recorded": FieldSpec("highest_grid_demand_recorded", "Highest Grid Demand Recorded (GSO home page)", "MW", "record", 0.0, MAX),
         "current_solar_generation": FieldSpec("current_solar_generation", "Current Solar Generation (GSO home page)", "MW", "actual", 0.0, MAX),
         "current_bess": FieldSpec("current_bess", "Current BESS Status (GSO home page; above 0 discharging, below 0 charging)", "MW", "actual", -5000.0, 5000.0),
         "cross_border_exchange": FieldSpec("cross_border_exchange", "Cross-Border Power Exchange (GSO home page)", "MW", "actual", -5000.0, 5000.0),
     },
     takes_date=False,
     raw_transform=_headlines,
+)
+
+# --- SystemData/CBPE.aspx/ForecastChartLastDay -------------------------------------------------------------------
+# GSO's "Cross-Border Power Exchange" page, chart "Transaction Flow" (stacked, y axis "MW", 30-minute steps). Its
+# script reads the answer as `LTMSCOW$CBESRECOW$COW$XScale` and labels the parts "Laos-Thailand-Malaysia-Singapore
+# (LTMS) 2.0", "CBESRE (ENEGEM)", "Malaysia-Singapore Bilateral (MSBI)" and a hidden "xscale" (the axis). Each part is
+# [{"x": "2026-10-30 13:30:00", "y": 0 | null}]. ForecastChartLastDay covers the day before yesterday up to now
+# (ForecastChart: today, ForecastChartYesterday: two days), so one request a run also refills missed days.
+CBPE_PARTS = [("ltms", 0), ("cbesre", 1), ("msbi", 2)]
+
+
+def _cbpe(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
+    if not isinstance(d, str):
+        raise SchemaError("cross-border answer is not text")
+    parts = d.split("$")
+    if len(parts) != 4:
+        raise SchemaError(f"cross-border answer has {len(parts)} parts, expected 4 (LTMS, CBESRE, MSBI, xscale)")
+    out = ParsedPayload(signature="cbpe:4 parts")
+    for series, i in CBPE_PARTS:
+        try:
+            points = json.loads(parts[i])
+        except ValueError:
+            raise SchemaError(f"cross-border part {i} is not a list of points") from None
+        fspec = spec.fields[series]
+        for p in points:
+            try:
+                t = datetime.strptime(p["x"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=MYT).astimezone(UTC)
+            except (KeyError, TypeError, ValueError):
+                raise SchemaError(f"unexpected cross-border point {p!r}") from None
+            if p.get("y") is None:
+                out.missing += 1  # GSO leaves it empty: a gap, never zero
+                continue
+            v = float(p["y"])
+            out.readings.append(Reading(series, f"r[{i}]", t, v, quality=assess_quality(fspec, v, t)))
+    return out
+
+
+CBPE = AdapterSpec(
+    key="cbpe",
+    name="Cross-Border Power Exchange (GSO's CBPE page)",
+    category="cbpe",
+    page="SystemData/CBPE.aspx",
+    method="ForecastChartLastDay",
+    verification="verified",
+    description="GSO's Cross-Border Power Exchange page, chart 'Transaction Flow' in MW every 30 minutes, under GSO's "
+                "labels: LTMS 2.0 (Laos-Thailand-Malaysia-Singapore), CBESRE (ENEGEM) and the Malaysia-Singapore "
+                "Bilateral (MSBI). One answer covers the last three days, so missed days are refilled.",
+    fields={
+        "ltms": FieldSpec("ltms", "Laos-Thailand-Malaysia-Singapore (LTMS) 2.0", "MW", "actual", -5000.0, 5000.0),
+        "cbesre": FieldSpec("cbesre", "CBESRE (ENEGEM)", "MW", "actual", -5000.0, 5000.0),
+        "msbi": FieldSpec("msbi", "Malaysia-Singapore Bilateral (MSBI)", "MW", "actual", -5000.0, 5000.0),
+    },
+    takes_date=False,
+    min_interval_seconds=600,
+    raw_transform=_cbpe,
 )
 
 OTHER_RE = AdapterSpec(

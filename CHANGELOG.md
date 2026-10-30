@@ -1,5 +1,14 @@
 # Changelog
 
+## 30 October 2026 (twentieth update) — GSO Grid Archive 5.11
+
+GSO's cross-border power exchange is now kept, and every power station check is tested against GSO's full list.
+
+- **New: Cross-Border Power Exchange.** GSO's page of that name charts three trades every 30 minutes, in MW: LTMS 2.0 (Laos-Thailand-Malaysia-Singapore), CBESRE (ENEGEM) and the Malaysia-Singapore Bilateral (MSBI). The archive now keeps all three under GSO's names. Each request covers the last three days, so a missed day is filled in. Today LTMS is empty and the other two are 0; empty stays empty, never 0. GSO doesn't say which direction a positive value means, so the site doesn't claim one. The readings are in the Historical Explorer.
+- **Fixed: "Highest Grid Demand Recorded" was listed as stale** on the Collection Status page. It is a record, dated when it happened (6 August 2026), so it is now marked as a record and never called stale.
+- **Checked:** GSO's complete Power Station Info (55 stations) adds up to exactly the archive's installed capacity total, 29,472.31 MW. It is now one of the tests.
+- **Still not kept:** "Highest Energy Recorded", because GSO's page code read so far doesn't show its unit.
+
 ## 30 October 2026 (nineteenth update) — GSO Grid Archive 5.10
 
 GSO's home page headline figures are now kept, under GSO's own labels.

@@ -101,3 +101,36 @@ def test_headline_figures_are_kept_under_gso_labels():
         "cross_border_exchange": (0, "30 Oct 13:00"),
     }
     assert "highest_energy_recorded" not in got  # its unit isn't confirmed yet, so it isn't kept
+
+
+def test_full_power_station_list_matches_the_archived_total():
+    # GSO's complete Power Station Info (probe, 30 Oct 2026): 55 stations adding up to the archive's capacity total.
+    p = parse(get_adapter("power_station"), fixture_bytes("real/power_station.json"), T.date())
+    assert len(p.table) == 55 and len({s["id"] for s in p.table}) == 55
+    assert round(sum(s["capacity_mw"] for s in p.table), 2) == 29472.31
+    assert {s["fuel"] for s in p.table} == {"Coal", "Gas", "Solar", "Water"}
+    assert "Solar" in {s["type"] for s in p.table} and not any("\r" in (s["type"] or "") for s in p.table)
+
+
+def test_cross_border_exchange_keeps_gso_labels_and_gaps():
+    for name, first_day, points in (("cbpe_forecastchart", "2026-10-30", 28), ("cbpe_forecastchart_lastday", "2026-10-28", 124)):
+        p = parse(get_adapter("cbpe"), fixture_bytes(f"real/{name}.json"), T.date())
+        by = {}
+        for r in p.readings:
+            by.setdefault(r.series, []).append(r)
+        assert set(by) == {"cbesre", "msbi"}  # LTMS is all empty at the moment: kept as gaps, not zeros
+        assert all(len(v) == points for v in by.values()) and p.missing == points
+        assert min(r.obs_time for r in p.readings).astimezone(MYT).strftime("%Y-%m-%d %H:%M") == f"{first_day} 00:00"
+
+
+def test_record_values_are_never_stale(engine, settings):
+    p = parse(get_adapter("headlines"), fixture_bytes("real/landing_headlines.json"), T.date())
+    spec = get_adapter("headlines")
+    with engine.begin() as c:
+        ds = store.ensure_dataset(c, spec)
+        ids = store.resolve_series(c, spec, ds, p.readings)
+        store.apply_readings(c, p.readings, ids, run_id=None, snapshot_id=None, collected_at=T)
+    with engine.connect() as c:
+        st = {f["series"]: f for f in analytics.status(c, ["headlines"], True)["freshness"]}
+    rec = st["headlines.highest_grid_demand_recorded"]
+    assert rec["kind"] == "record" and rec["stale"] is False and rec["missing_24h"] is None
