@@ -57,6 +57,11 @@ of the list (81 values, 00:00-13:20); the list's own times are right, because it
 page's Solar at exactly the same written times (78 of 78 daylight readings; shifted 10 minutes either way, almost
 none). At night the Generation page shows 1-2 MW of solar where the Solar page shows 0.
 
+**GSO revises the Solar page's figures later; the Generation page keeps its own** **[OBSERVED, 29 Oct 2026]**: the
+10:00 Grid value was first published as 789 MW (equal to the Generation page), then re-sent as 777, 766, 777, 789,
+760 and 743 MW between 14:10 and 16:41, while the Generation page kept 789. Most morning and midday values changed
+like this, by up to 77 MW (8.5%). The archive keeps every version (`observation_revisions`); each page shows its own.
+
 **The last two readings of each day can't be collected** **[OBSERVED]**: the Solar page and the home page switch
 to the new day's list at midnight, before 23:40 and 23:50 are published (readings arrive about 20 minutes after
 their time). Those slots stay gaps in `solar_profile` and `genmix_live` (142 of 144 a day); nothing is filled in.
@@ -71,8 +76,9 @@ r[14] `"Wednesday, 28 October 2026 1:20 PM"` (time of the newest value). The arc
 r[11]–r[12]; the fuels are already archived from the generation page. GSO fills gaps by interpolation for its chart;
 the archive does not.
 
-The home page's Distribution Solar (r[9]) equals the Solar page's Distribution + NEM + FiT + SELCO at every reading
-**[OBSERVED, 28-29 Oct 2026]**. These two agreements are checked continuously (`crosscheck.py`, shown on the
+The home page's Distribution Solar (r[9]) equals the Solar page's Distribution + NEM + FiT + SELCO at every reading,
+through GSO's revisions **[OBSERVED, 28-30 Oct 2026]**. This and the Grid agreement above (within 15%, for the
+revisions) are checked continuously (`crosscheck.py`, shown on the
 Collection Status page; the hourly health check fails if they stop holding), because the "$" lists are unlabelled
 and a change in GSO's order would otherwise file numbers under the wrong names unnoticed.
 

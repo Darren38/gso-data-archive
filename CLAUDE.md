@@ -116,14 +116,18 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 33. **A derived accuracy figure must leave out moments that test nothing.** "Forecast vs Actual" counted night (both
     zero) and showed a typical miss of 48 MW; in daylight it was 115 MW. `forecastError` skips both-zero moments.
     The browser's own sums are checked in `tests/frontend/check_analysis.mjs`.
-34. **Unlabelled "$" lists need an alarm, not just a parser.** GSO publishes two figures twice (Grid solar on the Solar
-    and Generation pages; Distribution Solar on the home and Solar pages). `crosscheck.py` compares them every run
-    (daylight only: at night the Generation page shows 1-2 MW where the Solar page shows 0); the Status page shows
-    the result and the health check fails if they disagree. A pure swap of NEM and SELCO would still pass it.
-35. **Visitors may use this site instead of GSO's.** Old figures must never pass for current ones: past 45 minutes
+34. **Unlabelled "$" lists need an alarm, not just a parser.** GSO publishes two figures twice (Distribution Solar on
+    the home and Solar pages, always exactly equal; Grid solar on the Solar and Generation pages). `crosscheck.py`
+    compares them every run (daylight only); the Status page shows the result and the health check fails if they
+    disagree. A pure swap of NEM and SELCO would still pass it.
+35. **GSO revises its Solar page's figures; its Generation page doesn't follow.** On 29 October the Solar page re-sent
+    the morning's Grid values up to 7 times in the afternoon (up to 8.5% lower) while the Generation page kept its own,
+    so the Grid cross-check allows 15% or 15 MW. A check that is exact on one day's backup can fail on the next: try
+    any new alarm on several days of real backups before it can email the owner.
+36. **Visitors may use this site instead of GSO's.** Old figures must never pass for current ones: past 45 minutes
     every page shows a "Readings are delayed" note (`setBanner` in `app.js`), and the health check fails if the
     newest reading is 3 hours old while collection runs. Readings normally arrive 15-25 minutes after their time.
-36. **Tests that run the collector must pin the clock** (`at_fixture_time` in `test_gso_live.py`): the collector uses
+37. **Tests that run the collector must pin the clock** (`at_fixture_time` in `test_gso_live.py`): the collector uses
     the real time to pick the day and skips the forecast between 23:30 and 00:30.
 
 ## How to check a change
