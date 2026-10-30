@@ -180,6 +180,7 @@ def run_probe(settings: Settings, out_dir: Path, try_methods: bool = True, day: 
                 try:
                     mres = client.post_pagemethod(murl, body, referer=url)
                     entry["status"] = mres.status
+                    entry["raw_full"] = mres.content[:30000].decode("utf-8", errors="replace")
                     (out_dir / f"{name}__{method}.json").write_bytes(mres.content)
                     try:
                         records = decode_pagemethod(mres.content)

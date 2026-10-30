@@ -66,18 +66,20 @@ def main(report_path: str, out_dir: str) -> None:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:300]}")
         # The page code around data GSO sends without names (headline figures, cross-border forecasts), so their
         # meaning comes from GSO's own code rather than a guess.
-        unnamed = re.compile(r"GetFeatureSectionData|FeatureSection|ForecastChart|GetOtherREData|GetSolarMap|HistoricalData")
+        unnamed = re.compile(r"GetFeatureSectionData|function checkLoading|HighEnergyRecData\.mw|RenewalData\.mw|BESSData\.mw|"
+                             r"COWData\.mw|id=\"(currentgriddemand|currentsystemdemand|highestdemandrecorded|target\d)\"|"
+                             r"ForecastChart|yAxes|<h\d|<title|GetSolarMap|HistoricalData|endDateStr\s*=")
         for html in sorted(folder.glob("*.html")):
             lines = html.read_text(encoding="utf-8", errors="replace").splitlines()
             hits = [i for i, line in enumerate(lines) if unnamed.search(line)]
             if hits:
                 print(f"\n## code around unlabelled data in {html.name}: {len(hits)} places")
             shown = -1
-            for i in hits[:12]:
+            for i in hits[:30]:
                 if i <= shown:
                     continue
                 print(f"\n   --- line {i + 1}")
-                for j in range(max(0, i - 5), min(len(lines), i + 90)):
+                for j in range(max(0, i - 12), min(len(lines), i + 90)):
                     print(f"   {j + 1:5d}: {lines[j].rstrip()[:300]}")
                 shown = i + 90
         # How GSO's own scripts read and label the data (series names, splitting of "$"-joined answers, units).
