@@ -1,5 +1,13 @@
 # Changelog
 
+## 30 October 2026 (twenty-third update) — GSO Grid Archive 5.13
+
+Grid Demand and System Demand, side by side, as on GSO's home page.
+
+- **Overview:** the top row now starts the way GSO's home page does, with **Current Grid Demand** and **Current System Demand** next to each other, then Current Solar Generation and Current BESS Status. Each says where it comes from and when. Solar's share of demand moved to the second row.
+- **Demand page:** the top cards now show Current Grid Demand and Current System Demand first, then the peak, minimum and energy of Grid Demand, with a short note on GSO's naming and a link to compare the two over time.
+- What the two are: **Grid Demand** is the figure on GSO's System Demand page, every 10 minutes (GSO's charts there call it System Demand). **System Demand** is the larger figure GSO's home page shows next to it; the archive keeps it from 30 October 2026, whenever GSO's home page shows it.
+
 ## 30 October 2026 (twenty-second update) — GSO Grid Archive 5.12
 
 Everything GSO publishes is now on the site, and new collectors are tried before they go live.

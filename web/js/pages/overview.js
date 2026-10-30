@@ -37,19 +37,23 @@ export async function render(main, { meta, isCurrent }) {
   // Solar ÷ demand only for readings taken at the same moment (the two come from different GSO pages).
   const shareAt = (demandMw) => (solarNow != null && demandMw > 0 ? (100 * solarNow) / demandMw : null);
   const share = demand?.last === solarAt ? shareAt(demand.latest_value) : null;
-  const shareKpi = (v) => kpi({ big: true, cls: "solar", icon: "share", label: "Solar Share of Demand", value: v != null ? fmtNum(v, 1) : null, unit: "%",
-    meta: v != null ? `Current Solar Generation ÷ System Demand at ${fmtTime(solarAt)} MYT` : "Needs solar and demand readings for the same time" });
+  const shareKpi = (v) => kpi({ cls: "solar", icon: "share", label: "Solar Share of Demand", value: v != null ? fmtNum(v, 1) : null, unit: "%",
+    meta: v != null ? `Current Solar Generation ÷ Grid Demand at ${fmtTime(solarAt)} MYT` : "Needs solar and demand readings for the same time" });
+  // GSO's home page opens with "Current Grid Demand" and "Current System Demand" side by side. The first is the figure
+  // on GSO's System Demand page (system_demand.demand, every 10 minutes); the second, larger, only on the home page.
+  const sysDem = by["headlines.current_system_demand"];
   const dis = by["genmix_live.bess_discharge"], chg = by["genmix_live.bess_charge"];
   const bess = dis && chg && dis.latest_value != null && chg.latest_value != null ? dis.latest_value + chg.latest_value : null;
   const mixSeries = MIX.filter((m) => by[m.key]);
   const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
 
   main.appendChild(h(`<div class="grid kpis hero">
+    ${kpi({ big: true, cls: "demand", icon: "demand", label: "Current Grid Demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
+      meta: demand?.last ? `${fmtDateTime(demand.last)} MYT · from GSO's System Demand page` : "" })}
+    ${kpi({ big: true, cls: "demand", icon: "demand", label: "Current System Demand", value: sysDem?.latest_value != null ? fmtNum(sysDem.latest_value) : null, unit: "MW",
+      meta: sysDem?.last ? `${fmtDateTime(sysDem.last)} MYT · from GSO's home page` : "Kept from 30 October 2026, when GSO's home page shows it" })}
     ${kpi({ big: true, cls: "solar", icon: "solar", label: "Current Solar Generation", value: solarNow != null ? fmtNum(solarNow) : null, unit: "MW",
       meta: solarAt ? `${partsNow ? "Grid + Distribution + NEM + FiT + SELCO" : "Transmission Solar"} · ${fmtTime(solarAt)} MYT` : "" })}
-    ${kpi({ big: true, cls: "demand", icon: "demand", label: "Current System Demand", value: demand?.latest_value != null ? fmtNum(demand.latest_value) : null, unit: "MW",
-      meta: demand?.last ? `Peninsular Malaysia · ${fmtTime(demand.last)} MYT` : "" })}
-    ${shareKpi(share)}
     ${kpi({ big: true, cls: "bess", icon: "battery", label: "Current BESS Status", value: bess != null ? fmtNum(Math.abs(bess)) : null, unit: "MW",
       meta: bess == null ? "" : bess > 0 ? "Discharging to the grid" : bess < 0 ? "Charging from the grid" : "Idle" })}
   </div>`));
@@ -70,7 +74,7 @@ export async function render(main, { meta, isCurrent }) {
     body: '<div class="chart"></div>' }));
   const avCard = h(card({ title: "Generation Availability", desc: "Share of each kind of plant ready to run. The middle shows the total available.",
     body: '<div class="chart"></div>' }));
-  const demCard = h(card({ title: "System Demand: Today vs Yesterday", desc: "Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
+  const demCard = h(card({ title: "Grid Demand: Today vs Yesterday", desc: "The figure on GSO's System Demand page (GSO's home page calls it Current Grid Demand). Solid line: today. Dashed line: the same hours yesterday.", body: '<div class="chart"></div>' }));
   row.append(mixCard, avCard);
   main.appendChild(demCard);
 
@@ -86,11 +90,11 @@ export async function render(main, { meta, isCurrent }) {
     ]);
     if (!isCurrent()) return;
 
-    if (share == null && solarAt && demToday) {
+    let shareNow = share;
+    if (shareNow == null && solarAt && demToday) {
       // The newest demand reading may be newer or older than the newest solar one: use demand at the solar reading's time.
       const d = [...(demYest?.points || []), ...demToday.points].find((p) => p[0] === solarAt || Date.parse(p[0]) === Date.parse(solarAt));
-      const hero = main.querySelector(".hero");
-      if (d && d[1] != null && hero) hero.children[2].outerHTML = shareKpi(shareAt(d[1]));
+      if (d && d[1] != null) shareNow = shareAt(d[1]);
     }
     const totalToday = partPts.length === SOLAR_PARTS.length ? sumSeries(partPts.map((p) => p.points)) : solarPts?.points || [];
     const peak = extent(totalToday).max;
@@ -101,6 +105,7 @@ export async function render(main, { meta, isCurrent }) {
     const mixTotal = slices.reduce((t, m) => t + m.value, 0);
     const biggest = slices.slice().sort((a, b) => b.value - a.value)[0];
     second.innerHTML = [
+      shareKpi(shareNow),
       kpi({ cls: "solar", icon: "peak", label: "Today's Solar Peak", value: peak ? fmtNum(peak[1]) : null, unit: "MW", meta: peak ? `at ${fmtTime(peak[0])} MYT` : "" }),
       kpi({ cls: "forecast", icon: "forecast", label: "Solar Forecast Peak", value: fcPeak ? fmtNum(fcPeak[1]) : null, unit: "MW", meta: fcPeak ? `expected at ${fmtTime(fcPeak[0])} MYT` : "" }),
       kpi({ icon: biggest ? fuelIcon(biggest.key) : "plant", label: "Largest Source Now", value: biggest ? biggest.label : null, meta: biggest ? `${fmtNum((100 * biggest.value) / mixTotal, 0)}% of the Generation Mix · ${fmtNum(biggest.value)} MW` : "" }),
