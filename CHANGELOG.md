@@ -1,5 +1,13 @@
 # Changelog
 
+## 30 October 2026 (twenty-fifth update) — GSO Grid Archive 5.13.2
+
+Fewer false alarms, and collection that restarts itself when GitHub hiccups.
+
+- This evening three of GSO's addresses (the Solar page, the home page headline figures and the cross-border figures) kept timing out on GSO's side. Nothing was wrong with the archive, but the hourly site check marked every run as failed and sent an email each time. Now, when GSO simply isn't answering, the check notes it and only raises the alarm if it lasts more than 12 hours. Any other kind of failure, such as GSO changing how its answers look, still raises the alarm straight away.
+- Visitors are still told: each figure shows when it was last updated, and every page says "Readings are delayed" when the newest readings are late.
+- This afternoon GitHub had a brief error just as one run tried to start the next, and collection paused for 80 minutes until GitHub's backup schedule picked it up again. That step now tries a few more times before giving up.
+
 ## 30 October 2026 (twenty-fourth update) — GSO Grid Archive 5.13.1
 
 Collection keeps its pace when one of GSO's addresses is slow.

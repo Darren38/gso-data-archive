@@ -153,6 +153,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     for hours: 30 s a try and 4 tries made every round take 4 minutes instead of 30 seconds, so all other figures
     arrived less often. After `BACKOFF_AFTER` failures in a row a collector is tried only every `BACKOFF_SECONDS`
     (`plan_cycle`) and with no retries (`collect_one`) until it succeeds again. The trial uses one try per address.
+42. **An alarm must point at something the owner can fix.** That evening the Solar page, the headline figures and CBPE
+    all timed out on GSO's side, and the hourly check emailed "failed" every hour. `health.py` now treats timeouts,
+    lost connections and GSO's 5xx answers as a note until the collector has had no success for 12 hours; any other
+    error (a changed answer, a 4xx) still fails after 12 in a row. Visitors see the delay through freshness and the
+    "Readings are delayed" note. The same day GitHub answered 502 to the `next` job's `gh workflow run` and collection
+    stopped for 80 minutes, so that step now tries again before giving up.
 
 ## How to check a change
 

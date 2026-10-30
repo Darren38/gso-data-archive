@@ -3,7 +3,8 @@
 It only reads the site. It fails (so GitHub marks the run red and emails the owner) when:
   * the page or its data files don't load,
   * live collection is switched on but the collector hasn't run recently,
-  * an enabled source has failed many times in a row,
+  * an enabled source has failed many times in a row (when GSO itself is not answering, only after half a day:
+    GSO's pages time out for hours at a time and the owner can't fix that, while visitors already see the delay),
   * GSO's own pages no longer agree on the figures they both publish (crosscheck.py: a sign that GSO changed its
     lists and numbers are being filed under the wrong names), or
   * the newest reading is hours old although the collector runs (GSO answering with old data).
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 from datetime import datetime, timezone
 
@@ -25,8 +27,13 @@ def _get(url: str, timeout: float = 30) -> bytes:
         return res.read()
 
 
+def _gso_not_answering(error: str | None) -> bool:
+    """Timeouts, lost connections and GSO's own server errors: GSO's side, not a fault in this archive."""
+    return bool(error) and (error.startswith("network_error") or bool(re.match(r"http_error: HTTP 5\d\d", error)))
+
+
 def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
-               max_reading_age_minutes: int = 180) -> dict:
+               max_reading_age_minutes: int = 180, max_outage_hours: float = 12) -> dict:
     base = base_url.rstrip("/") + "/"
     problems: list[str] = []
     notes: list[str] = []
@@ -53,8 +60,17 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                 age = (now - datetime.fromisoformat(started)).total_seconds() / 60
                 (problems if age > max_age_minutes else notes).append(f"last collection {age:.0f} min ago")
             for a in status.get("adapters", []):
-                if a.get("enabled") and (a.get("consecutive_failures") or 0) >= max_failures:
-                    problems.append(f"{a['adapter']} has failed {a['consecutive_failures']} times in a row: {a.get('last_error')}")
+                if not a.get("enabled") or (a.get("consecutive_failures") or 0) < max_failures:
+                    continue
+                said = f"{a['adapter']} has failed {a['consecutive_failures']} times in a row: {a.get('last_error')}"
+                if _gso_not_answering(a.get("last_error")):
+                    ok_at = a.get("last_success_at")
+                    hours = (now - datetime.fromisoformat(ok_at.replace("Z", "+00:00"))).total_seconds() / 3600 if ok_at else None
+                    if hours is not None and hours < max_outage_hours:
+                        notes.append(f"{said} (GSO not answering for {hours:.1f} h; an alarm after {max_outage_hours:g} h)")
+                        continue
+                    said += f" (GSO not answering for {hours:.0f} h)" if hours is not None else " (never answered)"
+                problems.append(said)
             for c in status.get("cross_checks", []):
                 notes.append(f"cross-check {c['key']}: {c['state']} ({c['agreeing']} of {c['compared']} daylight readings agree)")
                 if c.get("state") == "failed":

@@ -249,6 +249,12 @@ jobs:
           newer=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?per_page=30" \
             --jq "[.workflow_runs[] | select(.id > ${{ github.run_id }} and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\"))] | length")
           if [ "${newer:-0}" -gt 0 ]; then echo "A newer run is already on its way."; exit 0; fi
+          # GitHub sometimes answers 502 here (30 Oct 2026: the chain stopped for 80 minutes until a schedule
+          # picked it up), so try a few times before giving up.
+          for wait in 5 15 30 60; do
+            if gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main; then echo "Next run started."; exit 0; fi
+            echo "GitHub did not start the next run; trying again in $wait s."; sleep "$wait"
+          done
           gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main
           echo "Next run started."
         env:

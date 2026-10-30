@@ -175,6 +175,23 @@ def test_health_check(two_archives, settings, tmp_path):
         status["freshness"][0]["latest_obs_time"] = (now - timedelta(minutes=20)).isoformat()
         (site / "data" / "status.json").write_text(json.dumps(status))
         assert check_site(base)["ok"]
+        # GSO's own pages timing out (seen 30 Oct 2026, for hours): a note, and an alarm only after half a day.
+        status["adapters"][0].update(consecutive_failures=18, last_error="network_error: ReadTimeout: The read operation timed out",
+                                     last_success_at=(now - timedelta(hours=3)).isoformat().replace("+00:00", "Z"))
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        result = check_site(base)
+        assert result["ok"] and any("GSO not answering for 3.0 h" in n for n in result["notes"])
+        status["adapters"][0]["last_success_at"] = (now - timedelta(hours=13)).isoformat()
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        assert any("GSO not answering for 13 h" in p for p in check_site(base)["problems"])
+        status["adapters"][0].update(last_error="http_error: HTTP 503", last_success_at=None)
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        assert any("never answered" in p for p in check_site(base)["problems"])
+        # A failure on this archive's side (GSO changed its answer) still raises the alarm at once.
+        status["adapters"][0].update(last_error="parse_error: unexpected TypeError",
+                                     last_success_at=(now - timedelta(hours=1)).isoformat())
+        (site / "data" / "status.json").write_text(json.dumps(status))
+        assert any("18 times in a row: parse_error" in p for p in check_site(base)["problems"])
     finally:
         httpd.shutdown()
     assert not check_site("http://127.0.0.1:9/")["ok"]
