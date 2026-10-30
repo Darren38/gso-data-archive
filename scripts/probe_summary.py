@@ -124,6 +124,17 @@ def main(report_path: str, out_dir: str) -> None:
                 for j in range(i, min(len(lines), i + 16)):
                     print(f"   {j + 1:5d}: {lines[j].rstrip()[:200]}")
 
+    # Every section of the home page in its order (title and chart box), so this site's Overview can follow GSO's.
+    for folder in folders[-1:]:
+        for html in sorted(folder.glob("*LandingPage*.html")) + sorted(folder.glob("index.html")):
+            lines = html.read_text(encoding="utf-8", errors="replace").splitlines()
+            marks = [(i, re.sub(r"<[^>]+>", " ", line).strip() or line.strip()) for i, line in enumerate(lines)
+                     if re.search(r'<h[1-4]\b|class="bnr-head"|id="[^"]*(container|chart)[^"]*"', line, re.I)]
+            if marks:
+                print(f"\n## sections in {html.name}, in page order")
+                for i, text in marks:
+                    print(f"   {i + 1:5d}: {text[:150]}")
+
     # Last, because GitHub's log download returns only the final 5,000 lines: GSO's complete answers.
     print("\n" + "=" * 100)
     print("FULL ANSWERS (for test fixtures)")

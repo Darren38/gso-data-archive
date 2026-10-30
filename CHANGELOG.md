@@ -1,5 +1,13 @@
 # Changelog
 
+## 31 October 2026 (twenty-seventh update) — GSO Grid Archive 5.14.1
+
+Small follow-ups to 5.14.
+
+- **Same name as GSO:** GSO's own look at its home page confirmed that its generation chart comes straight after the seven figures, as on the Overview. The chart now carries GSO's title, "System Demand Profile for Peninsular Malaysia".
+- **More patience with a slow GSO:** when one of GSO's addresses keeps failing, the one try every 10 minutes now waits up to 60 seconds instead of 30, so figures GSO is only slow to send can still arrive. Every other request keeps the normal wait.
+- **The daily look at GSO's pages** now has 20 minutes instead of 10, so on a slow night it can finish, including the trial of every collector. It also lists every section of GSO's home page in order, so the Overview can keep following it.
+
 ## 31 October 2026 (twenty-sixth update) — GSO Grid Archive 5.14
 
 The Overview now looks like GSO's home page; solar details live on the Solar page.

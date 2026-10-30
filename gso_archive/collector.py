@@ -138,8 +138,9 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                 return fail(exc.error_type, f"time of latest reading: {exc}", t_res.status)
         with engine.connect() as conn:
             failing = store.failure_streak(conn, spec.key)[0] >= BACKOFF_AFTER
+        # While it keeps failing: one try, every BACKOFF_SECONDS, but waiting longer (GSO may be slow rather than down).
         fetched = client.post_pagemethod(url, body, referer=spec.page_url(settings.gso_base_url),
-                                         retries=0 if failing else None)  # one try while it keeps failing
+                                         retries=0 if failing else None, timeout=BACKOFF_TIMEOUT if failing else None)
     except FetchError as exc:
         if exc.error_type == "live_disabled":
             result.status = "disabled"
@@ -203,6 +204,7 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
 
 BACKOFF_AFTER = 2  # failures in a row before a collector is tried less often, and without retries
 BACKOFF_SECONDS = 600
+BACKOFF_TIMEOUT = 60.0  # seconds that one try may wait while backing off (normal tries: GSO_REQUEST_TIMEOUT_SECONDS)
 
 
 def plan_cycle(engine: Engine, settings: Settings, now: datetime | None = None) -> list[tuple[AdapterSpec, date, str]]:

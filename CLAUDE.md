@@ -24,7 +24,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
 - Requests to other sites name the project, never the owner (no name or email in the User-Agent).
 - Never invent readings, endpoints or source capabilities. Demonstration data is watermarked and labelled everywhere.
-- The Overview follows GSO's home page: its seven headline boxes in GSO's order, then the generation chart and rings.
+- The Overview follows GSO's home page: its seven headline boxes in GSO's order, then the generation chart ("System
+  Demand Profile for Peninsular Malaysia", confirmed by the probe on 31 Oct 2026) and rings. The probe's "sections in
+  LandingPage.aspx.html" list shows GSO's order.
   Solar detail belongs on the Solar page, demand comparisons on the Demand page.
 - Where GSO has the same chart (for example its System Demand Profile), draw ours the way GSO draws it: same
   stacking order, colours and key order. Charts this site works out itself (comparisons, profiles, ramps) stay as they are.
@@ -154,7 +156,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 41. **One slow GSO address must not slow everything else.** On 30 October GSO's home page headline figures timed out
     for hours: 30 s a try and 4 tries made every round take 4 minutes instead of 30 seconds, so all other figures
     arrived less often. After `BACKOFF_AFTER` failures in a row a collector is tried only every `BACKOFF_SECONDS`
-    (`plan_cycle`) and with no retries (`collect_one`) until it succeeds again. The trial uses one try per address.
+    (`plan_cycle`) and with no retries (`collect_one`) until it succeeds again; that one try may wait
+    `BACKOFF_TIMEOUT` (60 s), since GSO is often slow rather than down. The trial uses one try per address.
 42. **An alarm must point at something the owner can fix.** That evening the Solar page, the headline figures and CBPE
     all timed out on GSO's side, and the hourly check emailed "failed" every hour. `health.py` now treats timeouts,
     lost connections and GSO's 5xx answers as a note until the collector has had no success for 12 hours; any other

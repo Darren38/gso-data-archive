@@ -80,8 +80,8 @@ export async function render(main, { meta, isCurrent }) {
   const mixSeries = MIX.filter((m) => by[m.key]);
   const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
   const ore = meta.series.filter((s) => s.dataset === "other_re" && s.latest_value != null);
-  const profCard = h(card({ title: "Generation Mix, Last 24 Hours",
-    desc: "Like GSO's home page chart: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Breaks mean a source had no reading at that time.",
+  const profCard = h(card({ title: "System Demand Profile for Peninsular Malaysia", sub: "Last 24 hours",
+    desc: "As on GSO's home page: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Breaks mean a source had no reading at that time.",
     body: '<div class="chart tall"></div>' }));
   main.appendChild(profCard);
   const row = h('<div class="grid cols-2"></div>');

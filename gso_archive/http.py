@@ -127,13 +127,15 @@ class GsoClient:
             log.info("warm-up GET %s failed (%s); continuing", page_url, exc)
         self._warmed.add(page_url)
 
-    def post_pagemethod(self, url: str, body: dict | None, referer: str, retries: int | None = None) -> FetchResult:
+    def post_pagemethod(self, url: str, body: dict | None, referer: str, retries: int | None = None,
+                        timeout: float | None = None) -> FetchResult:
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "X-Requested-With": "XMLHttpRequest",
             "Referer": referer,
         }
-        return self._request("POST", url, retries=retries, json=body or {}, headers=headers)
+        extra = {"timeout": timeout} if timeout else {}
+        return self._request("POST", url, retries=retries, json=body or {}, headers=headers, **extra)
 
     def get(self, url: str, accept: str | None = None) -> FetchResult:
         return self._request("GET", url, headers={"Accept": accept} if accept else None)

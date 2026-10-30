@@ -230,6 +230,10 @@ def test_a_gso_address_that_keeps_failing_is_tried_less_often(engine, settings, 
     clock[0] = datetime(2026, 10, 30, 9, 13, tzinfo=timezone.utc)
     collector.run_cycle(engine, s, client=client)
     assert headline_calls() == after_two + 1  # tried again, once, without retries
+    # ... and allowed to wait longer, in case GSO is slow rather than down (other addresses keep the normal wait).
+    read_wait = lambda c: c.extensions["timeout"]["read"]  # noqa: E731
+    assert read_wait(fake.posts("GetFeatureSectionData")[-1]) == collector.BACKOFF_TIMEOUT
+    assert read_wait(fake.posts("GetFeatureSectionData")[0]) == read_wait(fake.posts("GetOtherREData")[-1]) == s.request_timeout_seconds
     fake.routes["LandingPage.aspx/GetFeatureSectionData"] = ["real/landing_headlines.json"]
     clock[0] = datetime(2026, 10, 30, 9, 24, tzinfo=timezone.utc)
     by = {r.adapter: r for r in collector.run_cycle(engine, s, client=client).results}
