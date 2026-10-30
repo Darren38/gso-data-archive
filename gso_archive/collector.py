@@ -136,7 +136,10 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                 context["last_available"] = client.time_cache[spec.time_source] = t_parse(decode_d(t_res.content))
             except SourceError as exc:
                 return fail(exc.error_type, f"time of latest reading: {exc}", t_res.status)
-        fetched = client.post_pagemethod(url, body, referer=spec.page_url(settings.gso_base_url))
+        with engine.connect() as conn:
+            failing = store.failure_streak(conn, spec.key)[0] >= BACKOFF_AFTER
+        fetched = client.post_pagemethod(url, body, referer=spec.page_url(settings.gso_base_url),
+                                         retries=0 if failing else None)  # one try while it keeps failing
     except FetchError as exc:
         if exc.error_type == "live_disabled":
             result.status = "disabled"
@@ -198,6 +201,10 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
     return result
 
 
+BACKOFF_AFTER = 2  # failures in a row before a collector is tried less often, and without retries
+BACKOFF_SECONDS = 600
+
+
 def plan_cycle(engine: Engine, settings: Settings, now: datetime | None = None) -> list[tuple[AdapterSpec, date, str]]:
     """Decide which (adapter, day) requests this cycle should make."""
     now = now or utcnow()
@@ -206,6 +213,12 @@ def plan_cycle(engine: Engine, settings: Settings, now: datetime | None = None) 
     with engine.connect() as conn:
         for key in settings.adapters:
             spec = get_adapter(key)
+            # A GSO address that keeps failing (e.g. timing out for 30 s a try) is tried only every BACKOFF_SECONDS,
+            # so it can't slow every round of collection for everything else (seen 30 Oct 2026: the home page's
+            # headline figures timed out for hours and stretched each round from 30 s to 4 minutes).
+            streak, last_try = store.failure_streak(conn, spec.key)
+            if streak >= BACKOFF_AFTER and last_try and (now - last_try).total_seconds() < BACKOFF_SECONDS:
+                continue
             if spec.min_interval_seconds:
                 last = store.last_success(conn, spec.key)
                 if last and (now - last).total_seconds() < spec.min_interval_seconds:

@@ -28,11 +28,11 @@ def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, sh
             page, method, read_time = TIME_SOURCES[spec.time_source]
             if spec.time_source not in client.time_cache:
                 res = client.post_pagemethod(f"{settings.gso_base_url}/{page}/{method}", {},
-                                             referer=f"{settings.gso_base_url}/{page}")
+                                             referer=f"{settings.gso_base_url}/{page}", retries=0)
                 client.time_cache[spec.time_source] = read_time(decode_d(res.content))
             ctx["last_available"] = client.time_cache[spec.time_source]
         fetched = client.post_pagemethod(spec.url(settings.gso_base_url), spec.request_body(day),
-                                         referer=spec.page_url(settings.gso_base_url))
+                                         referer=spec.page_url(settings.gso_base_url), retries=0)  # one try: fits the job's time
     except (FetchError, SourceError) as exc:
         return {**out, "result": "could not fetch", "error": f"{type(exc).__name__}: {exc}"}
     ctx["now"] = utcnow()

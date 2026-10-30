@@ -328,3 +328,16 @@ def keep_table(conn: Connection, key: str, rows: list[dict], at: datetime) -> di
             counts["removed"] += 1
     set_state(conn, f"table:{key}", {"rows": known, "changes": changes[-MAX_TABLE_CHANGES:], "checked_at": stamp})
     return counts
+
+
+def failure_streak(conn: Connection, adapter: str, look_back: int = 20) -> tuple[int, datetime | None]:
+    """How many of the adapter's latest finished runs failed in a row, and when the latest one started."""
+    r = db.collection_runs.c
+    rows = conn.execute(select(r.status, r.started_at).where(and_(r.adapter == adapter, r.status != "running"))
+                        .order_by(r.started_at.desc()).limit(look_back)).all()
+    streak = 0
+    for row in rows:
+        if row.status != "failed":
+            break
+        streak += 1
+    return streak, (ensure_utc(rows[0].started_at) if rows else None)

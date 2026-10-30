@@ -1,5 +1,13 @@
 # Changelog
 
+## 30 October 2026 (twenty-fourth update) — GSO Grid Archive 5.13.1
+
+Collection keeps its pace when one of GSO's addresses is slow.
+
+- Since about 5:20 pm today, the part of GSO's home page that sends its headline figures (including Current System Demand) stops answering: each try waits 30 seconds. The archive tried four times every round, which stretched each round of collection from 30 seconds to about 4 minutes, so every other figure arrived less often.
+- Now a GSO address that fails twice in a row is tried only every 10 minutes, once, until it answers again. The rest of the collection keeps its normal pace, and nothing is guessed: while GSO doesn't answer, those figures simply have gaps.
+- The daily trial of every collector also tries each address once, so a slow address can't use up its time.
+
 ## 30 October 2026 (twenty-third update) — GSO Grid Archive 5.13
 
 Grid Demand and System Demand, side by side, as on GSO's home page.

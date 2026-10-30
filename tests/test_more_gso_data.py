@@ -199,3 +199,40 @@ def test_trial_reports_a_collector_bug_instead_of_crashing(settings, client, fak
     monkeypatch.setattr(trial, "parse", lambda *a, **k: (_ for _ in ()).throw(TypeError("'NoneType' object is not iterable")))
     (r,) = trial.run_trial(settings, ["other_re"], client=client)
     assert r["result"].startswith("COLLECTOR BUG") and "NoneType" in r["error"]
+
+
+def test_a_gso_address_that_keeps_failing_is_tried_less_often(engine, settings, client, fake, monkeypatch):
+    # Seen 30 Oct 2026: the home page's headline figures timed out for hours (30 s a try, 4 tries), stretching every
+    # round of collection from 30 seconds to 4 minutes for everything else.
+    from dataclasses import replace
+
+    import gso_archive.collector as collector
+
+    s = replace(settings, adapters=["headlines", "other_re"], gso_live_enabled=True)
+    fake.add("LandingPage.aspx/GetFeatureSectionData", 503)
+    fake.add("LandingPage.aspx/GetOtherREData", "real/landing_other_re.json")
+    clock = [datetime(2026, 10, 30, 9, 0, tzinfo=timezone.utc)]
+    monkeypatch.setattr(collector, "utcnow", lambda: clock[0])
+    monkeypatch.setattr(store, "utcnow", lambda: clock[0])
+    monkeypatch.setattr("gso_archive.http.time.sleep", lambda s: None)
+
+    def headline_calls():
+        return len(fake.posts("GetFeatureSectionData"))
+
+    for minute in (0, 2):  # two failed rounds, with retries
+        clock[0] = datetime(2026, 10, 30, 9, minute, tzinfo=timezone.utc)
+        collector.run_cycle(engine, s, client=client)
+    after_two = headline_calls()
+    assert after_two == 2 * (client.settings.max_retries + 1)  # 1 try + the retries, each round
+    clock[0] = datetime(2026, 10, 30, 9, 4, tzinfo=timezone.utc)
+    plan = [spec.key for spec, _, _ in collector.plan_cycle(engine, s, clock[0])]
+    assert plan == ["other_re"]  # headlines rests for 10 minutes; the others carry on
+    clock[0] = datetime(2026, 10, 30, 9, 13, tzinfo=timezone.utc)
+    collector.run_cycle(engine, s, client=client)
+    assert headline_calls() == after_two + 1  # tried again, once, without retries
+    fake.routes["LandingPage.aspx/GetFeatureSectionData"] = ["real/landing_headlines.json"]
+    clock[0] = datetime(2026, 10, 30, 9, 24, tzinfo=timezone.utc)
+    by = {r.adapter: r for r in collector.run_cycle(engine, s, client=client).results}
+    assert by["headlines"].status == "success"
+    clock[0] = datetime(2026, 10, 30, 9, 26, tzinfo=timezone.utc)
+    assert "headlines" in [spec.key for spec, _, _ in collector.plan_cycle(engine, s, clock[0])]  # back to every round

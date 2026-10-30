@@ -83,9 +83,9 @@ class GsoClient:
         if wait > 0:
             time.sleep(wait)
 
-    def _request(self, method: str, url: str, **kwargs) -> FetchResult:
+    def _request(self, method: str, url: str, retries: int | None = None, **kwargs) -> FetchResult:
         self._check_allowed(url)
-        attempts = self.settings.max_retries + 1
+        attempts = (self.settings.max_retries if retries is None else retries) + 1
         last_exc: FetchError | None = None
         for attempt in range(1, attempts + 1):
             self._throttle()
@@ -127,13 +127,13 @@ class GsoClient:
             log.info("warm-up GET %s failed (%s); continuing", page_url, exc)
         self._warmed.add(page_url)
 
-    def post_pagemethod(self, url: str, body: dict | None, referer: str) -> FetchResult:
+    def post_pagemethod(self, url: str, body: dict | None, referer: str, retries: int | None = None) -> FetchResult:
         headers = {
             "Content-Type": "application/json; charset=utf-8",
             "X-Requested-With": "XMLHttpRequest",
             "Referer": referer,
         }
-        return self._request("POST", url, json=body or {}, headers=headers)
+        return self._request("POST", url, retries=retries, json=body or {}, headers=headers)
 
     def get(self, url: str, accept: str | None = None) -> FetchResult:
         return self._request("GET", url, headers={"Accept": accept} if accept else None)

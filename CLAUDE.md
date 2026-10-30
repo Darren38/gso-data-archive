@@ -149,6 +149,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     as that collector's failure, and `run_cycle` guards each collector. Real answers can be `null` where a list is
     expected: test new parsers with that too, and try a new collector with `trial` on GitHub before adding it to
     GSO_ADAPTERS (docs/DEVELOPMENT.md, "Adding a collector").
+41. **One slow GSO address must not slow everything else.** On 30 October GSO's home page headline figures timed out
+    for hours: 30 s a try and 4 tries made every round take 4 minutes instead of 30 seconds, so all other figures
+    arrived less often. After `BACKOFF_AFTER` failures in a row a collector is tried only every `BACKOFF_SECONDS`
+    (`plan_cycle`) and with no retries (`collect_one`) until it succeeds again. The trial uses one try per address.
 
 ## How to check a change
 
