@@ -41,6 +41,18 @@ def cmd_collect(args, settings):
         sys.exit(2)
 
 
+def cmd_trial(args, settings):
+    from dataclasses import replace
+
+    from .trial import run_trial
+
+    keys = None if args.all or not args.adapters else args.adapters.split(",")
+    results = run_trial(replace(settings, gso_live_enabled=True), keys)
+    _print({"trial": results, "writes": "none"})
+    if any(r["result"].startswith("COLLECTOR BUG") for r in results):
+        sys.exit(3)  # GitHub shows the step red: a collector would have failed live
+
+
 def cmd_backfill(args, settings):
     from .collector import backfill
 
@@ -187,6 +199,11 @@ def main(argv: list[str] | None = None) -> None:
     v.set_defaults(fn=cmd_serve)
 
     sub.add_parser("status", help="print monitoring status").set_defaults(fn=cmd_status)
+
+    tr = sub.add_parser("trial", help="fetch and read GSO's live answers with the collectors; report, write nothing")
+    tr.add_argument("adapters", nargs="?", help="comma-separated collector names (default: --all)")
+    tr.add_argument("--all", action="store_true", help="every collector, including ones not in GSO_ADAPTERS")
+    tr.set_defaults(fn=cmd_trial)
 
     pr = sub.add_parser("probe", help="inspect GSO pages and save raw responses (needs GSO_LIVE_ENABLED)")
     pr.add_argument("--out", default=str(PROJECT_ROOT / "data" / "probe"))

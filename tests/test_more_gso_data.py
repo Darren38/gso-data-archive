@@ -173,3 +173,28 @@ def test_one_collectors_bug_never_stops_the_others(engine, settings, client, fak
     by = {r.adapter: r for r in collector.run_cycle(engine, s, client=client).results}
     assert by["headlines"].status == "failed" and by["headlines"].error_type == "unexpected_error"
     assert by["other_re"].status == "success"
+
+
+def test_trial_reads_live_answers_and_writes_nothing(engine, settings, client, fake, monkeypatch):
+    from gso_archive.trial import run_trial
+
+    fake.add("LandingPage.aspx/GetGenMixData", "real/landing_genmix.json")
+    fake.add("LandingPage.aspx/GetOtherREData", "real/landing_other_re.json")
+    d = json.loads(fixture_bytes("real/cbpe_forecastchart.json"))["d"].split("$")
+    d[0] = "null"  # the answer that crashed version 5.11 on its first live run
+    fake.add("SystemData/CBPE.aspx/ForecastChartLastDay", json.dumps({"d": "$".join(d)}).encode())
+    by = {r["adapter"]: r for r in run_trial(settings, ["genmix_live", "other_re", "cbpe"], client=client)}
+    assert by["genmix_live"]["result"] == "ok" and by["genmix_live"]["readings"] > 0
+    assert by["other_re"]["result"] == "ok"  # dated by the home page reading of the same trial
+    assert by["cbpe"]["result"] == "ok" and set(by["cbpe"]["per_series"]) == {"cbesre", "msbi"}
+    with engine.connect() as c:
+        assert not c.execute(select(db.observations)).first()  # nothing written
+
+
+def test_trial_reports_a_collector_bug_instead_of_crashing(settings, client, fake, monkeypatch):
+    import gso_archive.trial as trial
+
+    fake.add("LandingPage.aspx/GetOtherREData", "real/landing_other_re.json")
+    monkeypatch.setattr(trial, "parse", lambda *a, **k: (_ for _ in ()).throw(TypeError("'NoneType' object is not iterable")))
+    (r,) = trial.run_trial(settings, ["other_re"], client=client)
+    assert r["result"].startswith("COLLECTOR BUG") and "NoneType" in r["error"]

@@ -112,6 +112,18 @@ def main(report_path: str, out_dir: str) -> None:
         for raw in sorted(folder.glob("*__*.json")):
             print(f"\n## raw answer {raw.name}: {raw.read_text(encoding='utf-8', errors='replace')[:1500]}")
 
+    # The home page's headline boxes, whole: each figure's label and unit (e.g. "Highest Energy Recorded").
+    for folder in folders[-1:]:
+        for html in sorted(folder.glob("*.html")):
+            lines = html.read_text(encoding="utf-8", errors="replace").splitlines()
+            boxes = [i for i, line in enumerate(lines) if re.search(r'id="target\d"', line)]
+            if boxes:
+                print(f"\n## headline boxes in {html.name}")
+            for i in boxes:
+                print("   ---")
+                for j in range(i, min(len(lines), i + 16)):
+                    print(f"   {j + 1:5d}: {lines[j].rstrip()[:200]}")
+
     # Last, because GitHub's log download returns only the final 5,000 lines: GSO's complete answers.
     print("\n" + "=" * 100)
     print("FULL ANSWERS (for test fixtures)")

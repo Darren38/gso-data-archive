@@ -147,7 +147,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     sent as a bare `null`, raised a TypeError, and the whole collection cycle stopped: the collectors after it
     (availability, solar farms) didn't run. `collect_one` now records any unexpected error while reading an answer
     as that collector's failure, and `run_cycle` guards each collector. Real answers can be `null` where a list is
-    expected: test new parsers with that too.
+    expected: test new parsers with that too, and try a new collector with `trial` on GitHub before adding it to
+    GSO_ADAPTERS (docs/DEVELOPMENT.md, "Adding a collector").
 
 ## How to check a change
 

@@ -222,6 +222,10 @@ jobs:
           python -m gso_archive probe --out probe-out > probe.json || true
           python scripts/probe_summary.py probe.json probe-out
         continue-on-error: true
+      # Every collector reads GSO's live answers here first, writing nothing: a new collector is tried before it is
+      # switched on (added to GSO_ADAPTERS). Red if a collector would have crashed (lesson 40 in CLAUDE.md).
+      - name: Try every collector on GSO's live answers (writes nothing)
+        run: python -m gso_archive trial --all
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
