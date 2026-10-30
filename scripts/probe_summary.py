@@ -47,12 +47,6 @@ def main(report_path: str, out_dir: str) -> None:
     for name, m in report.get("methods", {}).items():
         if m.get("raw_start"):
             print(f"\n## {name}: {m['raw_start'][:1200]}")
-    print("\n" + "=" * 100)
-    print("FULL ANSWERS (for test fixtures)")
-    for name, m in report.get("methods", {}).items():
-        if m.get("raw_full") and re.search(r"Solar|GenMix|SysAV|OtherRE|LastAvailable|PowerStation|FeatureSection|"
-                                           r"ForecastChart", name):
-            print(f"\n## FULL {name}\n{m['raw_full']}\n## END")
     saved = Path(report.get("saved_to") or out_dir)
     folders = [saved] if saved.is_dir() and list(saved.glob("*.html")) else sorted(Path(out_dir).glob("*"))
     for folder in folders[-1:]:
@@ -117,6 +111,14 @@ def main(report_path: str, out_dir: str) -> None:
                         print(f"   {j + 1:5d}| {lines[j].rstrip()[:240]}")
         for raw in sorted(folder.glob("*__*.json")):
             print(f"\n## raw answer {raw.name}: {raw.read_text(encoding='utf-8', errors='replace')[:1500]}")
+
+    # Last, because GitHub's log download returns only the final 5,000 lines: GSO's complete answers.
+    print("\n" + "=" * 100)
+    print("FULL ANSWERS (for test fixtures)")
+    for name, m in report.get("methods", {}).items():
+        if m.get("raw_full") and re.search(r"Solar|GenMix|SysAV|OtherRE|LastAvailable|PowerStation|FeatureSection|"
+                                           r"ForecastChart", name):
+            print(f"\n## FULL {name}\n{m['raw_full']}\n## END")
 
 
 if __name__ == "__main__":

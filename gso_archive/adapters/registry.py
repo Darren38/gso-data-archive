@@ -173,7 +173,7 @@ POWER_STATION = AdapterSpec(
     transform=_power_station_transform,
 )
 
-from .gso_live import AVAILABILITY, GENMIX_LIVE, OTHER_RE, SOLAR_FARMS, SOLAR_FORECAST, SOLAR_PROFILE  # noqa: E402
+from .gso_live import AVAILABILITY, GENMIX_LIVE, HEADLINE, OTHER_RE, SOLAR_FARMS, SOLAR_FORECAST, SOLAR_PROFILE  # noqa: E402
 
 # System constraints: no public data address was found on gso.org.my (checked 28 Oct 2026).
 NOT_IMPLEMENTED = {
@@ -193,6 +193,7 @@ ADAPTERS: dict[str, AdapterSpec] = {
         SOLAR_FORECAST,
         GENMIX_LIVE,
         OTHER_RE,
+        HEADLINE,
         AVAILABILITY,
         SOLAR_FARMS,
     )

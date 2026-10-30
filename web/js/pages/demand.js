@@ -11,7 +11,7 @@ export async function render(main, { meta, isCurrent }) {
     main.innerHTML = card({ title: "Demand", body: emptyState("No demand readings archived yet", "System demand appears here once the <code>system_demand</code> adapter has collected data.") });
     return;
   }
-  const s = demandSeries[0];
+  const s = demandSeries.find((x) => x.key === "system_demand.demand") || demandSeries[0];
   const bar = h("<div></div>"); main.appendChild(bar);
   const body = h('<div class="grid"></div>'); main.appendChild(body);
   const picker = rangePicker(bar, { initial: "7d", onChange: (r) => draw(r) });

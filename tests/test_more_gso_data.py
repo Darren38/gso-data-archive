@@ -86,3 +86,18 @@ def test_power_station_changes_are_recorded(engine):
     assert {(x["id"], x["change"]) for x in t["changes"]} == {("4", "no longer listed"), ("6", "capacity_mw"), ("99", "added")}
     assert next(x for x in t["changes"] if x["change"] == "capacity_mw")["old"] == 375.0
     assert t["rows"][-1]["id"] == "4"  # stations GSO no longer lists come last
+
+
+def test_headline_figures_are_kept_under_gso_labels():
+    # Real answer saved by the probe at 13:14 MYT on 30 October 2026; the labels are from GSO's own page code.
+    p = parse(get_adapter("headlines"), fixture_bytes("real/landing_headlines.json"), T.date())
+    got = {r.series: (r.value, r.obs_time.astimezone(MYT).strftime("%d %b %H:%M")) for r in p.readings}
+    assert got == {
+        "current_grid_demand": (17672, "30 Oct 13:00"),
+        "current_system_demand": (20308, "30 Oct 13:00"),
+        "highest_grid_demand_recorded": (22014, "06 Aug 20:30"),
+        "current_solar_generation": (4199, "30 Oct 13:00"),
+        "current_bess": (0, "30 Oct 13:00"),
+        "cross_border_exchange": (0, "30 Oct 13:00"),
+    }
+    assert "highest_energy_recorded" not in got  # its unit isn't confirmed yet, so it isn't kept

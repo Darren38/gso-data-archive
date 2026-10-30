@@ -1,5 +1,14 @@
 # Changelog
 
+## 30 October 2026 (nineteenth update) — GSO Grid Archive 5.10
+
+GSO's home page headline figures are now kept, under GSO's own labels.
+
+- **New: the figures at the top of GSO's home page**, read every few minutes with GSO's own times: Current Grid Demand, Current System Demand, Highest Grid Demand Recorded, Current Solar Generation, Current BESS Status (above 0 discharging, below 0 charging) and Cross-Border Power Exchange, all in MW. GSO only ever shows the current value, so these build up from today. You can see them in the Historical Explorer.
+- **Worth knowing:** GSO uses the words "system demand" for two different figures. Its System Demand page (which this site's Demand page follows) gives the figure its home page calls "Current Grid Demand" (for example 17,696 MW at 12:20 today). The home page's "Current System Demand" is a different, larger figure (20,394 MW at the same moment). Both are now kept, each under GSO's label.
+- **Not kept yet:** "Highest Energy Recorded" (463,750 on 9 September 2026), because GSO's page doesn't show its unit in the code read so far, and the cross-border power exchange forecasts, whose complete answers haven't been read yet. The probe now prints GSO's complete answers last in its report, so they can be read next.
+- **Safer:** the Demand page now asks for GSO's System Demand series by name instead of taking the first demand series it finds.
+
 ## 30 October 2026 (eighteenth update) — GSO Grid Archive 5.9
 
 More of what GSO publishes is now kept, each figure under GSO's own name and time.

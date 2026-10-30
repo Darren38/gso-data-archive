@@ -368,6 +368,67 @@ GENMIX_LIVE = AdapterSpec(
     raw_transform=_genmix,
 )
 
+# --- LandingPage.aspx/GetFeatureSectionData --------------------------------------------------------------------
+# The home page's headline figures: 7 records {mw, Day: "Friday,<br>30 Oct 2026", Time: "13:00"}. Their names come
+# from GSO's page (seen 30 Oct 2026): LoadFeatureSectionData puts JSONData[0..6] into TotalGenData, SystemDemandData,
+# HighDemandRecData, HighEnergyRecData, RenewalData, BESSData, COWData, and checkLoading shows them under
+# "Current Grid Demand", "Current System Demand", "Highest Grid Demand Recorded", "Highest Energy Recorded",
+# "Current Solar Generation", "Current BESS Status" (above 0 "Discharging", below 0 "Charging") and
+# "Cross-Border Power Exchange", each "MW" except Highest Energy Recorded, whose unit the page doesn't show in
+# the code read so far, so it is not kept yet.
+HEADLINES = {0: "current_grid_demand", 1: "current_system_demand", 2: "highest_grid_demand_recorded",
+             4: "current_solar_generation", 5: "current_bess", 6: "cross_border_exchange"}
+
+
+def _headlines(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
+    try:
+        records = json.loads(d) if isinstance(d, str) else d
+        assert isinstance(records, list)
+    except (ValueError, AssertionError):
+        raise SchemaError(f"unexpected headline answer: {str(d)[:200]!r}") from None
+    if len(records) != 7:
+        raise SchemaError(f"headline answer has {len(records)} figures, expected 7 (GSO's page shows 7)")
+    out = ParsedPayload(signature="headlines:7")
+    for i, series in HEADLINES.items():
+        rec = records[i]
+        if not isinstance(rec, dict) or rec.get("mw") is None:
+            out.missing += 1
+            continue
+        day = re.sub(r"<br\s*/?>", " ", str(rec.get("Day", ""))).strip()
+        try:
+            t = datetime.strptime(f"{day} {rec.get('Time', '')}".strip(), "%A, %d %b %Y %H:%M").replace(tzinfo=MYT)
+            value = float(rec["mw"])
+        except (ValueError, TypeError):
+            out.rejected.append(f"figure {i}: unreadable {rec!r}")
+            continue
+        fspec = spec.fields[series]
+        out.readings.append(Reading(series, f"[{i}]", t.astimezone(UTC), value, quality=assess_quality(fspec, value, t)))
+    return out
+
+
+HEADLINE = AdapterSpec(
+    key="headlines",
+    name="Headline figures (GSO home page)",
+    category="headline",  # not "demand": pages pick their main series by category (demand.js uses the first)
+    page="LandingPage.aspx",
+    method="GetFeatureSectionData",
+    verification="verified",
+    description="The figures at the top of GSO's home page, under GSO's own labels and times: Current Grid Demand, "
+                "Current System Demand, Highest Grid Demand Recorded, Current Solar Generation, Current BESS Status "
+                "and Cross-Border Power Exchange (MW). Only the current value is published, so they build up as "
+                "the archive collects.",
+    fields={
+        "current_grid_demand": FieldSpec("current_grid_demand", "Current Grid Demand (GSO home page)", "MW", "actual", 0.0, MAX),
+        "current_system_demand": FieldSpec("current_system_demand", "Current System Demand (GSO home page)", "MW", "actual", 0.0, MAX),
+        "highest_grid_demand_recorded": FieldSpec("highest_grid_demand_recorded", "Highest Grid Demand Recorded (GSO home page)", "MW", "actual", 0.0, MAX),
+        "current_solar_generation": FieldSpec("current_solar_generation", "Current Solar Generation (GSO home page)", "MW", "actual", 0.0, MAX),
+        "current_bess": FieldSpec("current_bess", "Current BESS Status (GSO home page; above 0 discharging, below 0 charging)", "MW", "actual", -5000.0, 5000.0),
+        "cross_border_exchange": FieldSpec("cross_border_exchange", "Cross-Border Power Exchange (GSO home page)", "MW", "actual", -5000.0, 5000.0),
+    },
+    takes_date=False,
+    raw_transform=_headlines,
+)
+
 OTHER_RE = AdapterSpec(
     key="other_re",
     name="Other renewables split (GSO home page)",

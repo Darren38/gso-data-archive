@@ -139,6 +139,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     through `ctx["shared"]` (cleared every cycle), so `other_re` must run after `genmix_live`. If the totals differ,
     nothing is kept. Lists of rows with text (GSO's power stations) go through `store.keep_table`, which records every
     change GSO makes and keeps stations GSO stops listing.
+39. **Pages pick their series by key, never by "the first of a category".** Adding the home page headline figures
+    (category "demand" at first) would have made the Demand page chart "headlines.current_bess", because it took the
+    first demand series and keys sort alphabetically. New collectors get their own category ("headline"), and
+    `demand.js` now asks for `system_demand.demand` by name.
 
 ## How to check a change
 
