@@ -56,6 +56,7 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                 if a.get("enabled") and (a.get("consecutive_failures") or 0) >= max_failures:
                     problems.append(f"{a['adapter']} has failed {a['consecutive_failures']} times in a row: {a.get('last_error')}")
             for c in status.get("cross_checks", []):
+                notes.append(f"cross-check {c['key']}: {c['state']} ({c['agreeing']} of {c['compared']} daylight readings agree)")
                 if c.get("state") == "failed":
                     w = c.get("worst") or {}
                     problems.append(f"GSO's pages disagree: {c['name']} held for only {c['agreeing']} of {c['compared']} "
