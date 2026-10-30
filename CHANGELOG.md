@@ -1,5 +1,16 @@
 # Changelog
 
+## 30 October 2026 (twenty-second update) — GSO Grid Archive 5.12
+
+Everything GSO publishes is now on the site, and new collectors are tried before they go live.
+
+- **Demand page:** a short note explains that GSO uses "system demand" for two figures. This page follows GSO's System Demand page, whose figure GSO's home page calls "Current Grid Demand"; the home page's "Current System Demand" is a larger figure, shown in the note with its time, and both can be compared in the Explorer.
+- **Tie-Line page:** a new Cross-Border Power Exchange chart, drawn the way GSO draws it (stacked steps, GSO's colours and order): CBESRE (ENEGEM), the Malaysia-Singapore Bilateral and LTMS 2.0, every 30 minutes.
+- **Overview:** a new "GSO Home Page Figures" card with the figures at the top of GSO's home page, under GSO's own labels and times.
+- **New: Highest Energy Recorded** (463,750 MWh, on 9 September 2026). GSO's page shows it in MWh with its day only, so it is kept that way, as a record.
+- **Safer updates:** after every update and once a day, GitHub now tries every collector on GSO's live answers and reports what it would keep, writing nothing. A new collector is tried this way before it is switched on, and the step turns red if one would crash.
+- **Clearer charts:** a chart whose values are all whole numbers no longer shows repeated axis labels such as "0, 0, 1, 1" when its range is small.
+
 ## 30 October 2026 (twenty-first update) — GSO Grid Archive 5.11.1
 
 Fixed within minutes: the new cross-border collector stopped the other collectors on its first run.

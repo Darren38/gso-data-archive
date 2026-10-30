@@ -98,10 +98,10 @@ and only when the two totals agree.
 `GetFeatureSectionData` **[OBSERVED, GSO page code, 30 Oct 2026]**: 7 records `{mw, Day: "Friday,<br>30 Oct 2026",
 Time: "13:00"}`. `LoadFeatureSectionData` names them TotalGenData, SystemDemandData, HighDemandRecData,
 HighEnergyRecData, RenewalData, BESSData, COWData, and the page shows them under "Current Grid Demand",
-"Current System Demand", "Highest Grid Demand Recorded", "Highest Energy Recorded" (Day only, unit not yet seen),
+"Current System Demand", "Highest Grid Demand Recorded", "Highest Energy Recorded" ("MWh", Day only),
 "Current Solar Generation", "Current BESS Status" (above 0 "Discharging", below 0 "Charging") and "Cross-Border Power
-Exchange", each with "MW" except Highest Energy Recorded. The `headlines` collector keeps all but Highest Energy
-Recorded. Note GSO's naming: the home page's "Current Grid Demand" (17,696 MW at 12:20) is the System Demand page's
+Exchange", each with "MW" except Highest Energy Recorded. The `headlines` collector keeps all seven; the two
+records are kind "record", Highest Energy Recorded filed at its day. Note GSO's naming: the home page's "Current Grid Demand" (17,696 MW at 12:20) is the System Demand page's
 figure, and its "Current System Demand" (20,394 MW) is a different, larger figure.
 
 `CBPE.aspx` ("Cross-Border Power Exchange", chart "Transaction Flow", stacked, y axis "MW", 30-minute steps;

@@ -35,6 +35,13 @@ export async function render(main, { meta, isCurrent }) {
         ${kpi({ icon: "low", label: "Minimum System Demand", value: low ? fmtNum(low.min) : null, unit: "MW", meta: low ? (low.min_time ? `${fmtDateTime(low.min_time)} MYT` : low.date) : "" })}
         ${kpi({ icon: "energy", label: "Energy Demand", value: wd.length ? fmtEnergy(energy) : null, meta: `${wd.length}/${rows.length} days with data` })}
       </div>`));
+      // GSO uses "system demand" for two figures: this page follows GSO's System Demand page, whose figure GSO's home
+      // page calls "Current Grid Demand"; the home page's "Current System Demand" is a different, larger figure.
+      const home = meta.series.find((x) => x.key === "headlines.current_system_demand");
+      body.appendChild(h(`<p class="small muted" style="margin:0">This page shows the figure on GSO's System Demand page, which GSO's home page calls
+        <b>Current Grid Demand</b>. The home page's <b>Current System Demand</b> is a different, larger figure${home?.latest_value != null
+          ? ` (${fmtNum(home.latest_value)} MW at ${fmtDateTime(home.last)} MYT)` : ""}. Both are kept:
+        <a href="#/explorer?series=system_demand.demand,headlines.current_system_demand">compare them in the Explorer</a>.</p>`));
       body.appendChild(h(shortForms(["MW", "MWh", "MYT"])));
       // up to a month, the chart is GSO's own System Demand Profile: what is generating, stacked, with demand on top
       const asProfile = pts && days <= 31;

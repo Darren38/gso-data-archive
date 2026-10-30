@@ -96,11 +96,12 @@ def test_headline_figures_are_kept_under_gso_labels():
         "current_grid_demand": (17672, "30 Oct 13:00"),
         "current_system_demand": (20308, "30 Oct 13:00"),
         "highest_grid_demand_recorded": (22014, "06 Aug 20:30"),
+        "highest_energy_recorded": (463750, "09 Sep 00:00"),  # MWh; GSO shows its day only
         "current_solar_generation": (4199, "30 Oct 13:00"),
         "current_bess": (0, "30 Oct 13:00"),
         "cross_border_exchange": (0, "30 Oct 13:00"),
     }
-    assert "highest_energy_recorded" not in got  # its unit isn't confirmed yet, so it isn't kept
+    assert next(r for r in p.readings if r.series == "highest_energy_recorded").kind == "record"
 
 
 def test_full_power_station_list_matches_the_archived_total():

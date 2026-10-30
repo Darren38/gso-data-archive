@@ -1,7 +1,7 @@
 // Tie-line flows.
 import { getPoints, exportUrl } from "../data.js";
 import { COLORS, timeChart } from "../charts.js";
-import { sumSeries, extent } from "../analysis.js";
+import { alignStack, sumSeries, extent } from "../analysis.js";
 import { addDays, card, shortForms, downloadText, emptyState, errorState, esc, fmtDateTime, fmtNum, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker } from "../ui.js";
 
 const LINE_COLOR = { tieline_egat: COLORS.egat, tieline_hvdc: COLORS.hvdc, tieline_pltg: COLORS.pltg };
@@ -47,6 +47,24 @@ export async function render(main, { meta, isCurrent }) {
       body.appendChild(c2);
       if (th.length === 2) timeChart(c2.querySelector(".chart"), { demo: meta.is_demo, series: [{ name: "Net (EGAT + HVDC)", points: sumSeries(th.map(([, p]) => p.points)), color: COLORS.net, area: true }] });
       else c2.querySelector(".card-b").innerHTML = emptyState("Needs both EGAT and HVDC readings");
+
+      // GSO's Cross-Border Power Exchange page ("Transaction Flow"), drawn as GSO draws it: stacked steps, GSO's
+      // colours and order (CBESRE, MSBI, LTMS), every 30 minutes, MW as published.
+      const CBPE = [["cbpe.cbesre", "#57A773"], ["cbpe.msbi", "#08B2E3"], ["cbpe.ltms", "#484D6D"]];
+      const trades = CBPE.map(([key, color]) => [meta.series.find((x) => x.key === key), color]).filter(([x]) => x);
+      if (trades.length) {
+        const tp = await Promise.all(trades.map(([x]) => getPoints(x.key, start, end)));
+        if (!isCurrent()) return;
+        const aligned = alignStack(tp.map((p) => p.points), 1800e3);
+        const c3 = h(card({ title: "Cross-Border Power Exchange", sub: "MW as published",
+          desc: "From GSO's Cross-Border Power Exchange page (its \"Transaction Flow\" chart), every 30 minutes: CBESRE (ENEGEM), the Malaysia-Singapore Bilateral (MSBI) and LTMS 2.0 (Laos-Thailand-Malaysia-Singapore), stacked as GSO draws them. GSO doesn't say which direction a positive value means. Breaks mean GSO published no value.",
+          body: '<div class="chart"></div>' }));
+        body.appendChild(c3);
+        if (aligned.some((pts) => pts.some((x) => x[1] != null))) {
+          timeChart(c3.querySelector(".chart"), { demo: meta.is_demo, series: trades.map(([x, color], i) => ({
+            name: x.name, points: aligned[i], color, stack: "cbpe", area: true, step: "end" })) });
+        } else c3.querySelector(".card-b").innerHTML = emptyState("No readings in this range", "Kept from 30 October 2026.");
+      }
     } catch (err) { body.innerHTML = errorState(err); }
   }
   await picker.start();

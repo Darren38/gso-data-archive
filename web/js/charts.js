@@ -129,6 +129,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       axisLabel: { ...b._axis.axisLabel, fontSize: el.clientWidth < 400 ? 11 : 12.5, formatter: axisTime } },
     yAxis: yAxes.map((y, i) => ({ type: "value", name: y.name, nameTextStyle: { color: css("--text-3"), align: i ? "right" : "left" },
       position: i ? "right" : "left", scale: !!y.scale, min: y.min, max: y.max, ...b._axis, splitLine: i ? { show: false } : b._axis.splitLine,
+      minInterval: (y.digits ?? 0) === 0 ? 1 : undefined, // whole-number labels: no 0.2 steps shown as "0, 0, 1, 1"
       axisLabel: { ...b._axis.axisLabel, formatter: (v) => fmtNum(v, y.digits ?? 0) } })),
     tooltip: { ...b.tooltip,
       formatter: (params) => {
@@ -166,7 +167,8 @@ export function categoryChart(el, { categories, series, yAxes = [{ name: "MW" }]
     grid: { ...b.grid, top: lg.top, bottom: zoom ? 64 : 40, right: yAxes.length > 1 ? 64 : 24 },
     xAxis: { type: "category", data: categories, ...b._axis, splitLine: { show: false } },
     yAxis: yAxes.map((y, i) => ({ type: "value", name: y.name, position: i ? "right" : "left", nameTextStyle: { color: css("--text-3") },
-      ...b._axis, splitLine: i ? { show: false } : b._axis.splitLine, axisLabel: { ...b._axis.axisLabel, formatter: (v) => fmtNum(v, y.digits ?? 0) } })),
+      ...b._axis, splitLine: i ? { show: false } : b._axis.splitLine, minInterval: (y.digits ?? 0) === 0 ? 1 : undefined,
+      axisLabel: { ...b._axis.axisLabel, formatter: (v) => fmtNum(v, y.digits ?? 0) } })),
     tooltip: { ...b.tooltip, axisPointer: { type: "shadow" },
       formatter: (params) => {
         const head = `<b>${params[0].axisValue}</b>`;

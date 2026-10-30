@@ -3,7 +3,7 @@ import { getPoints, getStatus } from "../data.js";
 import { COLORS, SOLAR_PARTS, FUELS, pieChart, timeChart } from "../charts.js";
 import { fuelIcon } from "../icons.js";
 import { extent, sumSeries } from "../analysis.js";
-import { card, clock, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
+import { card, clock, esc, fmtDate, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, mytDay, mytDayStart } from "../ui.js";
 
 // GSO's home page "Generation Mix" and "Generation Availability" donuts, with GSO's names and colours.
 const MIX = [...FUELS.slice(0, 5), { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline }, ...FUELS.slice(5)];
@@ -134,6 +134,20 @@ export async function render(main, { meta, isCurrent }) {
     } else demCard.querySelector(".card-b").innerHTML = emptyState("No demand readings yet today");
   } catch (err) {
     chartToday.querySelector(".card-b").innerHTML = errorState(err);
+  }
+
+  // ---- GSO's home page headline figures, under GSO's own labels and times
+  const HEAD = [["current_grid_demand", "Current Grid Demand"], ["current_system_demand", "Current System Demand"],
+    ["highest_grid_demand_recorded", "Highest Grid Demand Recorded"], ["highest_energy_recorded", "Highest Energy Recorded"],
+    ["current_solar_generation", "Current Solar Generation"],
+    ["current_bess", "Current BESS Status"], ["cross_border_exchange", "Cross-Border Power Exchange"]];
+  const heads = HEAD.map(([k, label]) => [meta.series.find((x) => x.key === `headlines.${k}`), label, k]).filter(([x]) => x && x.latest_value != null);
+  if (heads.length) {
+    const bess = (v) => (v > 0 ? " (discharging)" : v < 0 ? " (charging)" : " (idle)");
+    main.appendChild(h(card({ title: "GSO Home Page Figures", desc: "The figures at the top of GSO's home page, with GSO's own labels and times. GSO uses \"system demand\" for a larger figure than its System Demand page, which its home page calls \"grid demand\".",
+      body: `<div class="table-wrap"><table><tbody>${heads.map(([x, label, k]) => `<tr><th scope="row" style="white-space:normal">${esc(label)}</th>
+        <td class="num" style="white-space:normal"><b>${fmtNum(x.latest_value)} ${esc(x.unit)}</b>${k === "current_bess" ? bess(x.latest_value) : ""}<br><span class="small muted">${k === "highest_energy_recorded" ? esc(fmtDate(x.last)) : `${esc(fmtDateTime(x.last))} MYT`}</span></td></tr>`).join("")}</tbody></table></div>
+        <p class="small muted"><a href="#/explorer?series=${heads.map(([x]) => x.key).filter((key) => !key.includes("highest")).join(",")}">See them over time in the Explorer</a></p>` })));
   }
 
   // ---- health, one line

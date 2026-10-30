@@ -374,10 +374,11 @@ GENMIX_LIVE = AdapterSpec(
 # HighDemandRecData, HighEnergyRecData, RenewalData, BESSData, COWData, and checkLoading shows them under
 # "Current Grid Demand", "Current System Demand", "Highest Grid Demand Recorded", "Highest Energy Recorded",
 # "Current Solar Generation", "Current BESS Status" (above 0 "Discharging", below 0 "Charging") and
-# "Cross-Border Power Exchange", each "MW" except Highest Energy Recorded, whose unit the page doesn't show in
-# the code read so far, so it is not kept yet.
+# "Cross-Border Power Exchange", each "MW" except Highest Energy Recorded: "MWh" (seen in the page's box on 30 Oct
+# 2026), shown with its day only (checkLoading writes HighEnergyRecData.Day, not the Time), so it is filed at that day.
 HEADLINES = {0: "current_grid_demand", 1: "current_system_demand", 2: "highest_grid_demand_recorded",
-             4: "current_solar_generation", 5: "current_bess", 6: "cross_border_exchange"}
+             3: "highest_energy_recorded", 4: "current_solar_generation", 5: "current_bess", 6: "cross_border_exchange"}
+DAY_ONLY = {3}
 
 
 def _headlines(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
@@ -396,7 +397,10 @@ def _headlines(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
             continue
         day = re.sub(r"<br\s*/?>", " ", str(rec.get("Day", ""))).strip()
         try:
-            t = datetime.strptime(f"{day} {rec.get('Time', '')}".strip(), "%A, %d %b %Y %H:%M").replace(tzinfo=MYT)
+            if i in DAY_ONLY:
+                t = datetime.strptime(day, "%A, %d %b %Y").replace(tzinfo=MYT)
+            else:
+                t = datetime.strptime(f"{day} {rec.get('Time', '')}".strip(), "%A, %d %b %Y %H:%M").replace(tzinfo=MYT)
             value = float(rec["mw"])
         except (ValueError, TypeError):
             out.rejected.append(f"figure {i}: unreadable {rec!r}")
@@ -415,13 +419,14 @@ HEADLINE = AdapterSpec(
     method="GetFeatureSectionData",
     verification="verified",
     description="The figures at the top of GSO's home page, under GSO's own labels and times: Current Grid Demand, "
-                "Current System Demand, Highest Grid Demand Recorded, Current Solar Generation, Current BESS Status "
-                "and Cross-Border Power Exchange (MW). Only the current value is published, so they build up as "
+                "Current System Demand, Highest Grid Demand Recorded, Highest Energy Recorded (MWh, with its day), "
+                "Current Solar Generation, Current BESS Status and Cross-Border Power Exchange (MW). Only the current value is published, so they build up as "
                 "the archive collects.",
     fields={
         "current_grid_demand": FieldSpec("current_grid_demand", "Current Grid Demand (GSO home page)", "MW", "actual", 0.0, MAX),
         "current_system_demand": FieldSpec("current_system_demand", "Current System Demand (GSO home page)", "MW", "actual", 0.0, MAX),
         "highest_grid_demand_recorded": FieldSpec("highest_grid_demand_recorded", "Highest Grid Demand Recorded (GSO home page)", "MW", "record", 0.0, MAX),
+        "highest_energy_recorded": FieldSpec("highest_energy_recorded", "Highest Energy Recorded (GSO home page)", "MWh", "record", 0.0, 2_000_000.0),
         "current_solar_generation": FieldSpec("current_solar_generation", "Current Solar Generation (GSO home page)", "MW", "actual", 0.0, MAX),
         "current_bess": FieldSpec("current_bess", "Current BESS Status (GSO home page; above 0 discharging, below 0 charging)", "MW", "actual", -5000.0, 5000.0),
         "cross_border_exchange": FieldSpec("cross_border_exchange", "Cross-Border Power Exchange (GSO home page)", "MW", "actual", -5000.0, 5000.0),
