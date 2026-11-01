@@ -1,5 +1,13 @@
 # Changelog
 
+## 1 November 2026 (thirty-third update) — GSO Grid Archive 5.14.7
+
+Phone view fixes.
+
+- **Theme and 12/24-hour buttons on phones:** they sit at the bottom of the menu, and on phones the menu reached behind the browser's own bottom toolbar, so they were hidden. The menu now ends at the bottom of the visible screen, with both buttons showing (and scrolls on very short screens).
+- **How fresh the figures are, on phones:** the top bar showed only "Auto · every 13 min"; the "Newest reading … ago" label, which tells visitors how old the figures are, was hidden. Phones now show "Newest reading" (and "Demo data" when the demonstration is shown); "Auto" and "Checked" stay on bigger screens.
+- An automatic check opens the menu on a short phone screen, makes sure both buttons can be reached and work, and that the top bar shows how fresh the figures are.
+
 ## 1 November 2026 (thirty-second update) — GSO Grid Archive 5.14.6
 
 - **An alert when GSO goes quiet:** the hourly check now emails you (by failing the run) when one of GSO's sources has published nothing new for 6 hours of daytime (7 am to 7 pm). Night doesn't count, because some figures keep their sunset time all night. Today this would have told you by about 2:30 pm that GSO's solar data had stopped at 8:30 am. The email names the source and the time of its newest reading; it is GSO's outage, so there is usually nothing to fix, but you will know.

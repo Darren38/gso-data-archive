@@ -186,6 +186,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     `stackStrategy: "all"` and no `sampling` (thinning each layer separately breaks the stack). The demo browser check
     fails if any stacked chart loses either. Check stacked charts at 7 and 30 days, not just today.
 
+46. **`100vh` on a phone reaches behind the browser's own toolbar.** The menu's Theme and 12-hour buttons, at its
+    bottom, were hidden on phones; the phone menu is pinned with `top: 0; bottom: 0; height: auto` instead. And
+    `:not(:first-child)` hid every top-bar pill but "Auto", so phones never saw how old the figures were: phones keep
+    the freshness pill (`ok`/`warn`/`bad`) and the demo label. The "real" browser check tests both at 360 x 560.
+
 ## How to check a change
 
 ```bash

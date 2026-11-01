@@ -184,6 +184,32 @@ async function visit(page, base, route, wait = 1200) {
     await page.click('#nav a[data-route="demand"]'); await page.waitForTimeout(1200);
     if (await page.$eval("#sidebar", (e) => e.classList.contains("open"))) fail.push("menu stayed open after choosing a page");
     if ((await page.textContent("#page-title")) !== "Demand") fail.push("menu link did not navigate");
+    // A short phone: the open menu ends on screen, with the Theme and 12-hour buttons visible and working, and the top
+    // bar shows how fresh the readings are.
+    await page.setViewportSize({ width: 360, height: 560 });
+    await page.goto(`${base}/#/overview`); await page.waitForTimeout(1200);
+    const pill = await page.$eval("#freshness-pill .pill:not(.auto):not(.checked)", (e) => { const r = e.getBoundingClientRect(); return { right: r.right, shown: r.width > 0 }; }).catch(() => null);
+    if (!pill || !pill.shown || pill.right > 360) fail.push("phone top bar: newest-reading pill missing or cut off");
+    await page.click("#menu-btn"); await page.waitForTimeout(400);
+    for (const id of ["theme-toggle", "clock-toggle"]) {
+      const box = await page.$eval(`#${id}`, (e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+      const menu = await page.$eval("#sidebar", (e) => e.getBoundingClientRect().bottom);
+      if (menu > 560 + 1) fail.push(`phone menu reaches below the screen (${Math.round(menu)} px)`);
+      if (box.bottom > 560) {  // further down: reachable by scrolling the menu, as on a very short screen
+        await page.$eval(`#${id}`, (e) => e.scrollIntoView());
+        const again = await page.$eval(`#${id}`, (e) => e.getBoundingClientRect().bottom);
+        if (again > 560) fail.push(`${id} can't be reached in the phone menu`);
+      }
+    }
+    const theme0 = await page.evaluate(() => document.documentElement.dataset.theme || "");
+    await page.click("#theme-toggle"); await page.waitForTimeout(200);
+    if ((await page.evaluate(() => document.documentElement.dataset.theme || "")) === theme0) fail.push("phone menu: Theme button does nothing");
+    const clock0 = await page.textContent("#clock-toggle");
+    await page.click("#clock-toggle"); await page.waitForTimeout(200);
+    if ((await page.textContent("#clock-toggle")) === clock0) fail.push("phone menu: 12/24-hour button does nothing");
+    await page.click("#clock-toggle"); await page.click("#theme-toggle");
+    await page.keyboard.press("Escape"); await page.waitForTimeout(300);
+    await page.setViewportSize({ width: 390, height: 800 });
     await page.click("#menu-btn"); await page.keyboard.press("Escape"); await page.waitForTimeout(300);
     if (await page.$eval("#sidebar", (e) => e.classList.contains("open"))) fail.push("Escape did not close the menu");
   } else if (scenario === "refresh") {
