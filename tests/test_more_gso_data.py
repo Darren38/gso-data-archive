@@ -34,6 +34,20 @@ def test_other_re_split_from_another_moment_is_not_kept():
     assert not p.readings and p.rejected
 
 
+def test_empty_answers_mean_gso_published_nothing():
+    # Seen 1 Nov 2026 from 08:30 MYT: GetOtherREData answered [] and GetSolarMap had no rows. That is GSO publishing
+    # nothing, not a new format: no readings, a note, no alarm (a failure here backed the collectors off all day).
+    import pytest
+
+    from gso_archive.adapters.base import SourceError
+
+    for spec, body in (("other_re", '{"d":"[]"}'), ("solar_farms", '{"d":""}'), ("solar_farms", '{"d":"\\r\\n"}')):
+        p = parse(get_adapter(spec), body.encode(), T.date(), {"shared": {"genmix_other_re": (T, 175.0)}, "now": T})
+        assert not p.readings and "empty answer" in p.rejected[0] and not p.signature
+    with pytest.raises(SourceError):  # something there that can't be read is still a change of format
+        parse(get_adapter("solar_farms"), b'{"d":"KDAH,5.7,100.5"}', T.date(), {"now": T, "last_available": T})
+
+
 def test_home_page_shares_its_newest_other_re():
     shared = {}
     parse(get_adapter("genmix_live"), fixture_bytes("real/landing_genmix.json"), T.date(), {"shared": shared})

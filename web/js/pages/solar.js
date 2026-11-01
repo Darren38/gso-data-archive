@@ -4,7 +4,7 @@ import { COLORS, FUELS, SOLAR_PARTS, solarMap, categoryChart, profileChart, time
 import { combine, dailyFromPoints, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
 import {
   addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtLong, fmtNum, fmtTime,
-  freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, verificationTag,
+  freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, staleNote, verificationTag,
 } from "../ui.js";
 
 const RAW_LIMIT_DAYS = 370;
@@ -249,7 +249,7 @@ export async function render(main, { meta, isCurrent }) {
       }).filter((r) => r.n);
       const mapCard = h(card({ title: "Solar Map (Peninsular Malaysia)", when: newest ? fmtLong(newest) : "",
         desc: "Each dot is one LSS solar farm on GSO's solar map, at its location. The colour shows how much of its capacity it is producing right now (grey = little or none, orange = close to full); bigger dots are bigger farms. Circles are grid-connected, diamonds distribution-connected. Drag or pinch to zoom.",
-        body: `<div class="stat-row region-row">${regions.map((r) => `<span>${r.name} <b>${r.cap ? fmtNum((100 * r.mw) / r.cap, 0) : "—"}%</b> <small class="muted">${fmtNum(r.mw)} of ${fmtNum(r.cap)} MW</small></span>`).join("")}
+        body: `${staleNote(newest, "its solar map")}<div class="stat-row region-row">${regions.map((r) => `<span>${r.name} <b>${r.cap ? fmtNum((100 * r.mw) / r.cap, 0) : "—"}%</b> <small class="muted">${fmtNum(r.mw)} of ${fmtNum(r.cap)} MW</small></span>`).join("")}
           <span>All <b>${totalCap ? fmtNum((100 * totalMw) / totalCap, 0) : "—"}%</b> <small class="muted">${fmtNum(totalMw)} of ${fmtNum(totalCap)} MW, ${rows2.length} farms</small></span></div>
           <div class="chart map"></div>` }));
       body.appendChild(mapCard);
@@ -257,7 +257,7 @@ export async function render(main, { meta, isCurrent }) {
       else await solarMap(mapCard.querySelector(".chart"), { farms: rows2, demo }).catch((err) => { mapCard.querySelector(".chart").innerHTML = errorState(err); });
       const farmCard = h(card({ title: "LSS Solar Farms Now", desc: "Every solar farm on GSO's solar map, highest output first. \"Of capacity\" shows how hard each farm is working.",
         sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity`,
-        body: '<div class="tbl"></div>' }));
+        body: `${staleNote(newest, "its solar map")}<div class="tbl"></div>` }));
       body.appendChild(farmCard);
       renderTable(farmCard.querySelector(".tbl"), [
         { key: "code", label: "Farm", fmt: (v, r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(v)}</a>` },

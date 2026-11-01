@@ -94,6 +94,13 @@ export function verificationTag(v) {
   return `<span class="tag ${esc(v)}" title="Source verification level">${esc(labels[v] || v || "unknown")}</span>`;
 }
 
+/** A note for a card whose figures GSO has stopped updating (older than 45 minutes, as the delay banner): visitors
+ * must never take an old figure for a current one (CLAUDE.md lesson 36). Empty when the figures are current. */
+export function staleNote(iso, what = "these figures") {
+  if (!iso || ageOf(iso) <= 45 * 60) return "";
+  return `<p class="notice small">GSO hasn't published ${esc(what)} since ${esc(fmtDateTime(iso))} MYT (${esc(fmtAge(ageOf(iso)))}); shown as they were then.</p>`;
+}
+
 export function freshnessPill(iso, intervalS) {
   if (!iso) return `<span class="pill bad">No data</span>`;
   const age = ageOf(iso);

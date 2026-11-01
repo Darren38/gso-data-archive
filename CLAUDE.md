@@ -175,6 +175,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     `interpolateNulls`, `alignStack(..., { bridge: 3 })` joins gaps of up to 30 minutes in the drawing only (marked
     "joined"; the tooltip says "no reading"). Regular check-ups follow docs/MAINTENANCE.md.
 
+44. **An empty answer is GSO publishing nothing, not a new format.** On 1 Nov 2026 from 08:30 MYT GetOtherREData
+    answered `[]` and GetSolarMap had no rows. Raising SchemaError made both "fail" all day, back off, and would have
+    alarmed. `_other_re` and `_solar_farms` now return no readings with `EMPTY_NOTE` (no signature, so no "format
+    changed"); content that can't be read still raises. Cards show `staleNote` (ui.js) when their figures are over 45
+    minutes old.
+
 ## How to check a change
 
 ```bash

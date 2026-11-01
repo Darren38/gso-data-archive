@@ -208,7 +208,12 @@ def _genmix(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
 # "y" is the same figure as the newest value of GetGenMixData's r[7] ("Other RE"), so the split is filed at that
 # reading's time, and only when the two agree: otherwise they are from different moments and nothing is guessed.
 
+EMPTY_NOTE = "GSO sent an empty answer: nothing published right now"
+
+
 def _other_re(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
+    if d in ([], "", "[]", None):  # seen 1 Nov 2026 from 08:30 MYT: GSO published no split (its solar map was empty too)
+        return ParsedPayload(rejected=[EMPTY_NOTE])  # no signature: an empty answer is not a new format
     try:
         pie = json.loads(d) if isinstance(d, str) else d
         item = pie[0] if isinstance(pie, list) else pie
@@ -268,9 +273,13 @@ def _availability(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
 # Rows with fewer fields are state summaries and are skipped.
 
 def _solar_farms(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
+    if d in ([], None):
+        d = ""
     if not isinstance(d, str):
         raise SchemaError("solar map answer is not text")
     rows = [r.strip() for r in d.split("$") if r.strip()]
+    if not rows:  # GSO publishing nothing is not a change of format (seen 1 Nov 2026 from 08:30 MYT)
+        return ParsedPayload(rejected=[EMPTY_NOTE])
     t = _reading_time(ctx).astimezone(UTC)
     day_start = datetime(t.astimezone(MYT).year, t.astimezone(MYT).month, t.astimezone(MYT).day, tzinfo=MYT).astimezone(UTC)
     out = ParsedPayload(signature="solar_map:10 fields")

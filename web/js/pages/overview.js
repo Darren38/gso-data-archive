@@ -2,7 +2,7 @@
 import { getPoints, getStatus } from "../data.js";
 import { COLORS, SOLAR_PARTS, FUELS, pieChart } from "../charts.js";
 import { drawProfile } from "../profile.js";
-import { card, esc, fmtDate, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf } from "../ui.js";
+import { card, esc, fmtDate, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, staleNote } from "../ui.js";
 
 // GSO's home page "Generation Mix" and "Generation Availability" donuts, with GSO's names and colours.
 const MIX = [...FUELS.slice(0, 5), { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline }, ...FUELS.slice(5)];
@@ -123,7 +123,7 @@ export async function render(main, { meta, isCurrent }) {
       const items = ore.filter((s) => s.last === last && s.latest_value > 0)
         .map((s) => ({ name: s.name.replace("Other renewables — ", ""), value: s.latest_value, color: ORE_COLOR[s.key.split(".")[1]] || COLORS.other }));
       if (items.length) {
-        oreCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(last)}</p>`);
+        oreCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(last)}</p>${staleNote(last, "this split")}`);
         pieChart(oreCard.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo, items });
       } else oreCard.querySelector(".card-b").innerHTML = emptyState("No Other Renewables reading yet");
     }
