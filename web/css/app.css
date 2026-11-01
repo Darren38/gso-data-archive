@@ -149,6 +149,7 @@ main, .page { padding: 20px 24px 32px; display: flex; flex-direction: column; ga
 .kpi.solar { border-top: 3px solid var(--solar); }
 .kpi.demand { border-top: 3px solid var(--demand); }
 .kpi.bess { border-top: 3px solid #00C853; }
+.kpi .value .neg { color: var(--bad, #d32f2f); } /* BESS charging, red as on GSO's home page */
 .kpi.forecast { border-top: 3px solid #23AF4E; }
 .hero .kpi { padding: 16px 18px; }
 .shortforms { padding: 10px 14px; border-left: 3px solid var(--border);

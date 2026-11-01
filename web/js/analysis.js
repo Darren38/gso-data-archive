@@ -123,15 +123,6 @@ export function alignStack(list, slotMs = 600e3, { bridge = 0 } = {}) {
   }));
 }
 
-/** A stacked layer that is sometimes below zero (Tie-Line when power comes in, Co-Gen now and then) as two layers:
- * its part above zero and its part below. Drawn as one, its colour would cut across the whole chart each time it
- * changes sign, because the parts above and below zero are stacked separately (as GSO's chart stacks them). */
-export function splitSign(points) {
-  if (!points.some((p) => p[1] != null && p[1] < 0)) return [points];
-  const part = (keep) => points.map(([t, v, q]) => [t, v == null ? null : keep(v) ? v : 0, q]);
-  return [part((v) => v >= 0), part((v) => v < 0)];
-}
-
 /** Per-MYT-day statistics from raw points, the same way the archive's daily files are made (gso_archive/analytics.py
  * `daily`): energy only between readings at most 1.5 intervals apart, and today expects only the readings so far. */
 export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW") {

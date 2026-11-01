@@ -41,7 +41,8 @@ def test_empty_answers_mean_gso_published_nothing():
 
     from gso_archive.adapters.base import SourceError
 
-    for spec, body in (("other_re", '{"d":"[]"}'), ("solar_farms", '{"d":""}'), ("solar_farms", '{"d":"\\r\\n"}')):
+    for spec, body in (("other_re", '{"d":"[]"}'), ("solar_farms", '{"d":""}'), ("solar_farms", '{"d":"\\r\\n"}'),
+                       ("solar_forecast", '{"d":"$$$$"}'), ("solar_forecast", '{"d":""}')):
         p = parse(get_adapter(spec), body.encode(), T.date(), {"shared": {"genmix_other_re": (T, 175.0)}, "now": T})
         assert not p.readings and "empty answer" in p.rejected[0] and not p.signature
     with pytest.raises(SourceError):  # something there that can't be read is still a change of format

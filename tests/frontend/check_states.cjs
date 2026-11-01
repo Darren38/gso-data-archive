@@ -44,6 +44,16 @@ async function visit(page, base, route, wait = 1200) {
     if (out.pages.solar.canvases < 6) fail.push(`solar page rendered ${out.pages.solar.canvases} charts`);
     if (out.pages.overview.canvases < 2) fail.push("overview charts missing");
     for (const r of ROUTES) if (out.pages[r].errorStates.length) fail.push(`${r}: ${out.pages[r].errorStates[0]}`);
+    // Stacked charts stack every value, zero and below-zero included, over long ranges too: ECharts' default drew a 0
+    // at the bottom of the chart, a full-height red or green sliver each time Oil/DF, Co-Gen or Tie-Line touched zero.
+    for (const [r, range] of [["generation", "30d"], ["overview", ""], ["demand", "7d"], ["solar", "7d"], ["tieline", "7d"]]) {
+      await visit(page, base, `${r}${range ? `?range=${range}` : ""}`, 1800);
+      const bad = await page.evaluate(() => [...document.querySelectorAll("main .chart")].flatMap((el) => {
+        const inst = window.echarts && echarts.getInstanceByDom(el);
+        return inst ? inst.getOption().series.filter((s) => s.stack && (s.stackStrategy !== "all" || s.sampling)).map((s) => s.name) : [];
+      }));
+      if (bad.length) fail.push(`${r}: stacked layers not stacked with zeros in place: ${bad.slice(0, 3).join(", ")}`);
+    }
     // Owner's checklist (EPF Goal Planner): no sideways scrolling and no NaN/undefined/Infinity at any width.
     for (const width of [320, 360, 390, 768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 });

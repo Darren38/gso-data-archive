@@ -152,6 +152,8 @@ def _solar_forecast(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
         raise SchemaError("solar forecast answer is not text")
     parts = d.split("$")
     values = _values(parts[0])
+    if not any(v is not None for v in values):  # an empty list: GSO published no forecast (seen 1 Nov 2026 08:30 MYT)
+        return ParsedPayload(rejected=[EMPTY_NOTE])
     out = ParsedPayload(signature=f"solar_forecast:{len(parts)} parts,{len(values)} values")
     # GSO's forecast is for today. The day comes from the real clock (GSO's "last available" reads 07:00 at night).
     ref = (ctx.get("now") or ctx["last_available"]).astimezone(MYT)

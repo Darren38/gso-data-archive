@@ -169,9 +169,7 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (`run_probe`): with four tries it ran out of its 10 minutes on a slow night and printed nothing.
 
 43. **A stacked layer that goes below zero draws spikes, and the home page misses 23:40 and 23:50 every night.**
-    Tie-Line and Co-Gen can be negative; stacked as one layer with an outline, each change of sign drew a line from the
-    top of the stack to zero. `splitSign` (analysis.js) draws the two parts separately, and stacked layers have no
-    outline, as GSO's (`lineColor: 'transparent'`). The missing 23:40 and 23:50 blanked the whole stack; like GSO's
+    Stacked layers have no outline, as GSO's (`lineColor: 'transparent'`); the spikes themselves were lesson 45. The missing 23:40 and 23:50 blanked the whole stack; like GSO's
     `interpolateNulls`, `alignStack(..., { bridge: 3 })` joins gaps of up to 30 minutes in the drawing only (marked
     "joined"; the tooltip says "no reading"). Regular check-ups follow docs/MAINTENANCE.md.
 
@@ -180,6 +178,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     alarmed. `_other_re` and `_solar_farms` now return no readings with `EMPTY_NOTE` (no signature, so no "format
     changed"); content that can't be read still raises. Cards show `staleNote` (ui.js) when their figures are over 45
     minutes old.
+
+45. **ECharts' default stacking ("samesign") draws a value of exactly 0 at the bottom of the chart**, not on the layer
+    below. Oil/DF, Co-Gen and Tie-Line touch 0 often, so every 5 → 0 → 5 drew a full-height red or green sliver, worst
+    on 7-day and longer ranges (5.14.3's split by sign only hid it on short ones). `timeChart` gives stacked series
+    `stackStrategy: "all"` and no `sampling` (thinning each layer separately breaks the stack). The demo browser check
+    fails if any stacked chart loses either. Check stacked charts at 7 and 30 days, not just today.
 
 ## How to check a change
 

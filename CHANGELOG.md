@@ -1,5 +1,13 @@
 # Changelog
 
+## 1 November 2026 (thirty-first update) — GSO Grid Archive 5.14.5
+
+The red and green lines are gone from every chart, at every range.
+
+- **The real cause of the lines:** the chart library put a source's value of exactly 0 at the bottom of the chart instead of on top of the layer below it. Oil/DF, Co-Gen and Tie-Line often touch 0, so each time one went from a small value to 0 and back, its colour ran from the top of the chart to the bottom: a thin red or green line. 5.14.3 only hid this on short ranges. Now every value, zero and below-zero included, is stacked on the layers below, on every stacked chart (Overview, Generation, Demand, Solar, Cross-Border) and every range (1 day to 90 days, phone and computer). A Tie-Line below zero (power coming in) now lowers the layers above it a little, so the top edge is what the grid really generates. An automatic check now fails if any stacked chart loses this.
+- **BESS as GSO shows it:** Current BESS Status shows the signed figure, e.g. **-1 MW** in red with "Charging", like GSO's home page (before: 1 MW with "Charging").
+- **GSO's solar forecast:** like the Other Renewables split and the solar map, an empty forecast from GSO is now recorded as "GSO published nothing" instead of a failure.
+
 ## 1 November 2026 (thirtieth update) — GSO Grid Archive 5.14.4
 
 When GSO publishes nothing, the site now says so.

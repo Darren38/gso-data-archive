@@ -135,14 +135,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       formatter: (params) => {
         if (!params.length) return "";
         const head = `<b>${tsLabel(params[0].value[0])} MYT</b>`;
-        // A layer drawn as two parts (above and below zero, see splitSign) is one line here, with its real value.
-        const seen = new Map();
-        for (const p of params) {
-          const prev = seen.get(p.seriesName);
-          if (!prev) seen.set(p.seriesName, { ...p, value: [...p.value] });
-          else if (p.value[1] != null) prev.value[1] = (prev.value[1] ?? 0) + p.value[1];
-        }
-        const lines = [...seen.values()].map((p) => {
+        const lines = params.map((p) => {
           const v = p.value[1];
           const unitText = series[p.seriesIndex].unit || unit;
           if (p.value[2] === "joined") return `${p.marker}${p.seriesName}: <b>no reading</b> <span style="opacity:.7">(joined across the gap)</span>`;
@@ -154,7 +147,11 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
     dataZoom: zoom ? [{ type: "inside", filterMode: "none" }, { type: "slider", height: 22, bottom: 8, filterMode: "none", borderColor: css("--border"), textStyle: { color: css("--text-3") }, labelFormatter: (v) => tsLabel(v) }] : [],
     series: series.map((s) => ({
       name: s.name, type: s.type || "line", yAxisIndex: s.yAxisIndex || 0, stack: s.stack, step: s.step,
-      showSymbol: false, connectNulls: false, sampling: "lttb", smooth: false,
+      // Stacked layers: every value stacks on the layers below, zero and below-zero included. ECharts' default ("samesign")
+      // draws a 0 at the bottom of the chart, so a source going 5 → 0 → 5 (Oil/DF, Co-Gen, Tie-Line) drew a full-height
+      // red or green sliver (CLAUDE.md lesson 45). No thinning either, so every layer keeps the same moments.
+      stackStrategy: s.stack ? "all" : undefined,
+      showSymbol: false, connectNulls: false, sampling: s.stack ? undefined : "lttb", smooth: false,
       lineStyle: { width: s.width ?? 1.8, type: s.dashed ? "dashed" : "solid", color: s.color },
       itemStyle: { color: s.color },
       areaStyle: s.area ? { opacity: s.areaOpacity ?? 0.18, color: s.color } : undefined,

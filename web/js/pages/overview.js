@@ -65,7 +65,9 @@ export async function render(main, { meta, isCurrent }) {
     let when = "";
     if (x) when = k === "highest_energy_recorded" ? `on ${fmtDate(x.last)}` : `${record ? "on " : ""}${fmtDateTime(x.last)} MYT`;
     const note = k === "current_bess" && x ? (x.value > 0 ? "Discharging · " : x.value < 0 ? "Charging · " : "Idle · ") : "";
-    const value = x == null ? null : fmtNum(k === "current_bess" ? Math.abs(x.value) : x.value);
+    // BESS as GSO shows it: the signed figure (below zero = charging), in red while charging.
+    const charging = k === "current_bess" && x?.value < 0;
+    const value = x == null ? null : charging ? `<span class="neg">${fmtNum(x.value)}</span>` : fmtNum(x.value);
     return kpi({ big: !record && k !== "cross_border_exchange", cls, icon, label, value, unit: x?.unit || (k === "highest_energy_recorded" ? "MWh" : "MW"),
       meta: x ? `${note}${when}${record ? "" : ` · from ${x.from}`}` : k === "current_grid_demand" ? "" : "Kept from 30 October 2026, when GSO's home page shows it" });
   });
