@@ -7,7 +7,10 @@ It only reads the site. It fails (so GitHub marks the run red and emails the own
     GSO's pages time out for hours at a time and the owner can't fix that, while visitors already see the delay),
   * GSO's own pages no longer agree on the figures they both publish (crosscheck.py: a sign that GSO changed its
     lists and numbers are being filed under the wrong names), or
-  * the newest reading is hours old although the collector runs (GSO answering with old data).
+  * the newest reading is hours old although the collector runs (GSO answering with old data), or
+  * one of GSO's sources has published nothing new for 6 hours of daytime (07:00-19:00 MYT), e.g. 1 Nov 2026 when
+    GSO's solar data (Solar page, forecast, solar map, other renewables split) stopped from 08:30. Night doesn't count:
+    some figures keep their sunset time all night.
 """
 
 from __future__ import annotations
@@ -16,7 +19,7 @@ import json
 import os
 import re
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .archive_sync import UA
 
@@ -30,6 +33,36 @@ def _get(url: str, timeout: float = 30) -> bytes:
 def _gso_not_answering(error: str | None) -> bool:
     """Timeouts, lost connections and GSO's own server errors: GSO's side, not a fault in this archive."""
     return bool(error) and (error.startswith("network_error") or bool(re.match(r"http_error: HTTP 5\d\d", error)))
+
+
+MYT = timezone(timedelta(hours=8))
+DAY_START, DAY_END = 7, 19  # daytime hours, MYT
+
+
+def daytime_hours(start: datetime, end: datetime) -> float:
+    """Hours between start and end that fall between 07:00 and 19:00 MYT."""
+    total, day = 0.0, start.astimezone(MYT).replace(hour=0, minute=0, second=0, microsecond=0)
+    while day < end:
+        a, b = max(start, day + timedelta(hours=DAY_START)), min(end, day + timedelta(hours=DAY_END))
+        total += max(0.0, (b - a).total_seconds() / 3600)
+        day += timedelta(days=1)
+    return total
+
+
+def silent_sources(status: dict, now: datetime, max_daytime_hours: float = 6) -> list[tuple[str, str, float]]:
+    """GSO sources (collectors switched on) whose newest reading is more than max_daytime_hours of daytime old."""
+    enabled = {a["adapter"] for a in status.get("adapters", []) if a.get("enabled")}
+    newest: dict[str, str] = {}
+    for f in status.get("freshness", []):
+        source = f["series"].split(".")[0]
+        if f.get("kind") == "actual" and f.get("latest_obs_time") and source in enabled:
+            newest[source] = max(newest.get(source, ""), f["latest_obs_time"])
+    out = []
+    for source, iso in sorted(newest.items()):
+        hours = daytime_hours(datetime.fromisoformat(iso.replace("Z", "+00:00")), now)
+        if hours > max_daytime_hours:
+            out.append((source, iso, hours))
+    return out
 
 
 def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
@@ -83,6 +116,10 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                 age = (now - datetime.fromisoformat(newest.replace("Z", "+00:00"))).total_seconds() / 60
                 if age > max_reading_age_minutes:
                     problems.append(f"the newest GSO reading is {age:.0f} min old although the collector runs")
+            for source, iso, hours in silent_sources(status, now):
+                when = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(MYT).strftime("%d %b %H:%M")
+                problems.append(f"GSO has published nothing new for {source} for {hours:.0f} daytime hours "
+                                f"(newest reading {when} MYT): check GSO's own page")
             stale = [f["series"] for f in status.get("freshness", []) if f.get("stale")]
             if stale:
                 notes.append(f"{len(stale)} series without a new reading lately: {', '.join(stale[:6])}")

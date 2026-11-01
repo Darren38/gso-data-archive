@@ -163,7 +163,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 42. **An alarm must point at something the owner can fix.** That evening the Solar page, the headline figures and CBPE
     all timed out on GSO's side, and the hourly check emailed "failed" every hour. `health.py` now treats timeouts,
     lost connections and GSO's 5xx answers as a note until the collector has had no success for 12 hours; any other
-    error (a changed answer, a 4xx) still fails after 12 in a row. Visitors see the delay through freshness and the
+    error (a changed answer, a 4xx) still fails after 12 in a row. Separately, a source with nothing new for 6 hours
+    of daytime (07:00-19:00 MYT, `silent_sources`) fails the check: the owner asked to know when GSO goes quiet. Visitors see the delay through freshness and the
     "Readings are delayed" note. The same day GitHub answered 502 to the `next` job's `gh workflow run` and collection
     stopped for 80 minutes, so that step now tries again before giving up. The probe also tries each address once
     (`run_probe`): with four tries it ran out of its 10 minutes on a slow night and printed nothing.

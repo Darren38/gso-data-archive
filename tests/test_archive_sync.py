@@ -195,3 +195,26 @@ def test_health_check(two_archives, settings, tmp_path):
     finally:
         httpd.shutdown()
     assert not check_site("http://127.0.0.1:9/")["ok"]
+
+
+def test_alarm_when_gso_publishes_nothing_for_6_daytime_hours():
+    # 1 Nov 2026: GSO's solar data stopped from 08:30 MYT. Night doesn't count: the solar map keeps its sunset time.
+    from gso_archive.health import daytime_hours, silent_sources
+
+    myt = timezone(timedelta(hours=8))
+    assert daytime_hours(datetime(2026, 11, 1, 19, 0, tzinfo=myt), datetime(2026, 11, 2, 7, 0, tzinfo=myt)) == 0
+    assert daytime_hours(datetime(2026, 11, 1, 18, 0, tzinfo=myt), datetime(2026, 11, 2, 9, 30, tzinfo=myt)) == 3.5
+    iso = lambda h, m=0, d=1: datetime(2026, 11, d, h, m, tzinfo=myt).astimezone(timezone.utc).isoformat()  # noqa: E731
+    status = {"adapters": [{"adapter": a, "enabled": True} for a in ("other_re", "solar_farms", "system_demand")]
+              + [{"adapter": "old_source", "enabled": False}],
+              "freshness": [{"series": "other_re.biogas", "kind": "actual", "latest_obs_time": iso(8, 30)},
+                            {"series": "solar_farms.ajns", "kind": "actual", "latest_obs_time": iso(18, 50, 1)},
+                            {"series": "solar_farms.ajns_capacity", "kind": "capacity", "latest_obs_time": iso(0, 0, 1)},
+                            {"series": "system_demand.demand", "kind": "actual", "latest_obs_time": iso(16, 30)},
+                            {"series": "old_source.x", "kind": "actual", "latest_obs_time": iso(1, 0, 1)}]}
+    now = datetime(2026, 11, 1, 16, 50, tzinfo=myt)
+    assert [s for s, _, _ in silent_sources(status, now)] == ["other_re"]  # 8.3 daytime hours since 08:30
+    # The next morning at 09:00 the solar map (newest 18:50, sunset) has 2 daytime hours: no alarm at night.
+    status["freshness"][0]["latest_obs_time"] = iso(8, 50, 2)
+    status["freshness"][3]["latest_obs_time"] = iso(8, 50, 2)
+    assert silent_sources(status, datetime(2026, 11, 2, 9, 0, tzinfo=myt)) == []

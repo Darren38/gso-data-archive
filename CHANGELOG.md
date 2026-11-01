@@ -1,5 +1,9 @@
 # Changelog
 
+## 1 November 2026 (thirty-second update) — GSO Grid Archive 5.14.6
+
+- **An alert when GSO goes quiet:** the hourly check now emails you (by failing the run) when one of GSO's sources has published nothing new for 6 hours of daytime (7 am to 7 pm). Night doesn't count, because some figures keep their sunset time all night. Today this would have told you by about 2:30 pm that GSO's solar data had stopped at 8:30 am. The email names the source and the time of its newest reading; it is GSO's outage, so there is usually nothing to fix, but you will know.
+
 ## 1 November 2026 (thirty-first update) — GSO Grid Archive 5.14.5
 
 The red and green lines are gone from every chart, at every range.
