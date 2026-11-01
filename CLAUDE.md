@@ -12,6 +12,7 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - In the owner's other projects changes are committed straight to `main` with no pull requests.
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
+- From time to time the owner asks for a maintenance check-up: follow docs/MAINTENANCE.md.
 - After every check, end with the possible improvements to the current version that need the owner's decision
   (what each would do, its cost or risk, and a recommendation), even when everything passed.
 - READMEs follow the owner's format: centred title, bold one-line description, green "OPEN THE SITE" badge, a clickable
@@ -166,6 +167,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     "Readings are delayed" note. The same day GitHub answered 502 to the `next` job's `gh workflow run` and collection
     stopped for 80 minutes, so that step now tries again before giving up. The probe also tries each address once
     (`run_probe`): with four tries it ran out of its 10 minutes on a slow night and printed nothing.
+
+43. **A stacked layer that goes below zero draws spikes, and the home page misses 23:40 and 23:50 every night.**
+    Tie-Line and Co-Gen can be negative; stacked as one layer with an outline, each change of sign drew a line from the
+    top of the stack to zero. `splitSign` (analysis.js) draws the two parts separately, and stacked layers have no
+    outline, as GSO's (`lineColor: 'transparent'`). The missing 23:40 and 23:50 blanked the whole stack; like GSO's
+    `interpolateNulls`, `alignStack(..., { bridge: 3 })` joins gaps of up to 30 minutes in the drawing only (marked
+    "joined"; the tooltip says "no reading"). Regular check-ups follow docs/MAINTENANCE.md.
 
 ## How to check a change
 

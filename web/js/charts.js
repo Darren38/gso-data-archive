@@ -121,7 +121,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
   const option = {
     ...b,
     legend: lg.legend,
-    grid: { ...b.grid, top: lg.top, bottom: zoom ? 64 : 30, left: el.clientWidth < 400 ? 46 : 56,
+    grid: { ...b.grid, top: lg.top, bottom: zoom ? 64 : 30, left: el.clientWidth < 400 ? 52 : 56,
       right: yAxes.length > 1 ? (el.clientWidth < 400 ? 46 : 60) : 24 },
     xAxis: { type: "time", ...b._axis, splitLine: { show: false },
       // Narrow charts (phones) get fewer ticks so labels like "27 Oct" and "12:00" never run together.
@@ -135,10 +135,19 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       formatter: (params) => {
         if (!params.length) return "";
         const head = `<b>${tsLabel(params[0].value[0])} MYT</b>`;
-        const lines = params.map((p) => {
+        // A layer drawn as two parts (above and below zero, see splitSign) is one line here, with its real value.
+        const seen = new Map();
+        for (const p of params) {
+          const prev = seen.get(p.seriesName);
+          if (!prev) seen.set(p.seriesName, { ...p, value: [...p.value] });
+          else if (p.value[1] != null) prev.value[1] = (prev.value[1] ?? 0) + p.value[1];
+        }
+        const lines = [...seen.values()].map((p) => {
           const v = p.value[1];
+          const unitText = series[p.seriesIndex].unit || unit;
+          if (p.value[2] === "joined") return `${p.marker}${p.seriesName}: <b>no reading</b> <span style="opacity:.7">(joined across the gap)</span>`;
           const q = p.value[2] && p.value[2] !== "ok" ? ` <span style="opacity:.7">(${p.value[2]})</span>` : "";
-          return `${p.marker}${p.seriesName}: <b>${v == null ? "no reading" : fmtNum(v, digits) + " " + (series[p.seriesIndex].unit || unit)}</b>${q}`;
+          return `${p.marker}${p.seriesName}: <b>${v == null ? "no reading" : fmtNum(v, digits) + " " + unitText}</b>${q}`;
         });
         return [head, ...lines].join("<br>");
       } },
@@ -146,7 +155,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
     series: series.map((s) => ({
       name: s.name, type: s.type || "line", yAxisIndex: s.yAxisIndex || 0, stack: s.stack, step: s.step,
       showSymbol: false, connectNulls: false, sampling: "lttb", smooth: false,
-      lineStyle: { width: s.width || 1.8, type: s.dashed ? "dashed" : "solid", color: s.color },
+      lineStyle: { width: s.width ?? 1.8, type: s.dashed ? "dashed" : "solid", color: s.color },
       itemStyle: { color: s.color },
       areaStyle: s.area ? { opacity: s.areaOpacity ?? 0.18, color: s.color } : undefined,
       emphasis: { focus: "series" },

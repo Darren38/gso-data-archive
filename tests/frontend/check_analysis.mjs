@@ -31,6 +31,24 @@ const every10 = (from, n, value) => Array.from({ length: n }, (_, i) =>
   assert.deepEqual(gas.map((p) => p[1]), [5, null]);
 }
 
+// Like GSO's chart: a source missing for up to `bridge` steps (the home page's 23:40 and 23:50 every night) is joined
+// across in the drawing, marked "joined"; a longer gap stays a break.
+{
+  const t = (hm) => iso(`2026-10-31T${hm}:00+08:00`);
+  const coal = ["23:30", "23:40", "23:50", "00:00"].map((x, i) => [x === "00:00" ? iso("2026-11-01T00:00:00+08:00") : t(x), 100 + i]);
+  const tie = [[t("23:30"), -60], [iso("2026-11-01T00:00:00+08:00"), -30]];
+  const [, j] = A.alignStack([coal, tie], 600e3, { bridge: 3 });
+  assert.deepEqual(j.map((p) => p[1]), [-60, -50, -40, -30]);
+  assert.deepEqual(j.map((p) => p[2]), ["ok", "joined", "joined", "ok"]);
+  const [, k] = A.alignStack([coal, tie], 600e3, { bridge: 1 });
+  assert.deepEqual(k.map((p) => p[1]), [-60, null, null, -30]);
+  // Split by sign: the parts add back up to the reading, and a layer never below zero stays one layer.
+  const [pos, neg] = A.splitSign([[t("23:30"), 20], [t("23:40"), -59], [t("23:50"), null]]);
+  assert.deepEqual(pos.map((p) => p[1]), [20, 0, null]);
+  assert.deepEqual(neg.map((p) => p[1]), [0, -59, null]);
+  assert.equal(A.splitSign([[t("23:30"), 5]]).length, 1);
+}
+
 // Sums keep a moment only when every part has a reading.
 {
   const t = iso("2026-10-28T12:00:00+08:00"), u = iso("2026-10-28T12:10:00+08:00");

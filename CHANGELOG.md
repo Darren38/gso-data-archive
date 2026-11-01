@@ -1,5 +1,14 @@
 # Changelog
 
+## 1 November 2026 (twenty-ninth update) — GSO Grid Archive 5.14.3
+
+The System Demand Profile now looks like GSO's.
+
+- **No more thin red and green lines** dropping to zero across the chart. They came from Tie-Line (when power comes in from a neighbour) and Co-Gen, which are sometimes below zero. Like GSO's chart, the colours now have no outlines, and a source below zero is drawn below the zero line without cutting across the chart. The scale goes below zero only as far as needed, instead of down to -5,000.
+- **No more blank strip before midnight.** Every night GSO's home page misses its 11:40 pm and 11:50 pm readings for Tie-Line, BESS, Distribution Solar, Other RE and Grid Demand (by the time GSO publishes them its home page has moved on to the new day). The chart left the whole moment blank. Now, as GSO's own chart does, a gap of up to 30 minutes is joined across in the drawing. Nothing is made up: pointing at those moments says "no reading", and the archive and downloads keep the gap. Longer gaps still show as breaks.
+- Phone charts give the scale numbers a little more room, so "25,000" is no longer cut off.
+- A maintenance checklist (docs/MAINTENANCE.md) for regular check-ups of the site's numbers.
+
 ## 31 October 2026 (twenty-eighth update) — GSO Grid Archive 5.14.2
 
 - **Overview in GSO's exact order:** the latest look at GSO's home page listed its sections in order: the seven figures, the System Demand Profile, then **Generation Availability** and then **Generation Mix**. The two rings on the Overview now come in that order too. GSO's home page then shows its solar profile and solar map, which stay on this site's Solar page.

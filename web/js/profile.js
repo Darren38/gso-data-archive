@@ -2,7 +2,7 @@
 // with GSO's Grid Demand line (total generation) and the System Demand line drawn on top.
 import { getPoints } from "./data.js";
 import { COLORS, timeChart } from "./charts.js";
-import { alignStack } from "./analysis.js";
+import { alignStack, splitSign } from "./analysis.js";
 
 /** Stacked sources, bottom to top as GSO draws them. GSO's legend lists them top first. */
 export const PROFILE_STACK = [
@@ -32,8 +32,10 @@ export async function drawProfile(el, meta, start, end, { isCurrent = () => true
   const stackPts = payloads.slice(0, stack.length);
   const used = stack.map((s, i) => [s, stackPts[i]]).filter(([, p]) => p.points.some((x) => x[1] != null));
   if (!used.length) return null;
-  const aligned = alignStack(used.map(([, p]) => p.points));
-  const series = used.map(([s], i) => ({ name: s.label, points: aligned[i], color: s.color, area: true, areaOpacity: 0.9, stack: "supply", width: 0.6 }));
+  const aligned = alignStack(used.map(([, p]) => p.points), 600e3, { bridge: 3 });
+  // Like GSO's chart: layers without outlines, and a layer that dips below zero split into its two parts.
+  const series = used.flatMap(([s], i) => splitSign(aligned[i]).map((points, part) => ({ name: s.label, points, color: s.color,
+    area: true, areaOpacity: 0.9, stack: "supply", width: 0, part })));
   lines.forEach((s, i) => {
     const p = payloads[stack.length + i];
     if (p.points.some((x) => x[1] != null)) {
@@ -41,7 +43,9 @@ export async function drawProfile(el, meta, start, end, { isCurrent = () => true
     }
   });
   // GSO's legend reads top to bottom the way the chart stacks: the top layer first, then the two lines
-  const order = series.filter((s) => s.stack).map((s) => s.name).reverse().concat(series.filter((s) => !s.stack).map((s) => s.name));
-  timeChart(el, { series, demo: meta.is_demo, legendOrder: order });
+  const order = [...new Set(series.filter((s) => s.stack).map((s) => s.name).reverse().concat(series.filter((s) => !s.stack).map((s) => s.name)))];
+  // Below zero only as far as the data goes (e.g. -400 for 346 MW coming in), not a whole -5,000 step.
+  timeChart(el, { series, demo: meta.is_demo, legendOrder: order,
+    yAxes: [{ name: "MW", min: (v) => (v.min < 0 ? Math.floor(v.min / 100) * 100 : 0) }] });
   return payloads.filter((p) => p.points.some((x) => x[1] != null));
 }

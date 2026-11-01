@@ -94,15 +94,42 @@ export function latest(points) {
 /** Put several series on shared time slots (GSO publishes every 10 minutes) so they can be stacked.
  * A stacking chart counts a missing lower value as zero and draws everything above it too low, so a slot
  * where any series has no reading becomes a gap for all of them. Returns aligned point lists in input order. */
-export function alignStack(list, slotMs = 600e3) {
+export function alignStack(list, slotMs = 600e3, { bridge = 0 } = {}) {
   const maps = list.map((points) => {
     const m = new Map();
     for (const [t, v] of points) if (v != null) m.set(Math.round(Date.parse(t) / slotMs) * slotMs, v);
     return m;
   });
   const slots = [...new Set(maps.flatMap((m) => [...m.keys()]))].sort((a, b) => a - b);
-  const complete = slots.map((k) => maps.every((m) => m.has(k)));
-  return maps.map((m) => slots.map((k, i) => [new Date(k).toISOString(), complete[i] ? m.get(k) : null, complete[i] ? "ok" : "gap"]));
+  // As GSO's own chart does (interpolateNulls in SolarLandingPage.v5.js): a source missing for at most `bridge` steps,
+  // with readings on both sides, is drawn joined across the gap. Only the drawing: those moments are marked "joined",
+  // and the tooltip says there was no reading. Longer gaps stay breaks.
+  const joined = maps.map((m) => {
+    const out = new Map();
+    if (!bridge) return out;
+    const have = slots.filter((k) => m.has(k));
+    for (let i = 1; i < have.length; i += 1) {
+      const a = have[i - 1], b = have[i];
+      if (b - a <= slotMs || b - a > (bridge + 1) * slotMs) continue;
+      for (const k of slots) if (k > a && k < b) out.set(k, m.get(a) + ((m.get(b) - m.get(a)) * (k - a)) / (b - a));
+    }
+    return out;
+  });
+  const complete = slots.map((k) => maps.every((m, j) => m.has(k) || joined[j].has(k)));
+  return maps.map((m, j) => slots.map((k, i) => {
+    const t = new Date(k).toISOString();
+    if (!complete[i]) return [t, null, "gap"];
+    return m.has(k) ? [t, m.get(k), "ok"] : [t, joined[j].get(k), "joined"];
+  }));
+}
+
+/** A stacked layer that is sometimes below zero (Tie-Line when power comes in, Co-Gen now and then) as two layers:
+ * its part above zero and its part below. Drawn as one, its colour would cut across the whole chart each time it
+ * changes sign, because the parts above and below zero are stacked separately (as GSO's chart stacks them). */
+export function splitSign(points) {
+  if (!points.some((p) => p[1] != null && p[1] < 0)) return [points];
+  const part = (keep) => points.map(([t, v, q]) => [t, v == null ? null : keep(v) ? v : 0, q]);
+  return [part((v) => v >= 0), part((v) => v < 0)];
 }
 
 /** Per-MYT-day statistics from raw points, the same way the archive's daily files are made (gso_archive/analytics.py

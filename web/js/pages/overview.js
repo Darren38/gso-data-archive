@@ -81,7 +81,7 @@ export async function render(main, { meta, isCurrent }) {
   const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
   const ore = meta.series.filter((s) => s.dataset === "other_re" && s.latest_value != null);
   const profCard = h(card({ title: "System Demand Profile for Peninsular Malaysia", sub: "Last 24 hours",
-    desc: "As on GSO's home page: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Breaks mean a source had no reading at that time.",
+    desc: "As on GSO's home page: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Where a source has no reading for up to 30 minutes (GSO's home page misses 23:40 and 23:50 every night), the drawing joins across it, as GSO's chart does; the tooltip says \"no reading\". Longer gaps are breaks.",
     body: '<div class="chart tall"></div>' }));
   main.appendChild(profCard);
   const row = h('<div class="grid cols-2"></div>');

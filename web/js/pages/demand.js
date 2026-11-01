@@ -47,7 +47,7 @@ export async function render(main, { meta, isCurrent }) {
       const asProfile = pts && days <= 31;
       const c1 = h(card({ title: asProfile ? "System Demand Profile" : "System Demand", sub: freshnessPill(s.last, s.interval_s),
         desc: asProfile
-          ? "Like GSO's System Demand Profile: each colour is a source of electricity, stacked, so the top edge is what the grid generates. The dashed line is System Demand; the solid dark line, when GSO publishes it, is GSO's Grid Demand. Breaks mean a source had no reading at that time."
+          ? "Like GSO's System Demand Profile: each colour is a source of electricity, stacked, so the top edge is what the grid generates. The dashed line is System Demand; the solid dark line, when GSO publishes it, is GSO's Grid Demand. Where a source has no reading for up to 30 minutes (GSO's home page misses 23:40 and 23:50 every night), the drawing joins across it, as GSO's chart does; the tooltip says \"no reading\". Longer gaps are breaks."
           : "How much electricity Peninsular Malaysia is using, in MW, as published on GSO's System Demand page. It usually peaks in the afternoon and is lowest before dawn. Breaks mean no reading.",
         right: `<button class="btn" data-a="csv" ${pts ? "" : "disabled"}>CSV</button>${exportUrl([s.key], range.startDay, range.endDay, "xlsx") ? `<a class="btn" href="${esc(exportUrl([s.key], range.startDay, range.endDay, "xlsx"))}">Excel</a>` : ""}`,
         body: pts ? '<div class="chart tall"></div>' : '<div class="notice">Range too long for raw readings; see daily statistics.</div>' }));
