@@ -1,5 +1,10 @@
 # Changelog
 
+## 1 November 2026 (thirty-seventh update) — GSO Grid Archive 5.15.3
+
+- **Two more alarms that GSO's figures are filed in the right place:** the hourly check now also compares (1) the home page's Current Grid Demand with the Grid Demand line of its own chart (they match within 4 MW at every moment checked) and (2) the home page's tie-line total with the Tie-Line page's three lines (exactly opposite in sign, as GSO counts them). If GSO ever reorders its figures, these stop matching and you get an email. Both were tried on four days of real readings first, and passed at every moment. The Status page shows all four cross-checks.
+- **New README picture:** the Overview as it looks now, laid out like GSO's home page, from real GSO readings.
+
 ## 1 November 2026 (thirty-sixth update) — GSO Grid Archive 5.15.2
 
 Corrections from a maintenance check, which compared the archive's figures with each other and with GSO's own pages.

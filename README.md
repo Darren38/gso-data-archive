@@ -8,7 +8,7 @@
 
 [![Open the site](https://img.shields.io/badge/OPEN%20THE%20SITE-darren38.github.io-2ea44f?style=for-the-badge)](https://darren38.github.io/gso-data-archive/)
 
-<a href="https://darren38.github.io/gso-data-archive/"><img src="docs/screenshot.jpg" alt="The GSO Grid Archive dashboard: Current Solar Generation, Current System Demand, solar's share and Current BESS Status in big numbers with icons, then today's Solar Profile against GSO's Forecast. Click to open the site." width="820"></a>
+<a href="https://darren38.github.io/gso-data-archive/"><img src="docs/screenshot.jpg" alt="The GSO Grid Archive Overview, laid out like GSO's home page: GSO's seven headline figures (Current Grid Demand, Current System Demand, the records, Current Solar Generation, Current BESS Status and Cross-Border Power Exchange), then the System Demand Profile for Peninsular Malaysia with each source of electricity stacked. Click to open the site." width="820"></a>
 
 </div>
 

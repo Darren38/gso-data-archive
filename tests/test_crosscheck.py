@@ -87,3 +87,32 @@ def test_too_little_daylight_waits(engine):
     checks = _by_key(engine)
     assert checks["grid_solar"]["state"] == "waiting" and checks["grid_solar"]["compared"] == 2
     assert checks["distribution_solar"]["state"] == "waiting" and checks["distribution_solar"]["compared"] == 0
+
+
+def test_grid_demand_and_tie_line_checks(engine):
+    # Real relationships (backups of 28-31 Oct 2026): the headline Current Grid Demand is the home page's Grid Demand
+    # line within 4 MW; the home page tie-line total is minus the Tie-Line page's three lines (GSO: "+ve = Export").
+    demand = [17000 + 50 * math.sin(i / 7) for i in range(40)]
+    lines = {"tieline_egat.flow": [30 + i for i in range(40)], "tieline_hvdc.flow": [-20.5] * 40,
+             "tieline_pltg.flow": [100 - 8 * i for i in range(40)]}  # passes through zero, and below
+    total = [-(lines["tieline_egat.flow"][i] + lines["tieline_hvdc.flow"][i] + lines["tieline_pltg.flow"][i]) for i in range(40)]
+    with engine.begin() as c:
+        _add(c, {"headlines.current_grid_demand": [round(v) for v in demand], "genmix_live.total_generation": [round(v) + 3 for v in demand],
+                 "genmix_live.tie_line_total": [round(v) for v in total], **lines})
+    checks = _by_key(engine)
+    assert checks["grid_demand"]["state"] == "passed" and checks["grid_demand"]["compared"] == 40
+    assert checks["tie_line"]["state"] == "passed"
+    assert checks["tie_line"]["compared"] < 40  # moments where both are within 5 MW of zero test nothing
+
+
+def test_tie_line_with_the_wrong_sign_fails(engine):
+    lines = {"tieline_egat.flow": [200.0] * 20, "tieline_hvdc.flow": [-20.0] * 20, "tieline_pltg.flow": [50.0] * 20}
+    with engine.begin() as c:  # the home page total filed with the Tie-Line page's sign: a list read the wrong way
+        _add(c, {"genmix_live.tie_line_total": [230.0] * 20, **lines})
+    assert _by_key(engine)["tie_line"]["state"] == "failed"
+
+
+def test_another_headline_filed_as_grid_demand_fails(engine):
+    with engine.begin() as c:  # Current System Demand (about 2,600 MW larger) in Current Grid Demand's place
+        _add(c, {"headlines.current_grid_demand": [19600.0] * 20, "genmix_live.total_generation": [17000.0] * 20})
+    assert _by_key(engine)["grid_demand"]["state"] == "failed"

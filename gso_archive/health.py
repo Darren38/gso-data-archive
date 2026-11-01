@@ -119,11 +119,11 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                     said += f" (GSO not answering for {hours:.0f} h)" if hours is not None else " (never answered)"
                 problems.append(said)
             for c in status.get("cross_checks", []):
-                notes.append(f"cross-check {c['key']}: {c['state']} ({c['agreeing']} of {c['compared']} daylight readings agree)")
+                notes.append(f"cross-check {c['key']}: {c['state']} ({c['agreeing']} of {c['compared']} readings agree)")
                 if c.get("state") == "failed":
                     w = c.get("worst") or {}
                     problems.append(f"GSO's pages disagree: {c['name']} held for only {c['agreeing']} of {c['compared']} "
-                                    f"daylight readings (e.g. {w.get('left')} vs {w.get('right')} at {w.get('time')})")
+                                    f"readings (e.g. {w.get('left')} vs {w.get('right')} at {w.get('time')})")
             newest = max((f["latest_obs_time"] for f in status.get("freshness", [])
                           if f.get("latest_obs_time") and f.get("kind") == "actual"), default=None)
             if newest:

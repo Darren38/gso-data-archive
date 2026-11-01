@@ -13,8 +13,13 @@ wrong names. Two figures are published twice, on different pages:
     So this check allows 15% or 15 MW; filing NEM, Distribution or SELCO as Grid, or the list 10 minutes late, falls
     far outside that (at most 105 of 144 readings within it, against 95% needed).
 
-Night is left out (both sides under 5 MW): any lists would agree there, and at night the Generation page shows 1-2 MW
-of solar where the Solar page shows 0.
+  * the home page's Current Grid Demand (headline box) = its Grid Demand line (GenMix r[8]): within 4 MW at every
+    moment, 28-31 October 2026 (139 of 139), so this check allows 5 MW. It guards the headline boxes' order too;
+  * the home page's tie-line total (GenMix r[4]) = minus the Tie-Line page's EGAT + HVDC + PLTG (GSO: "+ve = Export";
+    the home page counts it as supply): within 0.7 MW at all 208 shared moments, so 2 MW is allowed.
+
+Moments where both sides are within 5 MW of zero are left out: any lists would agree there, and at night the
+Generation page shows 1-2 MW of solar where the Solar page shows 0.
 """
 
 from __future__ import annotations
@@ -42,6 +47,21 @@ CHECKS = [
         "right": ["solar_profile.distribution", "solar_profile.nem", "solar_profile.fit", "solar_profile.selco"],
         "tolerance": (0, 0.5),
     },
+    {
+        "key": "grid_demand",
+        "name": "Home page Current Grid Demand = its chart's Grid Demand line",
+        "left": ["headlines.current_grid_demand"],
+        "right": ["genmix_live.total_generation"],
+        "tolerance": (0, 5),
+    },
+    {
+        "key": "tie_line",
+        "name": "Home page tie-line total = minus (EGAT + HVDC + PLTG) on the Tie-Line page (+ve there = export)",
+        "left": ["genmix_live.tie_line_total"],
+        "right": ["tieline_egat.flow", "tieline_hvdc.flow", "tieline_pltg.flow"],
+        "right_sign": -1,
+        "tolerance": (0, 2),
+    },
 ]
 WINDOW = timedelta(hours=48)
 NIGHT_MW = 5  # both sides below this: night, no test of anything
@@ -67,7 +87,8 @@ def cross_checks(conn: Connection, now: datetime | None = None) -> list[dict]:
         worst = None
         for t in sorted(shared):
             left, right = (sum(m[t] for m in side) for side in sides)
-            if left < NIGHT_MW and right < NIGHT_MW:
+            right *= check.get("right_sign", 1)
+            if abs(left) < NIGHT_MW and abs(right) < NIGHT_MW:
                 continue
             compared += 1
             share, mw = check["tolerance"]

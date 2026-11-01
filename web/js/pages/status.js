@@ -25,9 +25,9 @@ export async function render(main, { isCurrent }) {
   const checks = st.cross_checks || [];
   if (checks.length) {
     const pill = (c) => (c.state === "passed" ? '<span class="pill ok">agree</span>'
-      : c.state === "failed" ? '<span class="pill bad">disagree</span>' : '<span class="pill">waiting for daylight readings</span>');
+      : c.state === "failed" ? '<span class="pill bad">disagree</span>' : '<span class="pill">waiting for readings</span>');
     const x = h(card({ title: "Cross-checks between GSO's pages",
-      desc: "GSO publishes these figures on two different pages. If they stop agreeing (allowing for GSO's later revisions where noted), GSO has probably changed its data and some numbers here may be filed under the wrong name; the owner is emailed. Last 48 hours, daylight only.",
+      desc: "GSO publishes these figures on two different pages. If they stop agreeing (allowing for GSO's later revisions where noted), GSO has probably changed its data and some numbers here may be filed under the wrong name; the owner is emailed. Last 48 hours; moments where both are near zero (night, for solar) are left out.",
       body: '<div class="tbl"></div>' }));
     main.appendChild(x);
     renderTable(x.querySelector(".tbl"), [

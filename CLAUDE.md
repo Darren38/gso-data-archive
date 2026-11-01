@@ -198,7 +198,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     the site treat the System Demand page's figure as the home page's Grid Demand; over four days it is 0-56 MW higher.
     Current Grid Demand stands in only from the home page's own Grid Demand line (`genmix_live.total_generation`).
     Likewise the home page's tie-line total is minus the Tie-Line page's lines (GSO: "+ve = Export"). The
-    maintenance checklist's sums (docs/MAINTENANCE.md) found both.
+    maintenance checklist's sums (docs/MAINTENANCE.md) found both; both are now cross-checks (`grid_demand`,
+    `tie_line`, with `right_sign: -1`), so the hourly check emails if GSO reorders those figures.
 
 ## How to check a change
 
