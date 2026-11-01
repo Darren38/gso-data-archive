@@ -106,7 +106,7 @@ export function freshnessPill(iso, intervalS) {
   const age = ageOf(iso);
   const limit = Math.max(3 * (intervalS || 1800), 3600);
   const cls = age <= limit ? "ok" : age <= 4 * limit ? "warn" : "bad";
-  return `<span class="pill ${cls}" title="Source observation time ${fmtDateTime(iso)} MYT">Observed ${fmtAge(age)}</span>`;
+  return `<span class="pill ${cls}" title="Time of GSO's newest reading: ${fmtDateTime(iso)} MYT. GSO's readings usually reach its website 15 to 25 minutes after their time.">Newest reading ${fmtAge(age)}</span>`;
 }
 
 /** Paginated table. columns: [{key, label, num?, fmt?}] */

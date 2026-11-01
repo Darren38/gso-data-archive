@@ -5,6 +5,7 @@
 When GSO publishes nothing, the site now says so.
 
 - Since 8:30 this morning GSO's home page has been sending **empty answers** for its Other Renewables split and its solar map (the rest of its figures still arrive). The archive took an empty answer for a change in GSO's format, counted it as a failure and tried less often. Now an empty answer is recorded as "GSO published nothing right now", and the archive keeps asking every round, so the figures come back as soon as GSO sends them again. An answer that can't be read still raises the alarm.
+- The "Observed 24 min ago" label at the top of each page now reads "Newest reading 24 min ago": the time of GSO's newest reading. GSO's readings usually reach its website 15 to 25 minutes after their time, so 15 to 30 minutes is normal.
 - Cards whose figures GSO has stopped updating (the Other Renewables ring, the Solar Map and the solar farm table) now say so: "GSO hasn't published … since …, shown as they were then." Old figures never pass for current ones.
 
 ## 1 November 2026 (twenty-ninth update) — GSO Grid Archive 5.14.3

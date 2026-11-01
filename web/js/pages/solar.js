@@ -122,7 +122,7 @@ export async function render(main, { meta, isCurrent }) {
     body.innerHTML = "";
     body.appendChild(h(`<div class="grid kpis">
       ${kpi({ big: true, icon: "solar", label: p.derived ? "Current Solar Generation" : `Latest ${nice(p)}`, cls: "solar", value: p.latest_value != null ? fmtNum(p.latest_value) : null, unit: "MW",
-        meta: p.last ? `Observed ${fmtDateTime(p.last)} MYT` : "No readings yet" })}
+        meta: p.last ? `Newest reading ${fmtDateTime(p.last)} MYT` : "No readings yet" })}
       ${kpi({ big: true, icon: "peak", label: p.derived ? "Peak Solar Generation" : `Peak ${nice(p)}`, cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
         meta: peakDay ? `${fmtDate(peakDay.max_time)} at ${fmtTime(peakDay.max_time)}` : "" })}
       ${kpi({ icon: "energy", label: p.derived ? "Solar Energy" : `${nice(p)} Energy`, cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
