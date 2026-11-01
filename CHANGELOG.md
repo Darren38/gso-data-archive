@@ -1,5 +1,13 @@
 # Changelog
 
+## 1 November 2026 (thirty-sixth update) — GSO Grid Archive 5.15.2
+
+Corrections from a maintenance check, which compared the archive's figures with each other and with GSO's own pages.
+
+- **Tie-line direction, now from GSO itself:** GSO's Tie-Line page states "+ve = Export, -ve = Import" (power going out of / coming into Peninsular Malaysia). The Tie-Line page here now says so, instead of "not confirmed". GSO's home page counts the same flow the other way round (as a source of supply): its tie-line total is exactly minus the three tie-lines, at every one of 208 moments checked. **Correction:** update 5.14.5 said a Tie-Line below zero on the generation chart meant power coming in; it means power going **out** (export).
+- **Grid Demand is the home page's figure:** GSO's "Current Grid Demand" is the Grid Demand line of its home page chart; the figure on GSO's System Demand page is close but usually 0 to 60 MW higher, so it is a different figure. The site had called them the same. Now the Overview and the Demand page show GSO's home page Grid Demand under that name; the Demand page's peak, minimum, energy and charts (from the System Demand page, collected for longer) are labelled "Peak Demand", "Minimum Demand" and "Energy Demand", with a note on the difference.
+- Checked and fine: every collector reads GSO's answers; collection runs about every 2 minutes with no gaps; GSO's parts add up to its totals (Distribution Solar, Other RE, Current Solar, Current BESS); no day's readings are filed under another day.
+
 ## 1 November 2026 (thirty-fifth update) — GSO Grid Archive 5.15.1
 
 - **One email when GSO goes quiet, then one a day:** before, while one of GSO's sources stayed silent the hourly check failed (and emailed you) every hour. Now it emails once, in the hour the silence passes 6 daytime hours, and then once a day (each further 12 daytime hours, 7 am to 7 pm) for as long as it lasts. The other hourly checks still note it on the run's summary page, and the site's cards still say since when GSO hasn't updated each figure.
@@ -28,7 +36,7 @@ Phone view fixes.
 
 The red and green lines are gone from every chart, at every range.
 
-- **The real cause of the lines:** the chart library put a source's value of exactly 0 at the bottom of the chart instead of on top of the layer below it. Oil/DF, Co-Gen and Tie-Line often touch 0, so each time one went from a small value to 0 and back, its colour ran from the top of the chart to the bottom: a thin red or green line. 5.14.3 only hid this on short ranges. Now every value, zero and below-zero included, is stacked on the layers below, on every stacked chart (Overview, Generation, Demand, Solar, Cross-Border) and every range (1 day to 90 days, phone and computer). A Tie-Line below zero (power coming in) now lowers the layers above it a little, so the top edge is what the grid really generates. An automatic check now fails if any stacked chart loses this.
+- **The real cause of the lines:** the chart library put a source's value of exactly 0 at the bottom of the chart instead of on top of the layer below it. Oil/DF, Co-Gen and Tie-Line often touch 0, so each time one went from a small value to 0 and back, its colour ran from the top of the chart to the bottom: a thin red or green line. 5.14.3 only hid this on short ranges. Now every value, zero and below-zero included, is stacked on the layers below, on every stacked chart (Overview, Generation, Demand, Solar, Cross-Border) and every range (1 day to 90 days, phone and computer). A Tie-Line below zero now lowers the layers above it a little (correction in 5.15.2: below zero on the home page means power going out). An automatic check now fails if any stacked chart loses this.
 - **BESS as GSO shows it:** Current BESS Status shows the signed figure, e.g. **-1 MW** in red with "Charging", like GSO's home page (before: 1 MW with "Charging").
 - **GSO's solar forecast:** like the Other Renewables split and the solar map, an empty forecast from GSO is now recorded as "GSO published nothing" instead of a failure.
 

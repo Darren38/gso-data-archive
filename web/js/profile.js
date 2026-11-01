@@ -33,7 +33,7 @@ export async function drawProfile(el, meta, start, end, { isCurrent = () => true
   const used = stack.map((s, i) => [s, stackPts[i]]).filter(([, p]) => p.points.some((x) => x[1] != null));
   if (!used.length) return null;
   const aligned = alignStack(used.map(([, p]) => p.points), 600e3, { bridge: 3 });
-  // Like GSO's chart: layers without outlines. Tie-Line below zero (power coming in) lowers the layers above it.
+  // Like GSO's chart: layers without outlines. Tie-Line below zero (export: power going out) lowers the layers above it.
   const series = used.map(([s], i) => ({ name: s.label, points: aligned[i], color: s.color, area: true, areaOpacity: 0.9,
     stack: "supply", width: 0 }));
   lines.forEach((s, i) => {

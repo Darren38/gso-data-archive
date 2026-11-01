@@ -9,9 +9,9 @@ const LINE_NAME = { tieline_egat: "EGAT (Thailand)", tieline_hvdc: "HVDC (Thaila
 
 export async function render(main, { meta, isCurrent }) {
   const lines = meta.series.filter((s) => s.category === "tieline");
-  main.appendChild(h(`<div class="notice"><b>Sign convention:</b> values are stored exactly as GSO publishes them. GSO's sign convention has not been
-    confirmed from a verified GSO document. The Electricity Maps project interprets positive values as flow <i>out of</i> Peninsular Malaysia (export).
-    Treat direction labels as provisional.</div>`));
+  main.appendChild(h(`<div class="notice"><b>Direction:</b> values are stored exactly as GSO publishes them. GSO's Tie-Line page states its rule:
+    <b>above zero = export</b> (power going out of Peninsular Malaysia), <b>below zero = import</b>. (GSO's home page counts the tie-lines the other
+    way round, as a source of supply: there, above zero is power coming in.)</div>`));
   if (!lines.length) {
     main.appendChild(h(card({ title: "Tie-lines", body: emptyState("No tie-line readings archived yet") })));
     return;

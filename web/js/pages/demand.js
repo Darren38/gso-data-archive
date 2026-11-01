@@ -29,19 +29,23 @@ export async function render(main, { meta, isCurrent }) {
       const low = wd.reduce((b, r) => (b && b.min <= r.min ? b : r), null);
       const energy = wd.reduce((t, r) => t + (r.energy_mwh || 0), 0);
       body.innerHTML = "";
-      // Like GSO's home page: Current Grid Demand and Current System Demand side by side. Grid Demand is the figure on
-      // GSO's System Demand page (this page's charts); System Demand, larger, is published on the home page only.
+      // Like GSO's home page: Current Grid Demand and Current System Demand side by side, as GSO's home page gives them
+      // (or its chart's Grid Demand line, the same figure). This page's charts and statistics are the System Demand
+      // page's figure: close to Grid Demand (0-56 MW higher, maintenance check of 1 Nov 2026) but not the same.
       const home = meta.series.find((x) => x.key === "headlines.current_system_demand");
+      const grid = ["headlines.current_grid_demand", "genmix_live.total_generation"].map((k) => meta.series.find((x) => x.key === k))
+        .filter((x) => x?.latest_value != null).sort((a, b) => Date.parse(b.last) - Date.parse(a.last))[0];
       body.appendChild(h(`<div class="grid kpis">
-        ${kpi({ big: true, icon: "demand", label: "Current Grid Demand", cls: "demand", value: s.latest_value != null ? fmtNum(s.latest_value) : null, unit: "MW", meta: s.last ? `${fmtDateTime(s.last)} MYT` : "" })}
+        ${kpi({ big: true, icon: "demand", label: "Current Grid Demand", cls: "demand", value: grid ? fmtNum(grid.latest_value) : null, unit: "MW", meta: grid ? `${fmtDateTime(grid.last)} MYT · GSO home page` : "" })}
         ${kpi({ big: true, icon: "demand", label: "Current System Demand", cls: "demand", value: home?.latest_value != null ? fmtNum(home.latest_value) : null, unit: "MW", meta: home?.last ? `${fmtDateTime(home.last)} MYT · GSO home page` : "Kept from 30 October 2026" })}
-        ${kpi({ icon: "peak", label: "Peak Grid Demand", cls: "demand", value: peak ? fmtNum(peak.max) : null, unit: "MW", meta: peak ? `${fmtDateTime(peak.max_time)} MYT` : "" })}
-        ${kpi({ icon: "low", label: "Minimum Grid Demand", value: low ? fmtNum(low.min) : null, unit: "MW", meta: low ? (low.min_time ? `${fmtDateTime(low.min_time)} MYT` : low.date) : "" })}
-        ${kpi({ icon: "energy", label: "Grid Energy Demand", value: wd.length ? fmtEnergy(energy) : null, meta: `${wd.length}/${rows.length} days with data` })}
+        ${kpi({ icon: "peak", label: "Peak Demand", cls: "demand", value: peak ? fmtNum(peak.max) : null, unit: "MW", meta: peak ? `${fmtDateTime(peak.max_time)} MYT` : "" })}
+        ${kpi({ icon: "low", label: "Minimum Demand", value: low ? fmtNum(low.min) : null, unit: "MW", meta: low ? (low.min_time ? `${fmtDateTime(low.min_time)} MYT` : low.date) : "" })}
+        ${kpi({ icon: "energy", label: "Energy Demand", value: wd.length ? fmtEnergy(energy) : null, meta: `${wd.length}/${rows.length} days with data` })}
       </div>`));
-      body.appendChild(h(`<p class="small muted" style="margin:0"><b>Grid Demand</b> is the figure on GSO's System Demand page (its charts, below, call it
-        System Demand); GSO's home page calls it Current Grid Demand. <b>System Demand</b> is the larger figure GSO's home page shows next to it.
-        <a href="#/explorer?series=system_demand.demand,headlines.current_system_demand">Compare the two over time</a>.</p>`));
+      body.appendChild(h(`<p class="small muted" style="margin:0">The first two cards are GSO's home page figures: <b>Grid Demand</b> and the larger
+        <b>System Demand</b>. Peak, minimum, energy and the charts below use the figure on GSO's <b>System Demand page</b>, every 10 minutes since
+        before this archive began: close to Grid Demand (usually 0 to 60 MW higher) but not the same figure.
+        <a href="#/explorer?series=system_demand.demand,headlines.current_grid_demand,headlines.current_system_demand">Compare the three over time</a>.</p>`));
       body.appendChild(h(shortForms(["MW", "MWh", "MYT"])));
       // up to a month, the chart is GSO's own System Demand Profile: what is generating, stacked, with demand on top
       const asProfile = pts && days <= 31;
@@ -62,8 +66,8 @@ export async function render(main, { meta, isCurrent }) {
         c1.querySelector('[data-a="csv"]').addEventListener("click", () => downloadText(`demand_${range.startDay}_${range.endDay}.csv`, pointsToCsv(csv)));
       }
       // Today against the same hours yesterday (moved here from the Overview, which now follows GSO's home page).
-      const dc = h(card({ title: "Grid Demand: Today vs Yesterday", sub: freshnessPill(s.last, s.interval_s),
-        desc: "The figure on GSO's System Demand page (GSO's home page calls it Current Grid Demand). Solid line: today. Dashed line: the same hours yesterday.",
+      const dc = h(card({ title: "Demand: Today vs Yesterday", sub: freshnessPill(s.last, s.interval_s),
+        desc: "The figure on GSO's System Demand page (close to the home page's Grid Demand, not the same). Solid line: today. Dashed line: the same hours yesterday.",
         body: '<div class="chart"></div>' }));
       body.appendChild(dc);
       const dayStart = mytDayStart(mytDay(new Date()));

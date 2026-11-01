@@ -135,6 +135,10 @@ waits 2 s between requests, and backs off on errors.
 
 ## 8. Remaining unknowns
 
-* GSO's tie-line sign convention (Electricity Maps reads positive as export from Peninsular Malaysia) **[UNKNOWN]**.
+* ~~GSO's tie-line sign convention~~ Settled: GSO's Tie-Line page says "Graph Info: +ve = Export, -ve = Import"
+  **[OBSERVED, GSO page text]**, and the home page's tie-line total (GetGenMixData r[4]) is exactly minus the sum of
+  EGAT + HVDC + PLTG at all 208 shared moments, 28-31 Oct 2026 **[OBSERVED]**: on the home page above zero = import.
+* The home page's Current Grid Demand equals its Grid Demand line (r[8] TotGen); the System Demand page's figure is
+  0-56 MW higher (16 MW on average, 28-31 Oct 2026) **[OBSERVED]**: close, but not the same figure.
 * What the forecast summary values `4520` and `-518` mean (probably capacity and next-hour change) **[UNKNOWN]**.
 * How long GSO keeps past days on the date-based pages; try `backfill` on older dates **[UNKNOWN]**.

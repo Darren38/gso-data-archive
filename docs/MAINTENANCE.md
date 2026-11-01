@@ -19,8 +19,10 @@ Download the newest `archive-backups` asset (github.com release downloads work f
   row, or a day with too many, point at a filing bug (lessons 11, 24, 32).
 - **A day compared with the next:** identical values on two days mean a list was filed under the wrong day.
 - **Cross-checks** on the Status page: both "passed" in daylight (lesson 34).
-- **Sums:** Generation page fuels vs the home page's Grid Demand at the same moments; Solar page parts vs Current
-  Solar Generation; the Other RE split vs its total (lesson 38).
+- **Sums:** Distribution Solar = LSS+NEM+FiT+SELCO; the Other RE split = its total (lesson 38); Current Solar =
+  the Solar page's five parts; Current BESS = discharge + charge; Current Grid Demand = the home page's Grid Demand
+  line (the System Demand page's figure is 0-60 MW higher: a different figure); home tie-line total = minus
+  (EGAT + HVDC + PLTG). Any figure the site says is "the same" as another must match here (lesson 47).
 - **Midnight:** the home page list misses 23:40 and 23:50 every night (GSO publishes them after its page has
   moved to the new day). The charts join that gap; anything longer is new.
 - **Negative values:** Tie-Line (power coming in) and Co-Gen can be below zero; they must not draw spikes.

@@ -194,6 +194,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     `:not(:first-child)` hid every top-bar pill but "Auto", so phones never saw how old the figures were: phones keep
     the freshness pill (`ok`/`warn`/`bad`) and the demo label. The "real" browser check tests both at 360 x 560.
 
+47. **"The same figure on two GSO pages" must be checked, not assumed.** One matching reading (17,696 at 12:20) made
+    the site treat the System Demand page's figure as the home page's Grid Demand; over four days it is 0-56 MW higher.
+    Current Grid Demand stands in only from the home page's own Grid Demand line (`genmix_live.total_generation`).
+    Likewise the home page's tie-line total is minus the Tie-Line page's lines (GSO: "+ve = Export"). The
+    maintenance checklist's sums (docs/MAINTENANCE.md) found both.
+
 ## How to check a change
 
 ```bash

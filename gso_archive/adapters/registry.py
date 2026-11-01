@@ -85,8 +85,8 @@ def _tieline(line: str, label: str) -> AdapterSpec:
         verification="verified",
         description=(
             f"Power flow on the {line} interconnection ({label}), stored exactly as published. "
-            "GSO's sign convention is not documented on any page we could verify; "
-            "Electricity Maps treats positive values as flow out of Peninsular Malaysia."
+            "GSO's Tie-Line page states: +ve = Export, -ve = Import (out of / into Peninsular Malaysia). "
+            "GSO's home page tie-line total is the same flow with the opposite sign (a source of supply)."
         ),
         fields={"MW": FieldSpec("flow", f"{line} flow (as published)", "MW", "actual", -5000.0, 5000.0)},
         time_fields=("Tarikhmasa", "DT"),

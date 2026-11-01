@@ -47,9 +47,10 @@ export async function render(main, { meta, isCurrent }) {
     return;
   }
 
-  // ---- GSO's home page headline figures. Where GSO publishes the same figure on another page more often (Grid
-  // Demand on its System Demand page, solar on its Solar page, BESS in its generation mix), that one stands in when the
-  // home page's is missing or late, and the card says where it came from.
+  // ---- GSO's home page headline figures. Where GSO publishes the same figure elsewhere (Grid Demand as the Grid Demand
+  // line of its generation chart, solar on its Solar page, BESS in its generation mix), that one stands in when the home
+  // page's is missing or late, and the card says where it came from. (Not the System Demand page: its figure is 0-56 MW
+  // higher, a different figure; maintenance check of 1 Nov 2026.)
   const head = (k) => (by[`headlines.${k}`]?.latest_value != null ? by[`headlines.${k}`] : null);
   const fresh = (x) => x && ageOf(x.last) <= FRESH_S;
   const later = (a, b) => (Date.parse(a.last) >= Date.parse(b.last) ? a : b);
@@ -60,12 +61,13 @@ export async function render(main, { meta, isCurrent }) {
   const bessOwn = dis && chg && dis.latest_value != null && chg.latest_value != null && dis.last === chg.last
     ? { value: dis.latest_value + chg.latest_value, last: dis.last, from: "GSO's home page generation mix" } : null;
   const demand = by["system_demand.demand"];
-  const demandOwn = demand?.latest_value != null ? { value: demand.latest_value, last: demand.last, from: "GSO's System Demand page" } : null;
+  const gridLine = by["genmix_live.total_generation"];
+  const demandOwn = gridLine?.latest_value != null ? { value: gridLine.latest_value, last: gridLine.last, from: "GSO's home page chart" } : null;
   const own = { current_grid_demand: demandOwn, current_solar_generation: solarOwn, current_bess: bessOwn };
   const pick = (k) => {
     const x = head(k), o = own[k];
     const hx = x && { value: x.latest_value, last: x.last, unit: x.unit, from: "GSO's home page" };
-    if (k === "current_grid_demand" && hx && o) return { ...later(hx, o), unit: "MW" }; // the same figure on two GSO pages
+    if (k === "current_grid_demand" && hx && o) return { ...later(hx, o), unit: "MW" }; // the same figure, twice on GSO's home page
     if (hx && (fresh(x) || !o || Date.parse(x.last) >= Date.parse(o.last))) return hx;
     return o ? { ...o, unit: "MW" } : hx;
   };
@@ -82,8 +84,8 @@ export async function render(main, { meta, isCurrent }) {
       meta: x ? `${note}${when}${record ? "" : ` · from ${x.from}`}` : k === "current_grid_demand" ? "" : "Kept from 30 October 2026, when GSO's home page shows it" });
   });
   main.appendChild(h(`<div class="grid kpis hero heads">${boxes.join("")}</div>`));
-  main.appendChild(h(`<p class="small muted" style="margin:0">As on GSO's home page. <b>Grid Demand</b> is the figure on GSO's System Demand page;
-    <b>System Demand</b> is the larger figure GSO's home page shows next to it. Solar in detail is on the <a href="#/solar">Solar</a> page,
+  main.appendChild(h(`<p class="small muted" style="margin:0">As on GSO's home page. <b>Grid Demand</b> is the solid line of the chart below; <b>System Demand</b> is the larger
+    figure GSO's home page shows next to it. Solar in detail is on the <a href="#/solar">Solar</a> page,
     and today's demand against yesterday's on the <a href="#/demand">Demand</a> page.</p>`));
   main.appendChild(h(shortForms(["MW", "MWh", "MYT", "BESS", "Co-Gen", "RE"])));
 
