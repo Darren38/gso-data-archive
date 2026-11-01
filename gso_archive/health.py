@@ -10,7 +10,9 @@ It only reads the site. It fails (so GitHub marks the run red and emails the own
   * the newest reading is hours old although the collector runs (GSO answering with old data), or
   * one of GSO's sources has published nothing new for 6 hours of daytime (07:00-19:00 MYT), e.g. 1 Nov 2026 when
     GSO's solar data (Solar page, forecast, solar map, other renewables split) stopped from 08:30. Night doesn't count:
-    some figures keep their sunset time all night.
+    some figures keep their sunset time all night. The owner asked for one email, then one a day while it lasts: the
+    check fails only in the hour the silence passes 6 daytime hours, and again each further 12 (one day's daytime);
+    the other hourly checks only note it.
 """
 
 from __future__ import annotations
@@ -65,6 +67,18 @@ def silent_sources(status: dict, now: datetime, max_daytime_hours: float = 6) ->
     return out
 
 
+def silence_alerts(hours: float, max_daytime_hours: float = 6) -> int:
+    """How many silence emails are due after `hours` of daytime: one at 6 hours, then one per 12 more (daily)."""
+    return 0 if hours <= max_daytime_hours else int((hours - max_daytime_hours) // 12) + 1
+
+
+def silence_email_due(newest: datetime, now: datetime) -> bool:
+    """True when the silence passed 6 daytime hours (or a further day) during the previous whole clock hour. The check
+    runs in the first minutes of each hour, so each such moment belongs to exactly one hourly check: one email."""
+    hour = now.replace(minute=0, second=0, microsecond=0)
+    return silence_alerts(daytime_hours(newest, hour)) > silence_alerts(daytime_hours(newest, hour - timedelta(hours=1)))
+
+
 def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
                max_reading_age_minutes: int = 180, max_outage_hours: float = 12) -> dict:
     base = base_url.rstrip("/") + "/"
@@ -117,9 +131,12 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                 if age > max_reading_age_minutes:
                     problems.append(f"the newest GSO reading is {age:.0f} min old although the collector runs")
             for source, iso, hours in silent_sources(status, now):
-                when = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(MYT).strftime("%d %b %H:%M")
-                problems.append(f"GSO has published nothing new for {source} for {hours:.0f} daytime hours "
-                                f"(newest reading {when} MYT): check GSO's own page")
+                newest_at = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+                when = newest_at.astimezone(MYT).strftime("%d %b %H:%M")
+                said = (f"GSO has published nothing new for {source} for {hours:.0f} daytime hours "
+                        f"(newest reading {when} MYT): check GSO's own page")
+                # Email (fail) once when it passes 6 daytime hours, then once a day; the other hours only note it.
+                (problems if silence_email_due(newest_at, now) else notes).append(said)
             stale = [f["series"] for f in status.get("freshness", []) if f.get("stale")]
             if stale:
                 notes.append(f"{len(stale)} series without a new reading lately: {', '.join(stale[:6])}")

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1 November 2026 (thirty-fifth update) — GSO Grid Archive 5.15.1
+
+- **One email when GSO goes quiet, then one a day:** before, while one of GSO's sources stayed silent the hourly check failed (and emailed you) every hour. Now it emails once, in the hour the silence passes 6 daytime hours, and then once a day (each further 12 daytime hours, 7 am to 7 pm) for as long as it lasts. The other hourly checks still note it on the run's summary page, and the site's cards still say since when GSO hasn't updated each figure.
+
 ## 1 November 2026 (thirty-fourth update) — GSO Grid Archive 5.15
 
 The Generation Mix ring, drawn the way GSO draws it.

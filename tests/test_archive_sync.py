@@ -218,3 +218,17 @@ def test_alarm_when_gso_publishes_nothing_for_6_daytime_hours():
     status["freshness"][0]["latest_obs_time"] = iso(8, 50, 2)
     status["freshness"][3]["latest_obs_time"] = iso(8, 50, 2)
     assert silent_sources(status, datetime(2026, 11, 2, 9, 0, tzinfo=myt)) == []
+
+
+def test_silence_emails_once_then_once_a_day():
+    # The owner asked for one email when GSO goes quiet, then one a day while it lasts (not one every hour).
+    from gso_archive.health import silence_email_due
+
+    myt = timezone(timedelta(hours=8))
+    newest = datetime(2026, 11, 1, 8, 30, tzinfo=myt)  # GSO's solar data stopped here; 6 daytime hours pass at 14:30
+    at = lambda d, h, m: datetime(2026, 11, d, h, m, tzinfo=myt)  # noqa: E731
+    due = [t for t in (at(1, h, 2) for h in range(9, 24)) if silence_email_due(newest, t)]
+    assert due == [at(1, 15, 2)]  # the 15:00 check, the first after 14:30; not again that day
+    # Day two: 10.5 daytime hours on day one, so the next 12 are reached at 14:30 on day two: one more email, at 15:00.
+    due2 = [t for t in (at(2, h, 2) for h in range(0, 24)) if silence_email_due(newest, t)]
+    assert due2 == [at(2, 15, 2)]
