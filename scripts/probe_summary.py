@@ -95,7 +95,7 @@ def main(report_path: str, out_dir: str) -> None:
                 print(f"   {i + 1:5d}: {lines[i].strip()[:160]}   {('<- ' + name) if name else ''}")
         # Whole bodies of the functions that turn GSO's answers into charts.
         wanted = {"DrawGenMixChart": 50, "DrawSolarMap": 45, "getData": 60, "DrawSolarChart": 40, "DrawSysAvPieChart": 25,
-                  "DrawGenMixPieChart": 40}
+                  "DrawGenMixPieChart": 420}  # whole: its inner and outer rings (Other RE and Distribution Solar parts)
         for js in sorted(folder.glob("script_*.js")):
             lines = js.read_text(encoding="utf-8", errors="replace").splitlines()
             for name, count in wanted.items():
