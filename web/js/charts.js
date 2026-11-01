@@ -209,13 +209,48 @@ export function pieChart(el, { items, demo = false, unit = "MWh", total = false 
     legend: { ...lg.legend, top: "bottom" },
     title: total ? { text: unit === "MWh" ? energyText(sum) : `${fmtNum(sum, 0)} ${unit}`, left: "center", top: `${cy}%`, textVerticalAlign: "middle",
       textStyle: { color: css("--gso-green"), fontSize: wide ? 24 : 17, fontWeight: 600 } } : undefined,
-    series: [{ type: "pie", radius: roomy ? ["50%", "72%"] : ["44%", "64%"], center: ["50%", `${cy}%`], avoidLabelOverlap: true,
+    series: [{ id: "fuel", type: "pie", radius: roomy ? ["50%", "72%"] : ["44%", "64%"], center: ["50%", `${cy}%`], avoidLabelOverlap: true,
       itemStyle: { borderColor: css("--surface"), borderWidth: 1.5 },
       // Slice labels only where they fit; on phones the legend and tooltip name the slices.
       label: { show: wide, color: css("--text"), fontWeight: 500, lineHeight: 15, overflow: "break", width: 96,
         formatter: (p) => `${p.name}: ${p.percent.toFixed(1)}%` }, labelLine: { show: wide, length: 10, length2: 8 },
       data: items.map((i) => ({ name: i.name, value: i.value, itemStyle: { color: i.color } })) }],
   });
+}
+
+/** GSO's home page Generation Mix ring (SolarLandingPage.v5.js, DrawGenMixPieChart): the fuels, and an outer ring,
+ * hidden at first, that tapping Distribution Solar or Other RE opens to show its parts (in GSO's colours). Works by tap
+ * as well as by mouse (lesson 19). items: [{name, value, color}]; breakdowns: {sliceName: [{name, value, color}]}. */
+export function mixRing(el, { items, breakdowns = {}, demo = false, unit = "MW" }) {
+  const chart = pieChart(el, { items, demo, unit, total: true });
+  if (!chart) return chart;
+  const inner = chart.getOption().series[0];
+  const wide = el.clientWidth >= 480;
+  const r1 = parseFloat(inner.radius[1]);
+  let open = null;
+  const outer = (name) => items.map((it) => (it.name === name ? breakdowns[name].map((b) => ({ ...b, part: true }))
+    : [{ name: `\u200b${it.name}`, value: it.value, itemStyle: { color: "rgba(0,0,0,0)" }, label: { show: false }, labelLine: { show: false }, tooltip: { show: false } }])).flat()
+    .map((d) => (d.part ? { name: d.name, value: d.value, itemStyle: { color: d.color } } : d));
+  const draw = () => chart.setOption({
+    legend: { data: items.map((i) => i.name) }, // the slices only, not the parts
+    series: [
+      { id: "fuel", label: { show: wide && !open, formatter: (p) => (open ? "" : `${p.name}: ${p.percent.toFixed(1)}%`) },
+        labelLine: { show: wide && !open } },
+      { id: "breakdown", type: "pie", radius: [`${r1 + 2}%`, `${r1 + 12}%`], center: inner.center, silent: !open, z: 3,
+        showEmptyCircle: false, legendHoverLink: false,
+        itemStyle: { borderColor: "rgba(0,0,0,0)", borderWidth: 0 },
+        label: { show: !!open && wide, color: css("--text"), fontWeight: 500, formatter: (p) => (p.name.startsWith("\u200b") ? "" : `${p.name}: ${p.percent.toFixed(1)}%`), overflow: "break", width: 96 },
+        labelLine: { show: !!open && wide, length: 8, length2: 6 },
+        data: open ? outer(open) : [] },
+    ],
+  });
+  draw();
+  chart.on("click", (p) => {
+    const name = p.seriesId === "fuel" ? p.name : null;
+    open = name && breakdowns[name]?.length && open !== name ? name : null;
+    draw();
+  });
+  return chart;
 }
 
 /** Intraday profile: x = minutes since MYT midnight, one line per group. */

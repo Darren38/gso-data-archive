@@ -1,16 +1,26 @@
 // Overview: the grid right now and today, arranged like GSO's home page. Only archived GSO readings are shown, with their times.
 import { getPoints, getStatus } from "../data.js";
-import { COLORS, SOLAR_PARTS, FUELS, pieChart } from "../charts.js";
+import { COLORS, SOLAR_PARTS, FUELS, mixRing, pieChart } from "../charts.js";
 import { drawProfile } from "../profile.js";
-import { card, esc, fmtDate, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf, staleNote } from "../ui.js";
+import { card, esc, fmtDate, fmtLong, shortForms, emptyState, errorState, fmtAge, fmtDateTime, fmtNum, fmtTime, h, kpi, ageOf } from "../ui.js";
 
 // GSO's home page "Generation Mix" and "Generation Availability" donuts, with GSO's names and colours.
-const MIX = [...FUELS.slice(0, 5), { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline }, ...FUELS.slice(5)];
+// The Generation Mix ring in GSO's order (DrawGenMixPieChart): the fuels, then Distribution Solar, then Other RE last.
+const FUEL = Object.fromEntries(FUELS.map((f) => [f.label, f]));
+const MIX = [FUEL.Coal, FUEL.Gas, FUEL["Co-Gen"], FUEL["Oil/DF"], { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline },
+  FUEL.Hydro, FUEL["Transmission Solar"], { key: "genmix_live.bess_discharge", label: "BESS", color: COLORS.bessDischarge },
+  FUEL["Distribution Solar"], FUEL["Other RE"]];
+// Its outer ring, opened by tapping a slice, with GSO's names and colours for the parts.
+const BREAKDOWN = {
+  "Distribution Solar": [["solar_profile.distribution", "LSS", "rgb(209, 176, 46)"], ["solar_profile.nem", "NEM", "rgb(255, 199, 138)"],
+    ["solar_profile.fit", "FiT", "rgb(240, 219, 122)"], ["solar_profile.selco", "SELCO", "rgb(238, 245, 108)"]],
+  "Other RE": [["other_re.biogas", "Biogas", "rgb(168, 98, 84)"], ["other_re.biomass", "Biomass", "rgb(176, 132, 49)"],
+    ["other_re.mini_hydro", "Mini Hydro", "rgb(64, 163, 200)"]],
+};
 const AVAIL = [
   ["coal", "Coal", COLORS.coal], ["cogen", "Co-Gen", COLORS.cogen], ["gas", "Gas", COLORS.gas], ["hydro", "Hydro", COLORS.hydro],
   ["transmission_solar", "Transmission Solar", COLORS.gridSolar], ["distribution_solar", "Distribution Solar", COLORS.dnSolar], ["bess", "BESS", COLORS.bessDischarge],
 ].map(([k, label, color]) => ({ key: `availability.${k}`, label, color }));
-const ORE_COLOR = { biogas: "#8d6e63", biomass: "#7cb342", mini_hydro: "#26a69a" };
 
 /** The newest time at which every series has a reading, so the donut shows one moment (as GSO's does). */
 function latestCommon(seriesPoints) {
@@ -81,36 +91,55 @@ export async function render(main, { meta, isCurrent }) {
   const now = new Date(), start = new Date(now.getTime() - 864e5);
   const mixSeries = MIX.filter((m) => by[m.key]);
   const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
-  const ore = meta.series.filter((s) => s.dataset === "other_re" && s.latest_value != null);
   const profCard = h(card({ title: "System Demand Profile for Peninsular Malaysia", sub: "Last 24 hours",
     desc: "As on GSO's home page: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Where a source has no reading for up to 30 minutes (GSO's home page misses 23:40 and 23:50 every night), the drawing joins across it, as GSO's chart does; the tooltip says \"no reading\". Longer gaps are breaks.",
     body: '<div class="chart tall"></div>' }));
   main.appendChild(profCard);
   const row = h('<div class="grid cols-2"></div>');
   main.appendChild(row);
-  const mixCard = h(card({ title: "Generation Mix", desc: "Share of each fuel in the electricity being generated. The middle shows the total.",
+  const mixCard = h(card({ title: "Generation Mix", desc: "Share of each source in the electricity being generated, as GSO's home page shows it. The middle shows the total. Tap Distribution Solar or Other RE to see its parts.",
     body: '<div class="chart"></div>' }));
   const avCard = h(card({ title: "Generation Availability", desc: "Share of each kind of plant ready to run. The middle shows the total available.",
     body: '<div class="chart"></div>' }));
   row.append(avCard, mixCard); // GSO's order: Generation Availability, then Generation Mix
-  const oreCard = ore.length ? h(card({ title: "Other Renewables", desc: "GSO's \"Other RE\" split, as its home page labels it. The middle shows the total.",
-    body: '<div class="chart"></div>' })) : null;
-  if (oreCard) main.appendChild(oreCard);
 
   try {
-    const [profile, mixPts] = await Promise.all([
+    const partKeys = Object.values(BREAKDOWN).flat().filter(([key]) => by[key]);
+    const [profile, mixPts, partPts] = await Promise.all([
       drawProfile(profCard.querySelector(".chart"), meta, start, now, { isCurrent }),
       Promise.all(mixSeries.map((m) => getPoints(m.key, start, now))),
+      Promise.all(partKeys.map(([key]) => getPoints(key, start, now))),
     ]);
     if (!isCurrent()) return;
     if (!profile) profCard.querySelector(".card-b").innerHTML = emptyState("No generation readings in the last 24 hours");
 
     // One moment for the whole mix, like GSO's chart (the fuels and the extras come from two GSO pages).
     const snap = mixSeries.length ? latestCommon(mixPts.map((p) => p.points)) : null;
-    const slices = snap ? mixSeries.map((m, i) => ({ ...m, value: snap.values[i] })).filter((m) => m.value > 0) : [];
+    const value = (label) => (snap ? snap.values[mixSeries.findIndex((m) => m.label === label)] : null);
+    // As GSO: Distribution Solar only when grid solar is at least 300 MW or Distribution Solar above 10 MW.
+    const showDn = (value("Transmission Solar") ?? 0) >= 300 || (value("Distribution Solar") ?? 0) > 10;
+    const slices = snap ? mixSeries.map((m, i) => ({ ...m, value: snap.values[i] }))
+      .filter((m) => m.value > 0 && (m.label !== "Distribution Solar" || showDn)) : [];
+    // A slice's parts, from the same moment, and only when they add up to the slice (GSO's split of the same figure).
+    const breakdowns = {};
+    for (const [slice, list] of Object.entries(BREAKDOWN)) {
+      const total = slices.find((m) => m.label === slice)?.value;
+      const items = list.map(([key, name, color]) => {
+        const i = partKeys.findIndex(([k]) => k === key);
+        const pt = i < 0 ? null : partPts[i].points.find((p) => Date.parse(p[0]) === Date.parse(snap.t));
+        return { name, color, value: pt ? pt[1] : null };
+      });
+      if (total && items.every((x) => x.value != null) && Math.abs(items.reduce((t, x) => t + x.value, 0) - total) <= 1) {
+        breakdowns[slice] = items.filter((x) => x.value > 0);
+      }
+    }
     if (slices.length) {
       mixCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(snap.t)}</p>`);
-      pieChart(mixCard.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo, items: slices.map((m) => ({ name: m.label, value: m.value, color: m.color })) });
+      mixRing(mixCard.querySelector(".chart"), { unit: "MW", demo: meta.is_demo, breakdowns,
+        items: slices.map((m) => ({ name: m.label, value: m.value, color: m.color })) });
+      const missing = Object.keys(BREAKDOWN).filter((k) => slices.some((m) => m.label === k) && !breakdowns[k]);
+      if (missing.length) mixCard.querySelector(".card-b").insertAdjacentHTML("beforeend",
+        `<p class="small muted">GSO hasn't published the parts of ${missing.join(" and ")} for this moment, so ${missing.length > 1 ? "they" : "it"} can't be opened.</p>`);
     } else mixCard.querySelector(".card-b").innerHTML = emptyState("No complete Generation Mix yet", "Shown once every fuel has a reading for the same time.");
 
     if (avSeries.length) {
@@ -119,16 +148,6 @@ export async function render(main, { meta, isCurrent }) {
         items: avSeries.map((a) => ({ name: a.label, value: by[a.key].latest_value, color: a.color })).filter((a) => a.value > 0) });
     } else avCard.querySelector(".card-b").innerHTML = emptyState("No Generation Availability reading yet");
 
-    if (oreCard) {
-      // One moment: the split is filed together, so the newest reading of each part shares a time.
-      const last = ore.map((s) => s.last).sort().pop();
-      const items = ore.filter((s) => s.last === last && s.latest_value > 0)
-        .map((s) => ({ name: s.name.replace("Other renewables — ", ""), value: s.latest_value, color: ORE_COLOR[s.key.split(".")[1]] || COLORS.other }));
-      if (items.length) {
-        oreCard.querySelector(".card-h").insertAdjacentHTML("afterend", `<p class="when">${fmtLong(last)}</p>${staleNote(last, "this split")}`);
-        pieChart(oreCard.querySelector(".chart"), { unit: "MW", total: true, demo: meta.is_demo, items });
-      } else oreCard.querySelector(".card-b").innerHTML = emptyState("No Other Renewables reading yet");
-    }
   } catch (err) {
     profCard.querySelector(".card-b").innerHTML = errorState(err);
   }

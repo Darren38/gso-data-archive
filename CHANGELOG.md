@@ -1,5 +1,13 @@
 # Changelog
 
+## 1 November 2026 (thirty-fourth update) — GSO Grid Archive 5.15
+
+The Generation Mix ring, drawn the way GSO draws it.
+
+- **Same slices, same order as GSO's home page:** Coal, Gas, Co-Gen, Oil/DF, Tie-Line, Hydro, Transmission Solar, BESS, then Distribution Solar, then Other RE last. BESS is now included (it was missing). As on GSO's page, a source shows only while it is above zero, and Distribution Solar only when grid solar is at least 300 MW or Distribution Solar is above 10 MW.
+- **Tap a slice to see its parts, like on GSO's page:** tapping **Distribution Solar** opens an outer ring with LSS, NEM, FiT and SELCO; tapping **Other RE** opens Biogas, Biomass and Mini Hydro, in GSO's colours. Tap again to close. The parts are taken from the same moment as the ring, and shown only when they add up to their slice.
+- The separate Other Renewables ring is gone: its figures now live inside the Generation Mix ring, as on GSO's page. When GSO doesn't publish the split (as since 8:30 this morning), the Other RE slice stays in the ring with its real total, and a note says its parts can't be opened. (GSO's own page drops the slice in that case, which leaves its total short.)
+
 ## 1 November 2026 (thirty-third update) — GSO Grid Archive 5.14.7
 
 Phone view fixes.

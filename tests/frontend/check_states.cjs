@@ -54,6 +54,18 @@ async function visit(page, base, route, wait = 1200) {
       }));
       if (bad.length) fail.push(`${r}: stacked layers not stacked with zeros in place: ${bad.slice(0, 3).join(", ")}`);
     }
+    // The Generation Mix ring as GSO draws it: its legend names the slices only, and the parts ring stays hidden (no
+    // grey circle) until a slice is tapped.
+    await visit(page, base, "overview", 1800);
+    const ring = await page.evaluate(() => {
+      const el = [...document.querySelectorAll("main .card")].find((c) => c.querySelector("h2,h3")?.textContent.trim() === "Generation Mix")?.querySelector(".chart");
+      const inst = el && window.echarts && echarts.getInstanceByDom(el);
+      if (!inst) return null;
+      const o = inst.getOption(), fuel = o.series.find((x) => x.id === "fuel"), parts = o.series.find((x) => x.id === "breakdown");
+      return { legend: o.legend[0].data, slices: fuel.data.map((d) => d.name), parts: parts?.data.length, empty: parts?.showEmptyCircle };
+    });
+    if (!ring) fail.push("overview: Generation Mix ring missing");
+    else if (ring.parts !== 0 || ring.empty !== false || ring.legend.join() !== ring.slices.join()) fail.push(`overview: Generation Mix ring ${JSON.stringify(ring)}`);
     // Owner's checklist (EPF Goal Planner): no sideways scrolling and no NaN/undefined/Infinity at any width.
     for (const width of [320, 360, 390, 768, 1024, 1440, 1920]) {
       await page.setViewportSize({ width, height: 900 });
