@@ -44,6 +44,19 @@ const every10 = (from, n, value) => Array.from({ length: n }, (_, i) =>
   assert.deepEqual(k.map((p) => p[1]), [-60, null, null, -30]);
 }
 
+// Long stretches with no complete moment are found for shading (3 Nov 2026: GSO stalled from 21:10 to 01:10); the
+// nightly 23:40/23:50 gap, joined in the drawing, is not one.
+{
+  const t = (d, hm) => iso(`2026-11-0${d}T${hm}:00+08:00`);
+  const coal = [[t(3, "21:00"), 1], [t(3, "21:10"), 1], [t(3, "21:20"), 1], [t(3, "23:30"), 1], [t(4, "01:10"), 1], [t(4, "01:20"), 1]];
+  const home = [[t(3, "21:00"), 5], [t(3, "21:10"), 5], [t(4, "01:10"), 5], [t(4, "01:20"), 5]];
+  const isoUtc = (x) => new Date(x).toISOString();
+  assert.deepEqual(A.stackGaps(A.alignStack([coal, home], 600e3, { bridge: 3 })), [[isoUtc(t(3, "21:10")), isoUtc(t(4, "01:10"))]]);
+  const nightly = [[t(3, "23:20"), 5], [t(3, "23:30"), 5], [t(4, "00:00"), 5]];
+  const gen = [[t(3, "23:20"), 1], [t(3, "23:30"), 1], [t(3, "23:40"), 1], [t(3, "23:50"), 1], [t(4, "00:00"), 1]];
+  assert.deepEqual(A.stackGaps(A.alignStack([gen, nightly], 600e3, { bridge: 3 })), []);
+}
+
 // Sums keep a moment only when every part has a reading.
 {
   const t = iso("2026-10-28T12:00:00+08:00"), u = iso("2026-10-28T12:10:00+08:00");

@@ -25,6 +25,9 @@ Download the newest `archive-backups` asset (github.com release downloads work f
   (EGAT + HVDC + PLTG). Any figure the site says is "the same" as another must match here (lesson 47).
 - **Midnight:** the home page list misses 23:40 and 23:50 every night (GSO publishes them after its page has
   moved to the new day). The charts join that gap; anything longer is new.
+- **Stalls:** count readings per hour for the home page and System Demand page; hours with none while the
+  Generation page has readings are a GSO stall (lesson 48). Check which moments are marked "frozen" and that each
+  really repeats stalled figures.
 - **Negative values:** Tie-Line (power coming in) and Co-Gen can be below zero; they must not draw spikes.
 
 ## 3. Do the pages show it right?

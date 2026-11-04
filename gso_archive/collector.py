@@ -264,6 +264,13 @@ def run_cycle(engine: Engine, settings: Settings, client: GsoClient | None = Non
                     log.exception("%s: unexpected error; the other collectors carry on", spec.key)
                     cycle.results.append(RunResult(spec.key, day if spec.takes_date else None, trigger, "failed",
                                                    error_type="unexpected_error", error=f"{type(exc).__name__}: {exc}"))
+            try:  # GSO's home page repeating a stalled figure as a new reading (quality.py)
+                from .quality import mark_frozen
+
+                with engine.begin() as conn:
+                    mark_frozen(conn, cycle.started_at)
+            except Exception:  # noqa: BLE001 - a quality pass must never stop collection
+                log.exception("frozen-reading pass failed")
             _heartbeat(engine, cycle)
     except LockBusy as exc:
         cycle.skipped_reason = str(exc)

@@ -47,7 +47,15 @@ function monthsBetween(start, end) {
 }
 
 /** Points for one series in [start, end). Returns {points: [[isoUTC, value|null, quality]], unit, ...}. */
+/** A figure GSO published from a stalled feed (quality "frozen", gso_archive/quality.py) is kept in the archive but
+ * never drawn or counted: it becomes "no reading", and the tooltip says why. */
+const unfreeze = (res) => (res && res.points ? { ...res, points: res.points.map((p) => (String(p[2] || "").includes("frozen") ? [p[0], null, "frozen"] : p)) } : res);
+
 export async function getPoints(key, start, end) {
+  return unfreeze(await fetchPoints(key, start, end));
+}
+
+async function fetchPoints(key, start, end) {
   if (MODE !== "static") {
     const q = new URLSearchParams({ start: start.toISOString(), end: end.toISOString() });
     return getJSON(api(`/series/${encodeURIComponent(key)}/points?${q}`));

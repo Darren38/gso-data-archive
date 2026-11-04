@@ -123,6 +123,16 @@ export function alignStack(list, slotMs = 600e3, { bridge = 0 } = {}) {
   }));
 }
 
+/** Stretches longer than `minMs` with no complete moment in an aligned stack (alignStack's output): GSO published
+ * nothing for at least one source, beyond what the drawing joins. [[startIso, endIso], ...] between the readings. */
+export function stackGaps(aligned, minMs = 30 * 60e3) {
+  if (!aligned.length) return [];
+  const ok = aligned[0].map((_, i) => aligned.every((s) => s[i][1] != null)).map((good, i) => (good ? aligned[0][i][0] : null)).filter(Boolean);
+  const out = [];
+  for (let i = 1; i < ok.length; i += 1) if (Date.parse(ok[i]) - Date.parse(ok[i - 1]) > minMs) out.push([ok[i - 1], ok[i]]);
+  return out;
+}
+
 /** Per-MYT-day statistics from raw points, the same way the archive's daily files are made (gso_archive/analytics.py
  * `daily`): energy only between readings at most 1.5 intervals apart, and today expects only the readings so far. */
 export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW") {

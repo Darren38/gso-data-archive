@@ -66,7 +66,7 @@ def meta(conn: Connection) -> dict:
         row.series_id: row
         for row in conn.execute(
             select(o.series_id, func.count().label("n"), func.min(o.obs_time).label("first"),
-                   func.max(o.obs_time).label("last")).group_by(o.series_id)
+                   func.max(o.obs_time).label("last")).where(o.quality != "frozen").group_by(o.series_id)
         )
     }
     fc = db.forecasts.c
@@ -181,7 +181,8 @@ def daily(conn: Connection, info: SeriesInfo, start_day: date, end_day: date) ->
     interval = info.interval_s or DEFAULT_INTERVAL_S
     pad = timedelta(seconds=2 * interval)  # the readings just outside the range, for the slices across midnight
     rows = conn.execute(
-        select(o.obs_time, o.value).where(and_(o.series_id == info.id, o.obs_time >= start - pad, o.obs_time < end + pad))
+        select(o.obs_time, o.value).where(and_(o.series_id == info.id, o.obs_time >= start - pad, o.obs_time < end + pad,
+                                               o.quality != "frozen"))  # GSO repeating a stalled figure (quality.py)
         .order_by(o.obs_time)
     ).all()
     every = [(ensure_utc(r.obs_time), r.value) for r in rows]
@@ -327,7 +328,7 @@ def status(conn: Connection, configured_adapters: list[str], live_enabled: bool)
     o = db.observations.c
     freshness = []
     for row in conn.execute(_series_query().where(db.series.c.kind != "forecast").order_by(db.series.c.key)):
-        latest = conn.execute(select(func.max(o.obs_time)).where(o.series_id == row.id)).scalar()
+        latest = conn.execute(select(func.max(o.obs_time)).where(and_(o.series_id == row.id, o.quality != "frozen"))).scalar()
         interval = row.expected_interval_s or DEFAULT_INTERVAL_S
         window_start = now - timedelta(hours=24)
         got = conn.execute(select(func.count()).where(and_(o.series_id == row.id, o.obs_time >= window_start))).scalar()

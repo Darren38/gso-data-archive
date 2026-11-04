@@ -2,7 +2,7 @@
 // with GSO's Grid Demand line (total generation) and the System Demand line drawn on top.
 import { getPoints } from "./data.js";
 import { COLORS, timeChart } from "./charts.js";
-import { alignStack } from "./analysis.js";
+import { alignStack, stackGaps } from "./analysis.js";
 
 /** Stacked sources, bottom to top as GSO draws them. GSO's legend lists them top first. */
 export const PROFILE_STACK = [
@@ -45,7 +45,7 @@ export async function drawProfile(el, meta, start, end, { isCurrent = () => true
   // GSO's legend reads top to bottom the way the chart stacks: the top layer first, then the two lines
   const order = series.filter((s) => s.stack).map((s) => s.name).reverse().concat(series.filter((s) => !s.stack).map((s) => s.name));
   // Below zero only as far as the data goes, never a whole -5,000 step.
-  timeChart(el, { series, demo: meta.is_demo, legendOrder: order,
+  timeChart(el, { series, demo: meta.is_demo, legendOrder: order, gaps: stackGaps(aligned),
     yAxes: [{ name: "MW", min: (v) => (v.min < 0 ? Math.floor(v.min / 100) * 100 : 0) }] });
   return payloads.filter((p) => p.points.some((x) => x[1] != null));
 }

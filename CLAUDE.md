@@ -201,6 +201,14 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     maintenance checklist's sums (docs/MAINTENANCE.md) found both; both are now cross-checks (`grid_demand`,
     `tie_line`, with `right_sign: -1`), so the hourly check emails if GSO reorders those figures.
 
+48. **GSO can stall and then publish a stale figure as a new reading.** On 3-4 Nov 2026 the home page and System
+    Demand page stopped at 21:10 MYT; at 00:00 the home page started a new day with one value per list repeating the
+    stalled figures (Grid Demand 20,858), then nothing until 01:10. `quality.py` marks such a moment "frozen" (alone
+    within an hour either side, no System Demand page reading at that time) every cycle over 3 days (migration 6 once
+    over all); analytics leaves frozen readings out of latest values, freshness and daily figures, and `getPoints`
+    (data.js) turns them into "no reading". Gaps over 30 minutes in the System Demand Profile are shaded
+    (`stackGaps`) and labelled "No readings from GSO". Whole archive checked: only 4 Nov 00:00 is frozen.
+
 ## How to check a change
 
 ```bash

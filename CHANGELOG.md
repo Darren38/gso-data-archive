@@ -1,5 +1,13 @@
 # Changelog
 
+## 4 November 2026 (thirty-eighth update) — GSO Grid Archive 5.16
+
+When GSO's own data stalls, the site now says so instead of showing a blank or a wrong figure.
+
+- **What happened on the night of 3-4 November:** from 9:10 pm GSO's home page and System Demand page stopped updating (its Generation page carried on). The archive kept asking every 2 minutes, but GSO had nothing new until about 2 am, and when it restarted it only gave readings from 1 am. Those hours were never published by GSO, so no one can recover them. At midnight GSO's home page also published one value, Grid Demand 20,858 MW, that only repeated its stalled figures; the chart drew it as a short line.
+- **Gaps are named:** where GSO published nothing for more than 30 minutes, the System Demand Profile (on the Overview, Demand and Generation pages) now shades the gap and labels it "No readings from GSO", so a blank is never taken for a fault of this site.
+- **Frozen figures are left out:** a home page figure that stands alone (no other home page reading within an hour either side) and that GSO's System Demand page never confirms is marked "frozen". It stays in the archive, but charts, daily figures and the "current" cards leave it out, and pointing at it says "GSO repeated an old figure; left out". Checked against the whole archive: only the 00:00 reading of 4 November is marked. If GSO later confirms such a moment, the mark is lifted.
+
 ## 1 November 2026 (thirty-seventh update) — GSO Grid Archive 5.15.3
 
 - **Two more alarms that GSO's figures are filed in the right place:** the hourly check now also compares (1) the home page's Current Grid Demand with the Grid Demand line of its own chart (they match within 4 MW at every moment checked) and (2) the home page's tie-line total with the Tie-Line page's three lines (exactly opposite in sign, as GSO counts them). If GSO ever reorders its figures, these stop matching and you get an email. Both were tried on four days of real readings first, and passed at every moment. The Status page shows all four cross-checks.

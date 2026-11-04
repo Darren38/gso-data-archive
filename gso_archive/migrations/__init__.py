@@ -108,12 +108,20 @@ def _m005_record_series(conn: Connection) -> None:
     conn.execute(update(db.series).where(db.series.c.key == "headlines.highest_grid_demand_recorded").values(kind="record"))
 
 
+def _m006_frozen(conn: Connection) -> None:
+    """Mark home page readings GSO published from a stalled feed, across the whole archive (quality.py)."""
+    from ..quality import mark_frozen
+
+    mark_frozen(conn, since=None)
+
+
 MIGRATIONS: list[tuple[int, str, Callable[[Connection], None]]] = [
     (1, "initial schema", _m001_initial),
     (2, "drop readings dated after they were collected", _m002_drop_future_readings),
     (3, "series latitude and longitude", _m003_series_location),
     (4, "put evening Solar page readings back on their own day", _m004_refile_evening_solar),
     (5, "mark record values (highest demand recorded)", _m005_record_series),
+    (6, "mark home page readings repeated from a stalled GSO feed", _m006_frozen),
 ]
 
 

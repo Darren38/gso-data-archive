@@ -113,7 +113,7 @@ function axisTime(ms) {
 /** Time-series line/area chart.
  * series: [{name, points:[[iso, v|null, q]], color, area, dashed, yAxisIndex, stack, step, type}]
  */
-export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, zoom = true, unit = "MW", digits = 0, markNow = false, legendOrder = null }) {
+export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, zoom = true, unit = "MW", digits = 0, markNow = false, legendOrder = null, gaps = [] }) {
   const b = base(demo);
   const narrow = el.clientWidth < 400;
   const lg = legendFor(el, legendOrder || series.map((s) => s.name), b.legend, narrow ? { left: 8, right: 8 } : undefined);
@@ -139,6 +139,7 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
           const v = p.value[1];
           const unitText = series[p.seriesIndex].unit || unit;
           if (p.value[2] === "joined") return `${p.marker}${p.seriesName}: <b>no reading</b> <span style="opacity:.7">(joined across the gap)</span>`;
+          if (p.value[2] === "frozen") return `${p.marker}${p.seriesName}: <b>no reading</b> <span style="opacity:.7">(GSO repeated an old figure; left out)</span>`;
           const q = p.value[2] && p.value[2] !== "ok" ? ` <span style="opacity:.7">(${p.value[2]})</span>` : "";
           return `${p.marker}${p.seriesName}: <b>${v == null ? "no reading" : fmtNum(v, digits) + " " + unitText}</b>${q}`;
         });
@@ -157,6 +158,10 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       areaStyle: s.area ? { opacity: s.areaOpacity ?? 0.18, color: s.color } : undefined,
       emphasis: { focus: "series" },
       data: s.points.map((p) => [shift(p[0]), p[1], p[2]]),
+      // Long stretches GSO published nothing for: shaded and named, so a blank isn't taken for a fault of this site.
+      markArea: gaps.length && s === series[0] ? { silent: true, itemStyle: { color: css("--text-3"), opacity: 0.08 },
+        label: { show: el.clientWidth >= 400, position: "insideTop", color: css("--text-3"), fontSize: 11, formatter: "No readings\nfrom GSO" },
+        data: gaps.map(([a, b]) => [{ xAxis: shift(a) }, { xAxis: shift(b) }]) } : undefined,
       markLine: markNow && s === series[0] ? { silent: true, symbol: "none", lineStyle: { color: css("--text-3"), type: "dotted" }, label: { formatter: "now", color: css("--text-3") }, data: [{ xAxis: Date.now() + MYT_OFFSET_MS }] } : undefined,
     })),
   };
