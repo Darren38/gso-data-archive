@@ -31,7 +31,8 @@ Download the newest `archive-backups` asset (github.com release downloads work f
 - **LSS farms:** on the Solar page's "LSS Farms: Any Moment or Period" card, look at a sunny noon of the week and at a
   period's capacity factor (Nov 2026: about 15% for the fleet). Farms marked "GSO figures look wrong" (PTRM, SKCL in
   Nov 2026) should be the only ones; a new one is worth a look at its readings before sunrise and after sunset.
-- **Weather:** the Status page's `weather` collector ran within the last 3 hours, and the Weather page's sunshine
+- **Weather:** the Status page's `weather` collector ran within the last 3 hours (a few "429 Too Many Requests"
+  failures are normal: Open-Meteo's free limits are per address and GitHub's machines share addresses), and the Weather page's sunshine
   follows the farms' output on clear days. It is Open-Meteo's, never GSO's: it must never stop GSO collection.
 - **Negative values:** Tie-Line (power coming in) and Co-Gen can be below zero; they must not draw spikes.
 
