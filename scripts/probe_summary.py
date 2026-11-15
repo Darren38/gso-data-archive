@@ -135,6 +135,28 @@ def main(report_path: str, out_dir: str) -> None:
                 for i, text in marks:
                     print(f"   {i + 1:5d}: {text[:150]}")
 
+    # System constraints: GSO's home page has "Existing Constraints" and "Constraints Due to Outage (for the next 7
+    # days)" sections (seen 15 Nov 2026). Print them whole and every script line that fills them, so whether and how
+    # GSO publishes constraint records is read from GSO's own code, never guessed (CLAUDE.md lesson 9).
+    for folder in folders[-1:]:
+        for f in sorted(folder.glob("*.html")) + sorted(folder.glob("script_*.js")):
+            lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+            hits = [i for i, line in enumerate(lines) if re.search(r"onstraint|Outage", line)]
+            if not hits:
+                continue
+            print(f"\n## constraints in {f.name}: {len(hits)} lines")
+            shown = set()
+            for i in hits[:40]:
+                new = [j for j in range(max(0, i - 3), min(len(lines), i + (30 if f.suffix == ".html" else 12))) if j not in shown]
+                shown.update(new)
+                for j in new:
+                    print(f"   {j + 1:5d}| {lines[j].rstrip()[:240]}")
+                if new:
+                    print("   ---")
+    for name, m in report.get("methods", {}).items():
+        if re.search(r"onstraint|Outage", name):
+            print(f"\n## constraint answer {name}: {str(m)[:1500]}")
+
     # Last, because GitHub's log download returns only the final 5,000 lines: GSO's complete answers.
     print("\n" + "=" * 100)
     print("FULL ANSWERS (for test fixtures)")
