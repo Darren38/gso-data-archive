@@ -60,12 +60,15 @@ def cmd_weather_trial(args, settings):
     from . import weather
     from .db import make_engine
 
-    with make_engine(settings.database_url).connect() as conn:
-        points = weather.region_points(conn)
+    try:  # the probe job has no archive: then the built-in region locations
+        with make_engine(settings.database_url).connect() as conn:
+            points = weather.region_points(conn)
+    except Exception:  # noqa: BLE001
+        points = dict(weather.FALLBACK)
     params = {"latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
               "hourly": "shortwave_radiation,cloud_cover", "timezone": "UTC", "past_days": 1, "forecast_days": 3}
     try:
-        with httpx.Client(timeout=30, headers={"User-Agent": settings.user_agent}) as c:
+        with httpx.Client(timeout=weather.TIMEOUT, headers={"User-Agent": settings.user_agent}) as c:
             res = c.get(weather.URL, params=params)
             res.raise_for_status()
             readings = weather.parse(res.json(), points)

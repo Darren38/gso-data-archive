@@ -1,5 +1,11 @@
 # Changelog
 
+## 15 November 2026 (fortieth update) — GSO Grid Archive 6.0.1
+
+- **The weather is now arriving:** the first sunshine and cloud forecasts reached the archive at 5:20 pm (UTC) on 15 November, a few minutes after 6.0 went live. The very first try had timed out; it did not affect the GSO readings.
+- **A slow weather service can't slow the GSO readings:** after a failed weather fetch the archive now waits 20 minutes before trying again (instead of trying on every collection), and waits at most 20 seconds for an answer.
+- The weather trial in the daily check now works without the archive (it uses the regions' built-in locations).
+
 ## 15 November 2026 (thirty-ninth update) — GSO Grid Archive 6.0
 
 Every LSS solar farm at any moment you choose, a new Weather tab, and faster pages.

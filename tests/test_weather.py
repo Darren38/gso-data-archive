@@ -50,8 +50,12 @@ def test_collect_stores_forecasts_then_waits_three_hours(engine, settings):
 
 def test_a_failure_is_recorded_not_raised(engine, settings):
     client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, json={"error": True, "reason": "x"})))
-    r = collect_weather(engine, replace(settings, weather_enabled=True), NOW, client=client)
+    s = replace(settings, weather_enabled=True)
+    r = collect_weather(engine, s, NOW, client=client)
     assert r.status == "failed" and "parse_error" in r.error
+    # one failure: not tried again for 20 minutes, so a slow outside service can't slow every collection cycle
+    assert collect_weather(engine, s, NOW + timedelta(minutes=5), client=client).status == "skipped"
+    assert collect_weather(engine, s, NOW + timedelta(minutes=21), client=client).status == "failed"
     with engine.connect() as c:
         run = c.execute(select(db.collection_runs).where(db.collection_runs.c.adapter == KEY)).first()
         assert run.status == "failed"

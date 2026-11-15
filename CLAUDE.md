@@ -226,7 +226,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 52. **Data that isn't GSO's is labelled everywhere and can't hurt collection.** The Weather page's forecasts come from
     Open-Meteo (`gso_archive/weather.py`, every 3 hours, `WEATHER_ENABLED`); it never raises, records failures as
     its own runs, and its runs are dated by the cycle's clock (`started_at=now`) so `due()` works with a pinned
-    clock. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
+    clock. After a failure it waits `RETRY_AFTER` (20 min) and each try waits at most `TIMEOUT` (20 s): its first
+    live try timed out (TLS handshake), and trying every cycle would slow GSO collection (lesson 41). The probe job
+    has no archive, so `weather-trial` falls back to `FALLBACK` locations. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
     Open-Meteo: the probe job's `weather-trial` step tries it on GitHub.
 
 ## How to check a change

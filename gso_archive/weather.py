@@ -6,7 +6,7 @@ For each region (North, Central, South, East) the location is the capacity-weigh
 solar map's coordinates. Open-Meteo answers one list per location with hourly values in UTC:
   shortwave_radiation  W/m², global horizontal irradiance, the mean over the hour that ENDS at the time given
   cloud_cover          %, at the time given
-Each fetch covers yesterday, today and the next two days. Every value is stored as a forecast with the time it was
+Each fetch covers yesterday, today and the next two days. After a failure it waits RETRY_AFTER before trying again. Every value is stored as a forecast with the time it was
 fetched, so later fetches that change a value keep the earlier one (store._apply_forecast). Fetched every 3 hours.
 """
 
@@ -18,19 +18,21 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import httpx
-from sqlalchemy import and_, desc, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.engine import Connection, Engine
 
 from . import db, store
 from .adapters.base import AdapterSpec, FieldSpec, Reading
 from .config import Settings
-from .timeutil import UTC, utcnow
+from .timeutil import UTC, ensure_utc, utcnow
 
 log = logging.getLogger(__name__)
 
 KEY = "weather"
 URL = "https://api.open-meteo.com/v1/forecast"
 EVERY = timedelta(hours=3)
+RETRY_AFTER = timedelta(minutes=20)  # after a failure: one slow outside service must not slow every cycle (lesson 41)
+TIMEOUT = 20.0
 REGIONS = ("north", "central", "south", "east")
 # Used only until the archive has the farms' coordinates: roughly the middle of each region's LSS farms (Nov 2026).
 FALLBACK = {"north": (5.1, 100.6), "central": (3.1, 101.6), "south": (2.0, 103.1), "east": (4.4, 103.3)}
@@ -95,7 +97,11 @@ def parse(answer: object, points: dict[str, tuple[float, float]]) -> list[Readin
 
 def due(conn: Connection, now: datetime) -> bool:
     last = store.last_success(conn, KEY)
-    return last is None or now - last >= EVERY
+    if last is not None and now - last < EVERY:
+        return False
+    r = db.collection_runs.c
+    failed = conn.execute(select(func.max(r.started_at)).where(and_(r.adapter == KEY, r.status == "failed"))).scalar()
+    return failed is None or (last is not None and last > ensure_utc(failed)) or now - ensure_utc(failed) >= RETRY_AFTER
 
 
 def collect_weather(engine: Engine, settings: Settings, now: datetime | None = None, client: httpx.Client | None = None,
@@ -112,7 +118,7 @@ def collect_weather(engine: Engine, settings: Settings, now: datetime | None = N
     params = {"latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
               "hourly": "shortwave_radiation,cloud_cover", "timezone": "UTC", "past_days": 1, "forecast_days": 3}
     own = client is None
-    client = client or httpx.Client(timeout=30, headers={"User-Agent": settings.user_agent, "Accept": "application/json"})
+    client = client or httpx.Client(timeout=TIMEOUT, headers={"User-Agent": settings.user_agent, "Accept": "application/json"})
     try:
         res = client.get(URL, params=params)
         res.raise_for_status()
