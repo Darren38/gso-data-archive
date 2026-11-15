@@ -59,3 +59,11 @@ def test_a_failure_is_recorded_not_raised(engine, settings):
     with engine.connect() as c:
         run = c.execute(select(db.collection_runs).where(db.collection_runs.c.adapter == KEY)).first()
         assert run.status == "failed"
+
+
+def test_too_many_requests_waits_an_hour(engine, settings):
+    client = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(429, json={"error": True})))
+    s = replace(settings, weather_enabled=True)
+    assert collect_weather(engine, s, NOW, client=client).status == "failed"
+    assert collect_weather(engine, s, NOW + timedelta(minutes=30), client=client).status == "skipped"
+    assert collect_weather(engine, s, NOW + timedelta(minutes=61), client=client).status == "failed"

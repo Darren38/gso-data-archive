@@ -1,5 +1,14 @@
 # Changelog
 
+## 15 November 2026 (forty-first update) — GSO Grid Archive 6.0.2
+
+Free, accurate and open about it.
+
+- **"Known problems in GSO's data" on the About page:** a plain list of everything the archive's checks have found wrong or unusual in GSO's own figures (pauses in publishing, a stalled figure repeated as new, two missing moments every night, two solar farms with impossible figures, revised solar figures, two different "demand" figures, the tie-line direction, estimated rooftop solar) and what this site does about each. GSO's figures are always kept as published.
+- The About page also says which data isn't GSO's (the Weather page's forecast) and where it comes from.
+- **Staying free:** the weather comes from Open-Meteo's free service. When it says it is busy ("too many requests"), the archive now waits an hour before asking again, instead of 20 minutes.
+- Decided: the solar farms' capacity factor keeps counting only the time with real readings, never guessed values.
+
 ## 15 November 2026 (fortieth update) — GSO Grid Archive 6.0.1
 
 - **The weather is now arriving:** the first sunshine and cloud forecasts reached the archive at 5:20 pm (UTC) on 15 November, a few minutes after 6.0 went live. The very first try had timed out; it did not affect the GSO readings.

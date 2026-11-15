@@ -51,5 +51,10 @@ Download the newest `archive-backups` asset (github.com release downloads work f
 
 ## 5. Report
 
+A new problem found in GSO's own figures also goes on the About page's "Known problems in GSO's data" list
+(web/js/pages/about.js), in plain words with what the site does about it.
+
+### What to report
+
 Plain words: what was checked, what was found and fixed (with the version), what still waits on GSO, and the
 improvements that need the owner's decision.

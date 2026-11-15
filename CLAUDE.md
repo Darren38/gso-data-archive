@@ -229,8 +229,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     clock. After a failure it waits `RETRY_AFTER` (20 min) and each try waits at most `TIMEOUT` (20 s): its first
     live try timed out (TLS handshake), and trying every cycle would slow GSO collection (lesson 41). The probe job
     has no archive, so `weather-trial` falls back to `FALLBACK` locations. Open-Meteo's free service limits requests
-    per address and GitHub's runners share addresses, so it sometimes answers 429 (seen on the trial, 15 Nov); the
-    20-minute retry covers it. Weather is not in GSO_ADAPTERS, so the hourly check never alarms on it. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
+    per address and GitHub's runners share addresses, so it sometimes answers 429 (seen on the trial, 15 Nov); after a 429 it waits
+    `RETRY_AFTER_BUSY` (1 h). The About page's "Known problems in GSO's data" lists every GSO data problem found
+    (lessons 43-51) in plain words: add to it when a new one is found. Weather is not in GSO_ADAPTERS, so the hourly check never alarms on it. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
     Open-Meteo: the probe job's `weather-trial` step tries it on GitHub.
 
 ## How to check a change
