@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+import re
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import and_, desc, func, select
@@ -291,7 +292,7 @@ def status(conn: Connection, configured_adapters: list[str], live_enabled: bool)
     now = utcnow()
     r = db.collection_runs.c
     adapters_out = []
-    for key in sorted(set(configured_adapters) | set(ADAPTERS)):
+    for key in sorted(set(configured_adapters) | set(ADAPTERS) | {"weather"}):
         recent = conn.execute(
             select(db.collection_runs).where(r.adapter == key).order_by(desc(r.started_at)).limit(50)
         ).all()
@@ -404,3 +405,52 @@ def table(conn: Connection, key: str) -> dict | None:
     rows.sort(key=lambda r: (not r.get("listed", True), -(r.get("capacity_mw") or 0), r.get("name") or ""))
     return {"key": key, "name": TABLES[key], "checked_at": state.get("checked_at"), "rows": rows,
             "changes": list(reversed(state.get("changes", [])))}
+
+
+# --- LSS solar farms by day (GSO's solar map), for "a moment" and capacity factor views -------------------------
+_FARM_NAME = re.compile(r"Solar farm (\S+) \(([^,]+), ([^,]+), ([^)]+)\)")
+
+
+def farm_days(conn: Connection) -> list[str]:
+    """MYT days with solar-farm readings, newest first."""
+    s, o = db.series.c, db.observations.c
+    rows = conn.execute(select(o.obs_time).join(db.series, s.id == o.series_id)
+                        .where(and_(s.key.like("solar_farms.%"), s.kind == "actual")).distinct())
+    return sorted({ensure_utc(t).astimezone(MYT).date().isoformat() for (t,) in rows}, reverse=True)
+
+
+def farms_day(conn: Connection, day: date) -> dict:
+    """Every LSS farm's live output at every moment of one MYT day, with its capacity and location: one moment is
+    one collection of GSO's solar map (dated by the Solar page's newest reading time)."""
+    start, end = myt_day_bounds_utc(day)
+    s, o = db.series.c, db.observations.c
+    series = conn.execute(select(s.id, s.key, s.name, s.kind, s.latitude, s.longitude)
+                          .where(s.key.like("solar_farms.%"))).all()
+    caps: dict[str, float] = {}
+    for row in series:
+        if row.kind != "capacity":
+            continue
+        v = conn.execute(select(o.value).where(and_(o.series_id == row.id, o.obs_time < end, o.quality != "frozen"))
+                         .order_by(desc(o.obs_time)).limit(1)).scalar()
+        if v is not None:
+            caps[row.key.removesuffix("_capacity")] = v
+    farms, times = [], set()
+    for row in series:
+        if row.kind != "actual":
+            continue
+        pts = {ensure_utc(t): v for t, v in conn.execute(
+            select(o.obs_time, o.value).where(and_(o.series_id == row.id, o.obs_time >= start, o.obs_time < end,
+                                                   o.quality != "frozen")))}
+        m = _FARM_NAME.match(row.name or "")
+        farms.append({"key": row.key, "code": m.group(1) if m else row.key.split(".", 1)[1].upper(),
+                      "state": m.group(2) if m else "", "region": m.group(3) if m else "", "conn": m.group(4) if m else "",
+                      "lat": row.latitude, "lon": row.longitude, "cap": caps.get(row.key), "_pts": pts})
+        times |= set(pts)
+    order = sorted(times)
+    for f in farms:
+        pts = f.pop("_pts")
+        f["mw"] = [pts.get(t) for t in order]
+    farms = [f for f in farms if any(v is not None for v in f["mw"])]
+    farms.sort(key=lambda f: f["code"])
+    return {"date": day.isoformat(), "times": [to_utc_iso(t) for t in order], "farms": farms,
+            "note": "Live output of each LSS farm on GSO's solar map, at each moment the archive collected it."}

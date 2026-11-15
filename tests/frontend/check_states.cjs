@@ -3,7 +3,7 @@
 // Prints a JSON result; exits non-zero on failure.
 const { chromium } = require("playwright");
 
-const ROUTES = ["overview", "solar", "demand", "generation", "bess", "tieline", "constraints", "explorer", "status", "about"];
+const ROUTES = ["overview", "solar", "demand", "generation", "bess", "tieline", "weather", "constraints", "explorer", "status", "about"];
 
 async function visit(page, base, route, wait = 1200) {
   await page.goto(`${base}/#/${route}`);

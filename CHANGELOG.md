@@ -1,5 +1,17 @@
 # Changelog
 
+## 15 November 2026 (thirty-ninth update) — GSO Grid Archive 6.0
+
+Every LSS solar farm at any moment you choose, a new Weather tab, and faster pages.
+
+- **LSS farms at any moment or over any period** (Solar page, new card "LSS Farms: Any Moment or Period"): type a date and a time and see every large solar farm's output as a share of its capacity, on the map of Peninsular Malaysia, in a table, and as totals for the North, Central, South and East regions. Or choose a period (up to 31 days) and see each farm's **capacity factor**: the energy it produced divided by what it would have produced at full output all the time. Worked out from GSO's solar map as this archive collected it; times when no readings were collected are left out, never guessed. Your choice is kept in the page address, so a link shows the same view. For 9-15 November the farms together ran at about 15.5% of their capacity, day and night (North 17.0%, Central 17.7%, South 9.3%, East 12.9%).
+- **Two farms whose GSO figures can't be right:** GSO's solar map shows PTRM and SKCL at nearly their full capacity before sunrise and after sunset. They are still listed exactly as GSO publishes them, marked "GSO figures look wrong", and left out of the map and of every total.
+- **New Weather tab:** the sunshine (W/m²) and cloud cover forecast for the middle of each region's LSS farms, from yesterday to the day after tomorrow, with the farms' real output drawn beside the sunshine. It also gives a rough estimate of tomorrow's LSS energy per region, from tomorrow's sunshine and how the farms did against the sunshine yesterday and today. **The weather is not GSO data**: it comes from Open-Meteo, a free weather service (credited on the page, CC BY 4.0), is fetched every 3 hours with the GSO readings, and can never stop or slow GSO collection. The estimate is this site's own and labelled so.
+- **Faster pages:** the newest 3 days of every chart now come in one small file. Opening the Overview downloads about 100 KB instead of 1.1 MB.
+- **GSO's solar outage on 15 November:** from 8:10 am GSO's Solar page, its forecast, its other renewables split and its solar map published nothing (the map only listed its state totals). The archive now treats a map with only state totals as "GSO published nothing" rather than "GSO changed its format", so it doesn't raise a false alarm; the cards say since when GSO hasn't updated them.
+- **Your question about "Solar Share of System Demand":** yes, it is the solar penetration at each moment: all solar (Grid + Distribution + NEM + FiT + SELCO) divided by the system demand at the same moment. It says "derived" because this site works it out from GSO's figures; it is 0% at night.
+- Weekly check: every collector ran every few minutes all week; Generation Mix and System Demand had all 144 readings a day.
+
 ## 4 November 2026 (thirty-eighth update) — GSO Grid Archive 5.16
 
 When GSO's own data stalls, the site now says so instead of showing a blank or a wrong figure.

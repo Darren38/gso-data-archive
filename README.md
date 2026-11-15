@@ -16,6 +16,8 @@
 
 - **Solar first**, straight from [GSO's Solar page](https://www.gso.org.my/SystemData/Solar.aspx): grid (transmission) solar, distribution solar, and NEM, FiT and SELCO rooftop solar (GSO's own estimates), with GSO's solar forecast to compare against. Plus daily peaks and when they happened, energy per day, how fast output rises and falls, solar's share of demand, and day / week / month / year comparisons.
 - **Every large solar farm, on a map**: a solar map of Peninsular Malaysia like GSO's, with each of the 60 or so LSS farms at its location, coloured by how much of its capacity it is producing, plus a table with state, region and grid or distribution connection.
+- **Any farm, any moment**: type a date and time to see every LSS farm's output as a share of its capacity, or pick a period to see each farm's capacity factor, by farm and by region.
+- **Weather at the farms**: a sunshine and cloud forecast for each region's LSS farms (from Open-Meteo, not GSO, and labelled so) beside what the farms actually produced, with a rough estimate of tomorrow's LSS energy.
 - **The rest of the grid too**: grid demand and system demand (side by side, as on GSO's home page), generation by fuel (coal, gas, hydro, solar, co-generation, oil), other renewables, total generation, system availability, installed capacity, battery storage (BESS) charge and discharge, and the links to Thailand and Singapore.
 - **Nothing is ever lost or overwritten**: if GSO changes a reading later, the new value is shown and the old one is kept. Gaps stay gaps. A missing reading is never shown as zero.
 - **Collects by itself, often**: new readings about every 2–3 minutes. Several of GSO's pages only show *today*, so collecting all day long is what builds the history.
@@ -35,6 +37,7 @@
 | Cross-border power exchange (LTMS 2.0, CBESRE, Malaysia–Singapore Bilateral), every 30 minutes | About every 10 minutes; each request covers three days |
 | Other renewables split (biogas, biomass, mini hydro) | About every 2–3 minutes, from GSO's home page, for today only |
 | Power stations (each station's fuel, type, capacity and agreement end date) and installed capacity | Once a day; every change GSO makes to the list is kept |
+| Weather forecast at the LSS farms (Open-Meteo, not GSO) | Every 3 hours |
 | Backup of the whole archive | Once a day, to the `archive-backups` release |
 | An open page | Checks for new readings every minute and updates itself |
 | The site itself | Every visit checks for newer files, so an update shows on the next refresh |
@@ -69,5 +72,6 @@ More: [what is known about GSO's data](docs/SOURCE_INVESTIGATION.md) · [design 
 ## Credits and licence
 
 The code is under the [MIT licence](LICENSE). The data belongs to the Grid System Operator (GSO) / Tenaga Nasional
-Berhad. This is an independent archive, not affiliated with or endorsed by GSO or TNB. Charts use
+Berhad. This is an independent archive, not affiliated with or endorsed by GSO or TNB. Weather data by
+[Open-Meteo.com](https://open-meteo.com/) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Charts use
 [Apache ECharts](https://echarts.apache.org/) (Apache 2.0, included in `web/vendor`).

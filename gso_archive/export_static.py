@@ -23,7 +23,9 @@ from sqlalchemy.engine import Engine
 
 from . import analytics, db, export
 from .config import Settings
-from .timeutil import MYT, UTC, ensure_utc
+from .timeutil import MYT, UTC, ensure_utc, to_utc_iso
+
+RECENT_DAYS = 3  # data/points/<key>/recent.json: the newest days of every series in one small file
 
 MARKER = ".gso-static-export"
 
@@ -99,6 +101,22 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
                     files += 1
                 files += 1
                 y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+            # The last RECENT_DAYS days in one small file: the Overview and "today" views need only these, not
+            # whole months (late in a month the Overview fetched about 3 MB; data.js uses this file when it can).
+            t_hi = ensure_utc(hi) + timedelta(seconds=1)
+            _write(data / "points" / info.key / "recent.json",
+                   {**analytics.points(conn, info, t_hi - timedelta(days=RECENT_DAYS), t_hi + timedelta(days=3), max_points=10**9),
+                    "recent_from": to_utc_iso(t_hi - timedelta(days=RECENT_DAYS))})
+            files += 1
+        # LSS solar farms, one file per day: every farm's output at every collected moment (Solar page, "a moment"
+        # and capacity factor views).
+        days = analytics.farm_days(conn)
+        if months:
+            days = days[: 31 * months]
+        _write(data / "farms" / "index.json", {"days": days})
+        for d in days:
+            _write(data / "farms" / f"{d}.json", analytics.farms_day(conn, date.fromisoformat(d)))
+        files += 1 + len(days)
     archive_bytes = None
     if include_archive and engine.dialect.name == "sqlite":
         from .archive_sync import ARCHIVE_FILE, write_snapshot

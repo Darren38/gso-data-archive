@@ -10,6 +10,7 @@ const ROUTES = {
   generation: { title: "Generation Mix", load: () => import("./pages/generation.js") },
   bess: { title: "Battery Energy Storage (BESS)", load: () => import("./pages/bess.js") },
   tieline: { title: "Cross-Border Power Exchange (Tie-Line)", load: () => import("./pages/tieline.js") },
+  weather: { title: "Weather at the LSS Farms", load: () => import("./pages/weather.js") },
   constraints: { title: "System Constraints", load: () => import("./pages/unavailable.js"), arg: "constraints" },
   explorer: { title: "Historical Explorer", load: () => import("./pages/explorer.js") },
   status: { title: "Data Collection Status", load: () => import("./pages/status.js") },

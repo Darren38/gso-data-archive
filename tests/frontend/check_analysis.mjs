@@ -57,6 +57,28 @@ const every10 = (from, n, value) => Array.from({ length: n }, (_, i) =>
   assert.deepEqual(A.stackGaps(A.alignStack([gen, nightly], 600e3, { bridge: 3 })), []);
 }
 
+// Capacity factor: a 100 MW farm at a steady 25 MW for 2 hours is 25%, over 2 covered hours; a gap longer than
+// 30 minutes is left out rather than guessed.
+{
+  const h = (x) => Date.parse("2026-11-14T00:00:00+08:00") + x * 3600e3;
+  const steady = [0, 0.5, 1, 1.5, 2].map((x) => [h(x), 25]);
+  const r = A.capacityFactor(steady, 100);
+  assert.ok(Math.abs(r.cf - 0.25) < 1e-9 && Math.abs(r.hours - 2) < 1e-9 && Math.abs(r.energyMwh - 50) < 1e-9);
+  const gappy = [[h(0), 0], [h(0.25), 50], [h(3), 50], [h(3.25), 100]]; // 2.75 h gap not counted
+  const g = A.capacityFactor(gappy, 100);
+  assert.ok(Math.abs(g.hours - 0.5) < 1e-9 && Math.abs(g.cf - 0.5) < 1e-9);
+  assert.equal(A.capacityFactor(steady, 0), null);
+  assert.equal(A.nearestMoment(["2026-11-14T06:00:00Z", "2026-11-14T06:10:00Z"], Date.parse("2026-11-14T06:08:00Z")), 1);
+  assert.equal(A.nearestMoment(["2026-11-14T06:00:00Z"], Date.parse("2026-11-14T07:00:00Z")), -1);
+}
+
+// GSO's solar map sometimes shows a farm near full output at dawn and dusk (PTRM, SKCL, Nov 2026): flagged, not used.
+{
+  const at = (hm) => Date.parse(`2026-11-12T${hm}:00+08:00`);
+  assert.equal(A.implausibleSolar([[at("07:20"), 18.2], [at("12:30"), 17.1], [at("19:10"), 18.3]], 18), true);
+  assert.equal(A.implausibleSolar([[at("07:20"), 0.5], [at("12:30"), 14], [at("18:50"), 0.3]], 14), false);
+}
+
 // Sums keep a moment only when every part has a reading.
 {
   const t = iso("2026-10-28T12:00:00+08:00"), u = iso("2026-10-28T12:10:00+08:00");

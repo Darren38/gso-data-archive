@@ -209,6 +209,26 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (data.js) turns them into "no reading". Gaps over 30 minutes in the System Demand Profile are shaded
     (`stackGaps`) and labelled "No readings from GSO". Whole archive checked: only 4 Nov 00:00 is frozen.
 
+49. **An answer with only summary rows is "nothing published" too.** On 15 Nov 2026 (GSO's solar outage from 08:10)
+    GetSolarMap sent only its state totals (`STATE,lat,lon,,MW`) and no stations. `_solar_farms` treats that exact shape
+    as `EMPTY_NOTE` (lesson 44); anything else it can't read still raises.
+
+50. **Recent views must not download whole months.** Late in a month the Overview fetched ~1.1 MB of month files for
+    24 hours of readings. `export-static` writes `data/points/<key>/recent.json` (newest 3 days) and `getPoints`
+    (data.js) uses it when the range starts inside it: the Overview is now ~100 KB. Keep `RECENT_DAYS` equal in
+    `export_static.py` and `data.js`.
+
+51. **GSO's solar map can show output that can't be solar.** PTRM and SKCL show ~18 of 18 MW at 07:20 and 19:10.
+    `implausibleSolar` (analysis.js: half capacity or more before 07:30 or after 18:45, at two moments or more) marks
+    such farms "GSO figures look wrong": listed as published, left out of maps and totals. Capacity factors
+    (`capacityFactor`) leave out time between readings more than 30 minutes apart rather than guess it.
+
+52. **Data that isn't GSO's is labelled everywhere and can't hurt collection.** The Weather page's forecasts come from
+    Open-Meteo (`gso_archive/weather.py`, every 3 hours, `WEATHER_ENABLED`); it never raises, records failures as
+    its own runs, and its runs are dated by the cycle's clock (`started_at=now`) so `due()` works with a pinned
+    clock. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
+    Open-Meteo: the probe job's `weather-trial` step tries it on GitHub.
+
 ## How to check a change
 
 ```bash

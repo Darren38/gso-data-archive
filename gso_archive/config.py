@@ -75,6 +75,7 @@ class Settings:
     # Live access to the GSO website is opt-in. See docs/SOURCE_INVESTIGATION.md
     # (terms of use) before enabling.
     gso_live_enabled: bool
+    weather_enabled: bool  # Open-Meteo sunshine forecasts for the LSS regions (weather.py)
     adapters: list[str]
     user_agent: str
 
@@ -104,6 +105,7 @@ def load_settings() -> Settings:
         raw_retention=os.environ.get("RAW_RETENTION", "changed").lower(),
         gso_base_url=os.environ.get("GSO_BASE_URL", "https://www.gso.org.my").rstrip("/"),
         gso_live_enabled=_bool("GSO_LIVE_ENABLED", False),
+        weather_enabled=_bool("WEATHER_ENABLED", False),
         adapters=_list("GSO_ADAPTERS", DEFAULT_ADAPTERS),
         user_agent=os.environ.get(
             "GSO_USER_AGENT",

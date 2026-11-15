@@ -55,6 +55,7 @@ jobs:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
       GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
+      WEATHER_ENABLED: ${{ vars.WEATHER_ENABLED || 'true' }}  # Open-Meteo sunshine forecasts for the LSS regions, every 3 hours
       GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile,solar_forecast,genmix_live,other_re,headlines,cbpe,availability,solar_farms' }}
       GSO_COLLECTION_MODE: github
       COLLECT_INTERVAL_SECONDS: "60"  # what the schedule asks for; the site shows the measured interval
@@ -226,6 +227,9 @@ jobs:
       # switched on (added to GSO_ADAPTERS). Red if a collector would have crashed (lesson 40 in CLAUDE.md).
       - name: Try every collector on GSO's live answers (writes nothing)
         run: python -m gso_archive trial --all
+      - name: Try the weather forecast (Open-Meteo) for the LSS regions (writes nothing)
+        continue-on-error: true  # not GSO data: a failure here is reported but never fails the run
+        run: python -m gso_archive weather-trial
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

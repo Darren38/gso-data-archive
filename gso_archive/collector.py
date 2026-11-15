@@ -271,6 +271,10 @@ def run_cycle(engine: Engine, settings: Settings, client: GsoClient | None = Non
                     mark_frozen(conn, cycle.started_at)
             except Exception:  # noqa: BLE001 - a quality pass must never stop collection
                 log.exception("frozen-reading pass failed")
+            if settings.weather_enabled:  # sunshine forecasts for the LSS regions, every 3 hours (weather.py)
+                from .weather import collect_weather
+
+                collect_weather(engine, settings, cycle.started_at)
             _heartbeat(engine, cycle)
     except LockBusy as exc:
         cycle.skipped_reason = str(exc)

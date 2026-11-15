@@ -1,4 +1,5 @@
 // Solar dashboard: the archive's primary page.
+import { lssExplorer } from "../lss.js";
 import { getDaily, getPoints, exportUrl, rollup } from "../data.js";
 import { COLORS, FUELS, SOLAR_PARTS, solarMap, categoryChart, profileChart, timeChart } from "../charts.js";
 import { combine, dailyFromPoints, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
@@ -266,6 +267,12 @@ export async function render(main, { meta, isCurrent }) {
         { key: "cap", label: "Capacity (MW)", num: true, fmt: (v) => fmtNum(v) },
         { key: "pct", label: "Of capacity", num: true, fmt: (v) => (v == null ? "—" : `${fmtNum(v, 0)}%`) },
       ], rows2, 15);
+      // Any moment, or a period's capacity factor, from the archive (lss.js).
+      const lssCard = h(card({ title: "LSS Farms: Any Moment or Period",
+        desc: "Pick a date and time to see every LSS farm's output as a share of its capacity at that moment, or a period to see each farm's capacity factor. From GSO's solar map as the archive collected it.",
+        body: '<div class="lss"></div>' }));
+      body.appendChild(lssCard);
+      await lssExplorer(lssCard.querySelector(".lss"), { demo });
     }
 
     body.appendChild(h(section("Deeper analysis", "How fast solar rises and falls, a typical day's shape, and totals by day, week, month or year.")));

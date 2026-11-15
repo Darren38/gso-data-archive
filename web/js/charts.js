@@ -288,7 +288,9 @@ function loadMap() {
 
 /** Solar map like GSO's: every LSS farm at its place, coloured by output as a % of its capacity, sized by capacity.
  * farms: [{code, state, region, conn, mw, cap, pct, lat, lon}] */
-export async function solarMap(el, { farms, demo = false }) {
+/** GSO-style solar map. metric "now": colour = output as % of capacity at one moment; "cf": colour = capacity factor
+ * over a period (f.pct holds it, f.mw the average output), on a 0-40% scale since farms rarely average more. */
+export async function solarMap(el, { farms, demo = false, metric = "now" }) {
   if (!window.echarts) { el.innerHTML = '<div class="state error"><h3>Chart library failed to load</h3></div>'; return null; }
   await loadMap();
   const b = base(demo);
@@ -304,7 +306,9 @@ export async function solarMap(el, { farms, demo = false }) {
         const f = p.data?.farm;
         if (!f) return "";
         return `<b>${f.code}</b> · ${f.state}, ${f.region}<br>${f.conn === "distribution" ? "Distribution" : "Grid"} connected<br>` +
-          `<b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b> of capacity)`);
+          (metric === "cf"
+            ? `Average <b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : `<br>Capacity factor <b>${fmtNum(f.pct, 1)}%</b>`)
+            : `<b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b> of capacity)`));
       } },
     geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 8 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
       // keep the true shape: near the equator a degree east is about as long as a degree north (aspectScale 1)
@@ -313,8 +317,8 @@ export async function solarMap(el, { farms, demo = false }) {
       regions: [{ name: "Malaysia", itemStyle: { areaColor: "rgba(31, 166, 74, 0.10)", borderColor: css("--text-3"), borderWidth: 1 } }],
       // silent: the land ignores the pointer. (geo tooltip show:false would also hide every farm's tooltip.)
       emphasis: { disabled: true }, select: { disabled: true }, silent: true },
-    visualMap: { type: "continuous", min: 0, max: 100, dimension: 2, calculable: false, orient: "horizontal",
-      left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220, text: ["100% of capacity", "0%"],
+    visualMap: { type: "continuous", min: 0, max: metric === "cf" ? 40 : 100, dimension: 2, calculable: false, orient: "horizontal",
+      left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220, text: metric === "cf" ? ["40% capacity factor", "0%"] : ["100% of capacity", "0%"],
       textStyle: { color: css("--text-2"), fontSize: 12 },
       inRange: { color: ["#9aa5b1", "#FFE066", "#F2AD00", "#E06D00"] }, outOfRange: { color: "#9aa5b1" } },
     series: [{ type: "scatter", coordinateSystem: "geo", data: farms.filter((f) => f.lat != null && f.lon != null).map(point),

@@ -115,7 +115,17 @@ GSO doesn't say which direction a positive value means, so none is claimed.
 `GetSysAVData`, `DrawSysAvPieChart`: time, Coal, Gas, CoGen, Hydro, Solar, DNSolar, Bess ("System Availability").
 
 `GetSolarMap`, `getData(point)`: [3] station code, [4] MW percentage, [5] region, [6] live generation, [7] capacity,
-[9] "GRID" or "DN". Rows with fewer fields are state summaries.
+[9] "GRID" or "DN". Rows with fewer fields are state summaries (`STATE,lat,lon,,MW`). On 15 Nov 2026 from 08:10 MYT,
+during GSO's solar outage, the answer held only state summary rows: the archive treats that as "nothing published".
+
+### Weather (not GSO) **[THIRD-PARTY DOCUMENTED]**
+
+`https://api.open-meteo.com/v1/forecast` (Open-Meteo, free, no key, CC BY 4.0), asked every 3 hours for four places:
+the capacity-weighted middle of the North, Central, South and East LSS farms (from the solar map's coordinates).
+`hourly=shortwave_radiation,cloud_cover`, `timezone=UTC`, `past_days=1`, `forecast_days=3`; one object per place, in
+the order asked. `shortwave_radiation` (W/m²) is the average over the hour that ends at the time given, so the Weather
+page draws it at the middle of that hour. Kept as forecasts (`weather.*`), every fetch kept. `gso-archive weather-trial`
+(run by the probe job) fetches it once and writes nothing.
 
 ## 6. Found but not archived (yet)
 

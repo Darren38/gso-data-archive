@@ -109,6 +109,16 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
             raise HTTPException(status_code=404, detail=f"unknown table {key!r}")
         return found
 
+    @app.get("/api/v1/farms")
+    def farm_days():
+        with engine.connect() as conn:
+            return {"days": analytics.farm_days(conn)}
+
+    @app.get("/api/v1/farms/{day}")
+    def farms_day(day: date):
+        with engine.connect() as conn:
+            return analytics.farms_day(conn, day)
+
     @app.get("/api/v1/series/{key}/points")
     def points(key: str, start: str | None = None, end: str | None = None):
         now = utcnow()

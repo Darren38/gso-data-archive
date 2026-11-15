@@ -133,6 +133,44 @@ export function stackGaps(aligned, minMs = 30 * 60e3) {
   return out;
 }
 
+/** Capacity factor from readings: energy produced ÷ (capacity × time), over the stretches where consecutive readings
+ * are at most `maxGapMs` apart (other time is unknown and not counted; `hours` says how much was covered).
+ * points: [[ms, MW|null], ...] sorted by time. Returns { cf (0-1), energyMwh, hours } or null without coverage. */
+export function capacityFactor(points, cap, maxGapMs = 30 * 60e3) {
+  if (!cap || cap <= 0) return null;
+  let energy = 0, ms = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const [t0, a] = points[i - 1], [t1, b] = points[i];
+    const dt = t1 - t0;
+    if (a == null || b == null || dt <= 0 || dt > maxGapMs) continue;
+    energy += ((a + b) / 2) * (dt / 3600e3);
+    ms += dt;
+  }
+  const hours = ms / 3600e3;
+  return hours > 0 ? { cf: energy / (cap * hours), energyMwh: energy, hours } : null;
+}
+
+/** Solar output that can't be real: at least half the farm's capacity when the sun is down or barely up (before 07:30 or
+ * after 18:45 MYT). Seen on GSO's solar map for PTRM and SKCL (Nov 2026: ~18 MW of 18 MW at 07:20 and 19:10, lower at
+ * noon). points: [[ms, MW|null], ...]. True when it happens at two or more moments. */
+export function implausibleSolar(points, cap) {
+  if (!cap) return false;
+  let n = 0;
+  for (const [t, v] of points) {
+    if (v == null || v < 0.5 * cap) continue;
+    const d = new Date(t + 8 * 3600e3), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+    if (m < 7 * 60 + 30 || m > 18 * 60 + 45) n += 1;
+  }
+  return n >= 2;
+}
+
+/** The moment in a farms-day file (`times`, ISO) nearest to `ms`, if within `withinMs`; its index or -1. */
+export function nearestMoment(times, ms, withinMs = 15 * 60e3) {
+  let best = -1, bestD = Infinity;
+  times.forEach((t, i) => { const d = Math.abs(Date.parse(t) - ms); if (d < bestD) { best = i; bestD = d; } });
+  return bestD <= withinMs ? best : -1;
+}
+
 /** Per-MYT-day statistics from raw points, the same way the archive's daily files are made (gso_archive/analytics.py
  * `daily`): energy only between readings at most 1.5 intervals apart, and today expects only the readings so far. */
 export function dailyFromPoints(points, intervalS, startDay, endDay, unit = "MW") {

@@ -311,6 +311,10 @@ def _solar_farms(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
         out.readings.append(Reading(f"{slug}_capacity", code, day_start, cap, kind="capacity",
                                     name=f"Solar farm {label} — capacity", unit="MW", latitude=lat, longitude=lon))
     if not stations:
+        if all(re.fullmatch(r"[A-Z]{3,5},[\d.]+,[\d.]+,,[\d.]*", r) for r in rows):
+            # Only the state summary rows (e.g. "WILP,82,135,,0"), no farm: GSO publishing nothing, as on 15 Nov 2026
+            # from 08:10 MYT, while its Solar page was empty too. Not a new format (lesson 44).
+            return ParsedPayload(rejected=[EMPTY_NOTE])
         raise SchemaError("no solar farm rows found")
     return out
 

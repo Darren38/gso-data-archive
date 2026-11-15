@@ -53,6 +53,29 @@ def cmd_trial(args, settings):
         sys.exit(3)  # GitHub shows the step red: a collector would have failed live
 
 
+def cmd_weather_trial(args, settings):
+    """Fetch and read one Open-Meteo forecast for the LSS regions, write nothing (run by the probe job on GitHub)."""
+    import httpx
+
+    from . import weather
+    from .db import make_engine
+
+    with make_engine(settings.database_url).connect() as conn:
+        points = weather.region_points(conn)
+    params = {"latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
+              "hourly": "shortwave_radiation,cloud_cover", "timezone": "UTC", "past_days": 1, "forecast_days": 3}
+    try:
+        with httpx.Client(timeout=30, headers={"User-Agent": settings.user_agent}) as c:
+            res = c.get(weather.URL, params=params)
+            res.raise_for_status()
+            readings = weather.parse(res.json(), points)
+        peak = {r: max((x.value for x in readings if x.series == f"{r}_ghi"), default=None) for r in weather.REGIONS}
+        _print({"weather_trial": "ok", "points": points, "readings": len(readings), "peak_ghi": peak, "writes": "none"})
+    except Exception as exc:  # noqa: BLE001
+        _print({"weather_trial": "failed", "error": f"{type(exc).__name__}: {exc}"})
+        sys.exit(3)
+
+
 def cmd_backfill(args, settings):
     from .collector import backfill
 
@@ -181,6 +204,7 @@ def main(argv: list[str] | None = None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="create/upgrade the database schema").set_defaults(fn=cmd_migrate)
     sub.add_parser("collect", help="run one collection cycle (for cron / GitHub Actions)").set_defaults(fn=cmd_collect)
+    sub.add_parser("weather-trial", help="fetch and read one Open-Meteo forecast, write nothing").set_defaults(fn=cmd_weather_trial)
 
     b = sub.add_parser("backfill", help="fetch historical days the source still serves")
     b.add_argument("--start", required=True, help="YYYY-MM-DD (MYT)")
