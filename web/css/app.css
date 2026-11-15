@@ -177,6 +177,11 @@ input[type="date"], select, .btn { font: inherit; font-size: 14px; border: 1px s
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 label.inline { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 14px; color: var(--text-2); max-width: 100%; min-width: 0; }
 label.inline select { max-width: 100%; min-width: 0; }
+/* LSS farm explorer (lss.js): stacked toolbars for view, when, which farms; downloads under the results. */
+.lss-when, .lss-filter { margin-top: 8px; }
+.lss-when > span, .lss-filter > span { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: 100%; min-width: 0; }
+.lss-span { margin: 6px 0 8px; }
+.lss-dl { margin-top: 10px; box-shadow: none; }
 .toolbar > * { min-width: 0; max-width: 100%; }
 
 .state { padding: 34px 16px; text-align: center; color: var(--text-2); }

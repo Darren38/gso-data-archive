@@ -269,7 +269,7 @@ export async function render(main, { meta, isCurrent }) {
       ], rows2, 15);
       // Any moment, or a period's capacity factor, from the archive (lss.js).
       const lssCard = h(card({ title: "LSS Farms: Any Moment or Period",
-        desc: "Pick a date and time to see every LSS farm's output as a share of its capacity at that moment, or a period to see each farm's capacity factor. From GSO's solar map as the archive collected it.",
+        desc: "Every LSS farm at a moment you choose, each farm's capacity factor over a period, the farms day by day, or their output through one day. Choose the region, connection, a single farm and the hours; download any view as CSV. From GSO's solar map as the archive collected it.",
         body: '<div class="lss"></div>' }));
       body.appendChild(lssCard);
       await lssExplorer(lssCard.querySelector(".lss"), { demo });

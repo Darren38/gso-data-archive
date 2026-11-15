@@ -92,6 +92,26 @@ async function visit(page, base, route, wait = 1200) {
     });
     if (!map.farms) fail.push("solar map has no farms");
     if (!/MW of [\d,]+ MW/.test(map.tip)) fail.push("solar map shows no farm details");
+    // LSS farm explorer: every view draws, filters apply, and every CSV button gives a file with a header and rows.
+    if (!(await page.$(".lss [data-mode]"))) fail.push("LSS farm explorer missing on the Solar page");
+    else {
+      for (const mode of ["moment", "period", "daily", "day"]) {
+        await page.click(`.lss [data-mode="${mode}"]`); await page.waitForTimeout(1200);
+        if (mode === "period") { await page.click('.lss [data-quick="7"]'); await page.waitForTimeout(1200); }
+        const text = await page.textContent(".lss-out");
+        if (/\b(NaN|undefined|Infinity)\b/.test(text)) fail.push(`LSS explorer ${mode} shows NaN/undefined`);
+        if (await page.$(".lss-out .state.error")) fail.push(`LSS explorer ${mode} shows an error`);
+        for (const i of await page.$$eval(".lss-out [data-dl]", (x) => x.map((y) => y.dataset.dl))) {
+          const [d] = await Promise.all([page.waitForEvent("download"), page.click(`.lss-out [data-dl="${i}"]`)]);
+          const lines = require("fs").readFileSync(await d.path(), "utf8").trim().split("\n").filter((l) => !l.startsWith("#"));
+          if (lines.length < 2 || !lines[0].includes(",")) fail.push(`LSS explorer ${mode} CSV ${d.suggestedFilename()} is empty`);
+        }
+        if (!(await page.$$(".lss-out [data-dl]")).length && !(await page.$(".lss-out .state"))) fail.push(`LSS explorer ${mode} has no CSV button`);
+      }
+      await page.selectOption('.lss select[name="region"]', "North"); await page.waitForTimeout(800);
+      if (!(await page.evaluate(() => location.hash)).includes("lssreg=North")) fail.push("LSS explorer region not kept in the address");
+      if (await page.$(".lss-out .state.error")) fail.push("LSS explorer shows an error after choosing a region");
+    }
   } else if (scenario === "api-error") {
     await page.route("**/api/v1/meta", (route) => route.fulfill({ status: 503, body: '{"detail":"database unavailable"}', contentType: "application/json" }));
     out.pages.overview = await visit(page, base, "overview");

@@ -234,6 +234,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (lessons 43-51) in plain words: add to it when a new one is found. Weather is not in GSO_ADAPTERS, so the hourly check never alarms on it. The page credits Open-Meteo and calls the LSS estimate this site's own. This session can't reach
     Open-Meteo: the probe job's `weather-trial` step tries it on GitHub.
 
+53. **The LSS explorer (lss.js) has four views (moment, period, daily, day), shared filters (region, connection,
+    farm, hours for period views, include-flagged) all in the address, and a CSV for each view** (`csv()` leaves a
+    missing reading empty, never 0; files start with a "# Source" line). Hours windows count only slices with both
+    ends inside the window (`cfInWindow`). Periods are capped at `MAX_DAYS` (92) day files (~40 KB each). The demo
+    browser check clicks every view and every CSV button.
+
 ## How to check a change
 
 ```bash

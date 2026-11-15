@@ -1,5 +1,15 @@
 # Changelog
 
+## 16 November 2026 (forty-second update) — GSO Grid Archive 6.1
+
+The LSS farm explorer on the Solar page now covers almost any question, and everything it shows can be downloaded.
+
+- **Four views:** every farm **at a moment** (with ◀ ▶ to step from one reading to the next, across days, and a "Newest" button); each farm's **capacity factor over a period**; the selected farms **day by day** (energy, capacity factor, the day's peak and when it happened); and their output **through a day**.
+- **Choose which farms:** a region, grid or distribution connection, or one single farm; for periods, also the hours of the day (for example 07:00 to 19:00 for daylight only). Farms marked "GSO figures look wrong" are left out unless you tick the box to include them.
+- **Quick periods:** 7 days, 30 days, this month, or everything archived (up to 92 days at a time).
+- **CSV downloads for every view:** the farms at a moment; per farm over a period; every single reading of the period (one row per farm per moment, for spreadsheets); per day; and through a day, as one total or one column per farm. Each file says where the data comes from; a missing reading is left empty, never written as 0.
+- Every choice is kept in the page address, so a link opens exactly the same view.
+
 ## 15 November 2026 (forty-first update) — GSO Grid Archive 6.0.2
 
 Free, accurate and open about it.
