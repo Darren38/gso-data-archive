@@ -63,7 +63,13 @@ class FakeGso:
     def handler(self, request: httpx.Request) -> httpx.Response:
         self.calls.append(request)
         path = request.url.path.lstrip("/")
-        if request.method == "GET":
+        if request.method == "GET":  # a page: the one added for this path (HTML text), else a plain page
+            pages = self.routes.get(f"GET {path}")
+            if pages:
+                item = pages.pop(0) if len(pages) > 1 else pages[0]
+                if isinstance(item, int):
+                    return httpx.Response(item, text="error")
+                return httpx.Response(200, text=item, headers={"content-type": "text/html; charset=utf-8"})
             return httpx.Response(200, text="<html>page</html>")
         queue = self.routes.get(path)
         if not queue:

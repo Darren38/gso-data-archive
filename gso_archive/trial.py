@@ -31,8 +31,11 @@ def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, sh
                                              referer=f"{settings.gso_base_url}/{page}", retries=0)
                 client.time_cache[spec.time_source] = read_time(decode_d(res.content))
             ctx["last_available"] = client.time_cache[spec.time_source]
-        fetched = client.post_pagemethod(spec.url(settings.gso_base_url), spec.request_body(day),
-                                         referer=spec.page_url(settings.gso_base_url), retries=0)  # one try: fits the job's time
+        if spec.html_transform:
+            fetched = client.get(spec.page_url(settings.gso_base_url), accept="text/html,*/*;q=0.8", retries=0)
+        else:
+            fetched = client.post_pagemethod(spec.url(settings.gso_base_url), spec.request_body(day),
+                                             referer=spec.page_url(settings.gso_base_url), retries=0)  # one try: fits the job's time
     except (FetchError, SourceError) as exc:
         return {**out, "result": "could not fetch", "error": f"{type(exc).__name__}: {exc}"}
     ctx["now"] = utcnow()
@@ -54,6 +57,10 @@ def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, sh
         "missing": payload.missing,
         "notes": payload.rejected[:10],
         "table_rows": None if payload.table is None else len(payload.table),
+        # Lists read from a page (e.g. the constraint tables): their columns as GSO heads them and the first rows,
+        # so the reading can be checked against GSO's page before the collector is switched on.
+        **({"tables": {name: {"rows": len(rows), "first_rows": rows[:3]} for name, rows in payload.tables.items()}}
+           if payload.tables is not None else {}),
         "signature": payload.signature,
     }
 

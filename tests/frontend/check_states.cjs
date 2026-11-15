@@ -37,7 +37,7 @@ async function visit(page, base, route, wait = 1200) {
     if (out.pages.overview.canvases) fail.push("charts rendered without data");
     if (out.pages.overview.demoBanner) fail.push("demo banner shown for real (empty) archive");
     if (!out.pages.bess.text.includes("No BESS readings archived yet")) fail.push("BESS empty state missing");
-    if (!out.pages.constraints.text.includes("Not yet available")) fail.push("constraints unavailable state missing");
+    if (!out.pages.constraints.text.includes("No constraint lists archived yet")) fail.push("constraints empty state missing");
   } else if (scenario === "demo") {
     for (const r of ROUTES) out.pages[r] = await visit(page, base, r, 1800);
     if (!out.pages.solar.demoBanner) fail.push("demo banner missing");

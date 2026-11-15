@@ -70,5 +70,7 @@ export async function render(main, { isCurrent }) {
 
   main.appendChild(h(card({ title: "Archive totals", body: `<div class="stat-row">${Object.entries(st.totals).map(([k, v]) => `<span>${esc(k.replace("_", " "))}: <b>${fmtNum(v)}</b></span>`).join("")}</div>
     <p class="small muted">Status generated ${fmtDateTime(st.generated_at)} MYT.</p>` })));
-  main.appendChild(h(card({ title: "Categories without a verified source", body: `<ul>${Object.entries(st.not_implemented).map(([k, v]) => `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join("")}</ul>` })));
+  if (Object.keys(st.not_implemented || {}).length) {
+    main.appendChild(h(card({ title: "Categories without a verified source", body: `<ul>${Object.entries(st.not_implemented).map(([k, v]) => `<li><b>${esc(k)}</b>: ${esc(v)}</li>`).join("")}</ul>` })));
+  }
 }

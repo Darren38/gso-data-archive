@@ -175,10 +175,11 @@ POWER_STATION = AdapterSpec(
 
 from .gso_live import AVAILABILITY, CBPE, GENMIX_LIVE, HEADLINE, OTHER_RE, SOLAR_FARMS, SOLAR_FORECAST, SOLAR_PROFILE  # noqa: E402
 
-# System constraints: no public data address was found on gso.org.my (checked 28 Oct 2026).
-NOT_IMPLEMENTED = {
-    "constraints": "No public GSO system-constraints data was found on gso.org.my (pages checked 28 October 2026).",
-}
+from .constraints import CONSTRAINTS  # noqa: E402
+
+# Every category GSO publishes now has a collector. (System constraints were thought missing until 15 Nov 2026:
+# GSO writes them into its home page's HTML rather than serving them from a PageMethod.)
+NOT_IMPLEMENTED: dict[str, str] = {}
 
 ADAPTERS: dict[str, AdapterSpec] = {
     spec.key: spec
@@ -197,6 +198,7 @@ ADAPTERS: dict[str, AdapterSpec] = {
         CBPE,
         AVAILABILITY,
         SOLAR_FARMS,
+        CONSTRAINTS,
     )
 }
 

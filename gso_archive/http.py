@@ -137,5 +137,6 @@ class GsoClient:
         extra = {"timeout": timeout} if timeout else {}
         return self._request("POST", url, retries=retries, json=body or {}, headers=headers, **extra)
 
-    def get(self, url: str, accept: str | None = None) -> FetchResult:
-        return self._request("GET", url, headers={"Accept": accept} if accept else None)
+    def get(self, url: str, accept: str | None = None, retries: int | None = None, timeout: float | None = None) -> FetchResult:
+        extra = {"timeout": timeout} if timeout else {}
+        return self._request("GET", url, retries=retries, headers={"Accept": accept} if accept else None, **extra)

@@ -391,7 +391,9 @@ def observed_interval(conn: Connection, sample: int = 30) -> int | None:
     return gaps[len(gaps) // 2]
 
 
-TABLES = {"power_station": "GSO's Power Station Info"}
+TABLES = {"power_station": "GSO's Power Station Info",
+          "constraints_existing": "GSO's Existing Constraints",
+          "constraints_outage": "GSO's Constraints Due to Outage (for the next 7 days)"}
 
 
 def table(conn: Connection, key: str) -> dict | None:
@@ -402,7 +404,10 @@ def table(conn: Connection, key: str) -> dict | None:
     if not state:
         return {"key": key, "name": TABLES[key], "checked_at": None, "rows": [], "changes": []}
     rows = [{"id": rid, **row} for rid, row in state.get("rows", {}).items()]
-    rows.sort(key=lambda r: (not r.get("listed", True), -(r.get("capacity_mw") or 0), r.get("name") or ""))
+    if key.startswith("constraints"):  # GSO's constraint rows: listed first, then in the order they were first seen
+        rows.sort(key=lambda r: (not r.get("listed", True), r.get("first_seen") or ""))
+    else:
+        rows.sort(key=lambda r: (not r.get("listed", True), -(r.get("capacity_mw") or 0), r.get("name") or ""))
     return {"key": key, "name": TABLES[key], "checked_at": state.get("checked_at"), "rows": rows,
             "changes": list(reversed(state.get("changes", [])))}
 

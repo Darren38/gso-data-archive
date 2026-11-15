@@ -69,6 +69,8 @@ class ParsedPayload:
     unknown_fields: list[str] = field(default_factory=list)
     # A list GSO publishes as rows with text (e.g. the power stations), kept with its changes (store.keep_table).
     table: list[dict] | None = None
+    # Several such lists from one answer (e.g. GSO's two constraint tables), each kept as "<adapter>_<name>".
+    tables: dict[str, list[dict]] | None = None
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,9 @@ class AdapterSpec:
     raw_transform: Callable[["AdapterSpec", object, dict], ParsedPayload] | None = None
     # Name of a companion request made first to learn the exact time of the data (see collector.TIME_SOURCES).
     time_source: str | None = None
+    # For data GSO writes into the page itself rather than a PageMethod (e.g. its constraint tables): the page is
+    # fetched with GET and its HTML text handed over, with the same context. Takes precedence over the others.
+    html_transform: Callable[["AdapterSpec", str, dict], ParsedPayload] | None = None
 
     def url(self, base_url: str) -> str:
         return f"{base_url}/{self.page}/{self.method}"
@@ -273,6 +278,9 @@ def decode_d(body: bytes | str) -> object:
 
 
 def parse(spec: AdapterSpec, body: bytes | str, day: date, context: dict | None = None) -> ParsedPayload:
+    if spec.html_transform:
+        text = body.decode("utf-8", errors="replace") if isinstance(body, bytes) else body
+        return spec.html_transform(spec, text, context or {})
     if spec.raw_transform:
         return spec.raw_transform(spec, decode_d(body), context or {})
     records = decode_pagemethod(body)

@@ -118,8 +118,10 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
     body_json = json.dumps(body, sort_keys=True) if body else None
 
     context: dict = {"shared": client.time_cache}  # answers shared by the adapters of one run
+    if spec.html_transform:  # the data is in the page itself: one GET of the page (no warm-up, no PageMethod)
+        url, body_json = spec.page_url(settings.gso_base_url), None
     try:
-        if settings.warm_up:
+        if settings.warm_up and not spec.html_transform:
             client.warm_up(spec.page_url(settings.gso_base_url))
         if spec.time_source and spec.time_source in client.time_cache:
             context["last_available"] = client.time_cache[spec.time_source]  # asked once per run, shared
@@ -139,8 +141,12 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
         with engine.connect() as conn:
             failing = store.failure_streak(conn, spec.key)[0] >= BACKOFF_AFTER
         # While it keeps failing: one try, every BACKOFF_SECONDS, but waiting longer (GSO may be slow rather than down).
-        fetched = client.post_pagemethod(url, body, referer=spec.page_url(settings.gso_base_url),
-                                         retries=0 if failing else None, timeout=BACKOFF_TIMEOUT if failing else None)
+        if spec.html_transform:
+            fetched = client.get(url, accept="text/html,*/*;q=0.8", retries=0 if failing else None,
+                                 timeout=BACKOFF_TIMEOUT if failing else None)
+        else:
+            fetched = client.post_pagemethod(url, body, referer=spec.page_url(settings.gso_base_url),
+                                             retries=0 if failing else None, timeout=BACKOFF_TIMEOUT if failing else None)
     except FetchError as exc:
         if exc.error_type == "live_disabled":
             result.status = "disabled"
@@ -176,6 +182,8 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                                          snapshot_id=snapshot_id, collected_at=fetched_at)
             if payload.table is not None:
                 store.keep_table(conn, spec.key, payload.table, fetched_at)
+            for name, rows in (payload.tables or {}).items():
+                store.keep_table(conn, f"{spec.key}_{name}", rows, fetched_at)
             previous_sig = store.last_signature(conn, spec.key)
             schema_changed = bool(previous_sig and payload.signature and previous_sig != payload.signature)
             store.finish_run(
