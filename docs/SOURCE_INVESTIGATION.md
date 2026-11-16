@@ -118,6 +118,20 @@ GSO doesn't say which direction a positive value means, so none is claimed.
 [9] "GRID" or "DN". Rows with fewer fields are state summaries (`STATE,lat,lon,,MW`). On 15 Nov 2026 from 08:10 MYT,
 during GSO's solar outage, the answer held only state summary rows: the archive treats that as "nothing published".
 
+### System constraints **[OBSERVED, 15 Nov 2026]**
+
+No PageMethod: GSO writes two tables into `LandingPage.aspx` itself, under "Existing Constraints"
+(`<div id="ctl00_MainContent_div_existsyscons">`) and "Constraints Due to Outage (for the next 7 days)"
+(`<div id="ctl00_MainContent_div_consoutage">`), each a `<table class='table tbl-constrain'>`. Columns, as GSO heads
+them: Existing: Type, Constrained Cct, Voltage, Max Overload (%), Generation Limit, Generation Cluster, Other.
+Outage: Start, End, then the same seven. GSO's own descriptions: "Existing Constraint is described by its type of
+constraints such as inter-area power transfer limitation; circuits in the Grid being constrained; transmission
+assets' voltage and thermal limits impact from which generation clusters; and some additional operational remarks
+if any." and "Constraints Due to Outage is described in similar manner however additional information is included
+which is the outage duration period of the transmission assets giving rise to the system constraints". On 15 Nov
+2026 the first had 4 rows (Types "Contingency" and "Basecase"), the second none. The `constraints` collector
+(`gso_archive/adapters/constraints.py`) keeps every row as text under GSO's headings; nothing is interpreted.
+
 ### Weather (not GSO) **[THIRD-PARTY DOCUMENTED]**
 
 `https://api.open-meteo.com/v1/forecast` (Open-Meteo, free, no key, CC BY 4.0), asked every 3 hours for four places:
@@ -133,7 +147,7 @@ page draws it at the middle of that hour. Kept as forecasts (`weather.*`), every
 |---|---|
 | `*/DownloadFile`, `*/Plot_Click` | A file token and an HTML table of the same data |
 
-System constraints: no page or data address found **[OBSERVED]**.
+System constraints: found on 15 Nov 2026 (see "System constraints" in section 5).
 
 ## 7. Terms of use
 

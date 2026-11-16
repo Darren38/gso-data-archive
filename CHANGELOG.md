@@ -1,5 +1,15 @@
 # Changelog
 
+## 16 November 2026 (forty-third update) — GSO Grid Archive 6.2
+
+System constraints are here: the one part of GSO's data this site thought GSO didn't publish.
+
+- **Found during the maintenance check:** GSO's home page carries two tables, "Existing Constraints" and "Constraints Due to Outage (for the next 7 days)". They are written into the page itself rather than served as data, which is why the first search in October missed them.
+- **The Constraints page now shows them**, exactly as GSO publishes them and under GSO's own column headings (type, constrained circuit, voltage, maximum overload, generation limit, generation cluster and GSO's remarks; the outage list also has start and end). GSO's own explanation of each list is quoted. On 16 November GSO listed 4 existing constraints and no outage constraints for the next 7 days.
+- **Every change is kept:** the archive reads both lists every 30 minutes. When GSO adds a row it is recorded; when GSO removes or edits one, the old row stays in the archive marked "no longer listed", and the "Changes GSO made" list shows when. You can download each list as CSV, with or without the rows GSO no longer lists.
+- Tried on GSO's real page before it was switched on, as every new collector is.
+- **Maintenance check:** collection ran all day without a gap of more than 5 minutes. The hourly check failed about once an hour on 15 November during GSO's solar outage; that was the solar-map reading fixed in 6.0, and every check since has passed.
+
 ## 16 November 2026 (forty-second update) — GSO Grid Archive 6.1
 
 The LSS farm explorer on the Solar page now covers almost any question, and everything it shows can be downloaded.

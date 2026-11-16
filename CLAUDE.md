@@ -240,6 +240,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     ends inside the window (`cfInWindow`). Periods are capped at `MAX_DAYS` (92) day files (~40 KB each). The demo
     browser check clicks every view and every CSV button.
 
+54. **Not all of GSO's data comes from a PageMethod.** System constraints were thought unpublished until 15 Nov 2026:
+    GSO writes them as two HTML tables into `LandingPage.aspx` (probe summary "constraints in" section). An
+    `AdapterSpec.html_transform` collector GETs the page and reads the tables by GSO's own `<th>` headings
+    (`adapters/constraints.py`); `ParsedPayload.tables` keeps each as `constraints_<name>` via `store.keep_table`.
+    A row is known by its whole content, so an edit shows as "no longer listed" + "added". The probe summary prints
+    any page lines with "onstraint|Outage" so a change of GSO's markup is visible.
+
 ## How to check a change
 
 ```bash

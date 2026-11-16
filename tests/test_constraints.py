@@ -13,7 +13,8 @@ from gso_archive.adapters.base import SchemaError
 from gso_archive.collector import collect_one
 
 DAY = date(2026, 11, 16)
-HEAD_EXIST = "<thead><tr><th>Type</th><th>Constrained Cct</th><th class='text-center'>Voltage</th><th>Remarks</th></tr></thead>"
+# GSO's column headings as the trial read them from GSO's page (15 Nov 2026). Shortened tables keep the first ones.
+HEAD_EXIST = "<thead><tr><th>Type</th><th>Constrained Cct</th><th class='text-center'>Voltage</th><th>Other</th></tr></thead>"
 HEAD_OUT = "<thead><tr><th>Start</th><th>End</th><th>Type</th><th>Constrained Cct</th><th class='text-center'>Voltage</th></tr></thead>"
 
 
@@ -36,10 +37,10 @@ def test_rows_are_kept_under_gsos_own_headings():
     assert len(ex) == 1 and len(out) == 2 and not p.readings
     assert {k: v for k, v in ex[0].items() if k != "id"} == {
         "name": "Test circuit 1 & 2", "Type": "Test type A", "Constrained Cct": "Test circuit 1 & 2",
-        "Voltage": "275kV", "Remarks": "Test remark"}
+        "Voltage": "275kV", "Other": "Test remark"}
     assert list(out[0])[2:] == ["Start", "End", "Type", "Constrained Cct", "Voltage"]
     assert out[0]["Start"] == "01/01/2099 08:00" and out[0]["id"] != out[1]["id"]
-    assert p.signature.startswith("constraints:existing[Type|Constrained Cct|Voltage|Remarks];outage[Start|End|")
+    assert p.signature.startswith("constraints:existing[Type|Constrained Cct|Voltage|Other];outage[Start|End|")
 
 
 def test_an_empty_list_or_gsos_no_data_line_keeps_no_rows():
@@ -50,7 +51,7 @@ def test_an_empty_list_or_gsos_no_data_line_keeps_no_rows():
 
 def test_cells_gso_leaves_open_are_still_read():
     p = parse(get_adapter("constraints"), page("<tr><td>A<td>B<td>C<td>D<tr><td>E<td>F<td>G<td>H", "").encode(), DAY, {})
-    assert [r["Type"] for r in p.tables["existing"]] == ["A", "E"] and p.tables["existing"][1]["Remarks"] == "H"
+    assert [r["Type"] for r in p.tables["existing"]] == ["A", "E"] and p.tables["existing"][1]["Other"] == "H"
 
 
 def test_a_page_without_the_tables_is_a_changed_page():

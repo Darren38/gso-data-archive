@@ -18,6 +18,7 @@
 - **Every large solar farm, on a map**: a solar map of Peninsular Malaysia like GSO's, with each of the 60 or so LSS farms at its location, coloured by how much of its capacity it is producing, plus a table with state, region and grid or distribution connection.
 - **Any farm, any moment**: every LSS farm's output as a share of its capacity at a moment you choose, each farm's capacity factor over a period, the farms day by day or through one day; by region, connection, single farm and hours of the day, with a CSV download of every view.
 - **Weather at the farms**: a sunshine and cloud forecast for each region's LSS farms (from Open-Meteo, not GSO, and labelled so) beside what the farms actually produced, with a rough estimate of tomorrow's LSS energy.
+- **System constraints**: GSO's lists of existing constraints and of constraints due to outages in the next 7 days, exactly as GSO publishes them, with every row GSO adds or removes kept and a CSV download.
 - **The rest of the grid too**: grid demand and system demand (side by side, as on GSO's home page), generation by fuel (coal, gas, hydro, solar, co-generation, oil), other renewables, total generation, system availability, installed capacity, battery storage (BESS) charge and discharge, and the links to Thailand and Singapore.
 - **Nothing is ever lost or overwritten**: if GSO changes a reading later, the new value is shown and the old one is kept. Gaps stay gaps. A missing reading is never shown as zero.
 - **Collects by itself, often**: new readings about every 2–3 minutes. Several of GSO's pages only show *today*, so collecting all day long is what builds the history.
@@ -38,6 +39,7 @@
 | Other renewables split (biogas, biomass, mini hydro) | About every 2–3 minutes, from GSO's home page, for today only |
 | Power stations (each station's fuel, type, capacity and agreement end date) and installed capacity | Once a day; every change GSO makes to the list is kept |
 | Weather forecast at the LSS farms (Open-Meteo, not GSO) | Every 3 hours |
+| System constraints (GSO's Existing Constraints and Constraints Due to Outage, from its home page) | Every 30 minutes; every row GSO adds or removes is kept |
 | Backup of the whole archive | Once a day, to the `archive-backups` release |
 | An open page | Checks for new readings every minute and updates itself |
 | The site itself | Every visit checks for newer files, so an update shows on the next refresh |
@@ -56,8 +58,7 @@ pages agree with each other on figures they both publish.
 
 Every address used was checked first-hand from GitHub's servers on 28 October 2026, and each value's meaning was
 taken from GSO's own page scripts (see [what is known and how](docs/SOURCE_INVESTIGATION.md)). The site's Status
-page shows when each source last worked. GSO doesn't publish system-constraints data, so that page says so instead
-of guessing. Collection is on; to pause it, set the repository variable `GSO_LIVE_ENABLED` to `false`
+page shows when each source last worked. Collection is on; to pause it, set the repository variable `GSO_LIVE_ENABLED` to `false`
 (Settings → Secrets and variables → Actions → Variables). GSO's terms of use apply to the data. Another project
 reports they require TNB's written consent to download or store it, so it's worth checking them on gso.org.my.
 

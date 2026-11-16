@@ -30,7 +30,8 @@ The real-answer tests check two things against GSO's own page: the five solar se
 * GitHub sometimes runs schedules late or skips them, so the real interval varies (the Auto label shows it).
 * NEM, FiT and SELCO rooftop values are GSO's estimates from registered capacity, not measurements.
 * The forecast has no issue time from GSO; the archive uses the time it collected it.
-* No system-constraints data exists on gso.org.my.
+* System constraints come from two tables GSO writes into its home page (found 15 Nov 2026); there is no
+  PageMethod for them, so the collector reads the page's HTML.
 * Static (Pages) mode has no Excel export or revision viewer; those need the API deployment.
 
 ## Needs the owner

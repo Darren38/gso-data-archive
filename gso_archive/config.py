@@ -62,6 +62,7 @@ DEFAULT_ADAPTERS = [
     "cbpe",
     "availability",
     "solar_farms",
+    "constraints",  # GSO's constraint tables on its home page, every 30 minutes (trial on GSO's page: 15 Nov 2026)
 ]
 
 

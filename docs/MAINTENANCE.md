@@ -34,6 +34,8 @@ Download the newest `archive-backups` asset (github.com release downloads work f
 - **Weather:** the Status page's `weather` collector ran within the last 3 hours (a few "429 Too Many Requests"
   failures are normal: Open-Meteo's free limits are per address and GitHub's machines share addresses), and the Weather page's sunshine
   follows the farms' output on clear days. It is Open-Meteo's, never GSO's: it must never stop GSO collection.
+- **Constraints:** the Constraints page's two lists were read within the last hour and match GSO's home page
+  (same number of rows); the trial's `constraints` result is "ok" with GSO's column headings unchanged.
 - **Negative values:** Tie-Line (power coming in) and Co-Gen can be below zero; they must not draw spikes.
 
 ## 3. Do the pages show it right?
