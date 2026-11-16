@@ -107,6 +107,14 @@ export async function render(main, { meta, isCurrent }) {
   async function layout({ p, pts, daily, dem, fc, comps, others, prof, rawOk, days }) {
     const rows = daily.rows;
     const withData = rows.filter((r) => r.count);
+    // A day with readings for only part of it (a GSO outage, e.g. 15 Nov 2026 from 08:10) makes the total smaller than
+    // the solar produced: say which days, so the figure is never taken for a complete one (lessons 25, 26).
+    const energyNote = (w, all) => {
+      const part = w.filter((r) => r.completeness < 0.9);
+      const named = part.slice(0, 3).map((r) => `${fmtDate(r.date)} (${fmtNum(r.completeness * 100, 0)}%)`).join(", ");
+      return `${w.length} of ${all.length} days with readings, worked out from the readings`
+        + (part.length ? `; only part of ${part.length === 1 ? "a day" : `${part.length} days`} has readings: ${named}${part.length > 3 ? ", …" : ""}` : "");
+    };
     const points = pts ? pts.points : [];
     const peakDay = withData.reduce((b, r) => (b && b.max >= r.max ? b : r), null);
     const energy = withData.reduce((s, r) => s + (r.energy_mwh || 0), 0);
@@ -127,7 +135,7 @@ export async function render(main, { meta, isCurrent }) {
       ${kpi({ big: true, icon: "peak", label: p.derived ? "Peak Solar Generation" : `Peak ${nice(p)}`, cls: "solar", value: peakDay ? fmtNum(peakDay.max) : null, unit: "MW",
         meta: peakDay ? `${fmtDate(peakDay.max_time)} at ${fmtTime(peakDay.max_time)}` : "" })}
       ${kpi({ icon: "energy", label: p.derived ? "Solar Energy" : `${nice(p)} Energy`, cls: "solar", value: withData.length ? fmtEnergy(energy) : null,
-        meta: `${withData.length} of ${rows.length} days with readings, worked out from the readings` })}
+        meta: energyNote(withData, rows) })}
       ${kpi({ icon: "rise", label: "Fastest Ramp-Up", value: rampExt.max ? `+${fmtNum(rampExt.max[1], 1)}` : null, unit: "MW/min",
         meta: rampExt.min ? `Fastest fall ${fmtNum(rampExt.min[1], 1)} MW/min` : rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps" })}
       ${kpi({ icon: "share", label: "Peak Solar Share", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",

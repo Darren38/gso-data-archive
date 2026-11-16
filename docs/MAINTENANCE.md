@@ -27,7 +27,7 @@ Download the newest `archive-backups` asset (github.com release downloads work f
   moved to the new day). The charts join that gap; anything longer is new.
 - **Stalls:** count readings per hour for the home page and System Demand page; hours with none while the
   Generation page has readings are a GSO stall (lesson 48). Check which moments are marked "frozen" and that each
-  really repeats stalled figures.
+  really repeats stalled figures. A mark is lifted when GSO later fills the gap (4 Nov 00:00 was, the same morning).
 - **LSS farms:** on the Solar page's "LSS Farms: Any Moment or Period" card, look at a sunny noon of the week and at a
   period's capacity factor (Nov 2026: about 15% for the fleet). Farms marked "GSO figures look wrong" (PTRM, SKCL in
   Nov 2026) should be the only ones; a new one is worth a look at its readings before sunrise and after sunset.

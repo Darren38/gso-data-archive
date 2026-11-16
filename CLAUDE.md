@@ -207,7 +207,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     within an hour either side, no System Demand page reading at that time) every cycle over 3 days (migration 6 once
     over all); analytics leaves frozen readings out of latest values, freshness and daily figures, and `getPoints`
     (data.js) turns them into "no reading". Gaps over 30 minutes in the System Demand Profile are shaded
-    (`stackGaps`) and labelled "No readings from GSO". Whole archive checked: only 4 Nov 00:00 is frozen.
+    (`stackGaps`) and labelled "No readings from GSO". Only 4 Nov 00:00 was ever frozen, and at 10:31 MYT that day GSO
+    filled in 00:00-01:10 and corrected it (20,858 -> 18,941 -> 18,929), so the next pass lifted the mark: by design.
+    A check-up finding no frozen readings is therefore fine; check the revision history for what GSO corrected.
 
 49. **An answer with only summary rows is "nothing published" too.** On 15 Nov 2026 (GSO's solar outage from 08:10)
     GetSolarMap sent only its state totals (`STATE,lat,lon,,MW`) and no stations. `_solar_farms` treats that exact shape

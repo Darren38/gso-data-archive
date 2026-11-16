@@ -1,5 +1,13 @@
 # Changelog
 
+## 16 November 2026 (forty-fourth update) — GSO Grid Archive 6.2.1
+
+From the maintenance check.
+
+- **Solar energy totals say when a day is incomplete:** on 15 November GSO's Solar page published nothing from 8:10 am to midnight, so that day has only 34% of its readings and the week's solar energy is lower than what was really produced. The Solar page's energy card now names such days, for example "only part of a day has readings: 15 Nov 2026 (34%)". GSO's Solar page shows today only, so those hours can't be fetched again.
+- **The stalled figure of 4 November was corrected by GSO:** that morning GSO filled in the missing hour and replaced the stalled 20,858 MW with 18,929 MW, so the archive shows GSO's corrected figure and keeps the stalled one in its history. The About page now says so.
+- Checked and fine: collection never paused for more than 5 minutes; Generation Mix, System Demand, tie-lines and cross-border exchange were complete every day; GSO's figures that must add up still do; nothing was missing around midnight; PTRM and SKCL are still the only farms with impossible figures. Since the morning of 15 November GSO's solar map no longer lists three farms (MCLS, BSLS, KDLS); the archive keeps their history.
+
 ## 16 November 2026 (forty-third update) — GSO Grid Archive 6.2
 
 System constraints are here: the one part of GSO's data this site thought GSO didn't publish.

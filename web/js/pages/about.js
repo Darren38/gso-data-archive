@@ -39,7 +39,8 @@ export async function render(main, { meta }) {
         on 15 November its Solar page, solar forecast and solar map published nothing from 8:10 am. Those hours can't be recovered from anyone.
         Charts leave them blank, longer gaps are shaded “No readings from GSO”, and every page warns when the newest reading is over 45 minutes old.</li>
       <li><b>A stalled figure repeated as new.</b> At midnight on 4 November GSO's home page restarted with one value that only repeated its stalled figures
-        (Grid Demand 20,858 MW). Such readings are marked “frozen”: kept in the archive, left out of charts, totals and current figures.</li>
+        (Grid Demand 20,858 MW). While a reading stands alone like that it is marked “frozen”: kept in the archive, left out of charts, totals and current figures.
+        That morning GSO published the missing hour and corrected the figure to 18,929 MW, so the mark was lifted; the stalled value stays in the revision history.</li>
       <li><b>Two missing moments every night.</b> GSO's home page never publishes 23:40 and 23:50. The System Demand Profile joins that short gap in the drawing
         only; pointing at it says “no reading”.</li>
       <li><b>Two solar farms with impossible figures.</b> GSO's solar map shows PTRM and SKCL at nearly full output before sunrise and after sunset.
