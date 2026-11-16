@@ -22,6 +22,7 @@ export async function render(main, { meta, isCurrent }) {
   const color = (s) => FUEL[s.key]?.color || COLORS.other;
   const label = (s) => FUEL[s.key]?.label || s.name.replace(" (as published in generation mix)", "");
   const picker = rangePicker(bar, { initial: "2d", presets: ["1d", "2d", "7d", "30d", "90d"], onChange: (r) => draw(r) });
+  picker.setData(gen);
 
   async function draw(range) {
     const start = mytDayStart(range.startDay), end = mytDayStart(addDays(range.endDay, 1));

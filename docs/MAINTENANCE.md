@@ -41,6 +41,12 @@ Download the newest `archive-backups` asset (github.com release downloads work f
   (same number of rows); the trial's `constraints` result is "ok" with GSO's column headings unchanged.
 - **Negative values:** Tie-Line (power coming in) and Co-Gen can be below zero; they must not draw spikes.
 
+- **Storage (GitHub's limits):** the published site must stay under GitHub Pages' 1 GB limit. The build log's
+  "Final size is N bytes" (upload-pages-artifact) is the compressed size; the site itself was 46 MB on 16 Nov 2026
+  and grew about 1.5-2 MB a day (monthly CSVs about half of it, the whole-archive download a third). Plan a change
+  (e.g. stop publishing monthly CSVs, or publish the full archive file only in the backups) before it passes 700 MB.
+  The Actions cache allows 10 GB per repository; the daily backups are separate release files.
+
 ## 3. Do the pages show it right?
 
 - `python -m pytest` (includes the browser checks at every width).

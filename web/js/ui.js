@@ -158,7 +158,7 @@ export function rangePicker(container, { initial = "7d", onChange, presets = ["1
       <div class="seg">${presets.map((p) => `<button type="button" data-preset="${p}" aria-pressed="false">${labels[p]}</button>`).join("")}</div>
       <label class="inline">From <input type="date" name="from"></label>
       <label class="inline">To <input type="date" name="to"></label>
-      <span class="grow"></span><span class="small muted">Calendar days in MYT</span>
+      <span class="grow"></span><span class="small muted" data-span>Calendar days in MYT</span>
     </div>`);
   container.appendChild(el);
   const from = el.querySelector('[name="from"]'), to = el.querySelector('[name="to"]');
@@ -186,6 +186,19 @@ export function rangePicker(container, { initial = "7d", onChange, presets = ["1
   }));
   const picker = {
     el, firstDay: null, state,
+    /** How much this page's data the archive holds: the first and newest day of the given series (meta.series
+     * entries), shown beside the dates; the "All" preset starts at that first day. */
+    setData(list) {
+      const ss = (Array.isArray(list) ? list : [list]).filter((x) => x && x.first && x.last);
+      if (!ss.length) return;
+      const day = (iso) => new Date(Date.parse(iso) + MYT_OFFSET_MS).toISOString().slice(0, 10);
+      const first = ss.map((x) => day(x.first)).sort()[0], last = ss.map((x) => day(x.last)).sort().pop();
+      const n = Math.round((Date.parse(last) - Date.parse(first)) / 864e5) + 1;
+      picker.firstDay = first;
+      const span = el.querySelector("[data-span]");
+      span.textContent = `Archived ${fmtDate(first)} – ${fmtDate(last)} · ${n.toLocaleString("en-MY")} day${n === 1 ? "" : "s"} (MYT)`;
+      span.title = "The first and newest day of this page's readings in the archive. Days with no readings from GSO inside that span are shown as gaps.";
+    },
     start() { if (state.preset !== "custom") applyPreset(state.preset, picker.firstDay); return emit(); },
   };
   return picker;

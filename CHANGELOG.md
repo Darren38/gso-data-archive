@@ -1,5 +1,10 @@
 # Changelog
 
+## 16 November 2026 (forty-seventh update) — GSO Grid Archive 6.3.1
+
+- **Every date bar says how much is archived:** instead of "Calendar days in MYT", the date bar on the Solar, Demand, Generation, BESS, Tie-Line and Explorer pages now shows the first and newest day of that page's readings and how many days that is (for example "Archived 21 Oct 2026 – 16 Nov 2026 · 27 days"). The "All" button starts at that first day.
+- The maintenance checklist now watches how big the published site is, so it stays well inside GitHub Pages' 1 GB limit.
+
 ## 16 November 2026 (forty-sixth update) — GSO Grid Archive 6.3
 
 Measured sunshine at the solar farms, hour by hour, beside what the farms produced.

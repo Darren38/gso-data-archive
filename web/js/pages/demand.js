@@ -15,7 +15,7 @@ export async function render(main, { meta, isCurrent }) {
   const bar = h("<div></div>"); main.appendChild(bar);
   const body = h('<div class="grid"></div>'); main.appendChild(body);
   const picker = rangePicker(bar, { initial: "7d", onChange: (r) => draw(r) });
-  picker.firstDay = s.first ? new Date(Date.parse(s.first) + 8 * 3600e3).toISOString().slice(0, 10) : null;
+  picker.setData(s);
 
   async function draw(range) {
     const start = mytDayStart(range.startDay), end = mytDayStart(addDays(range.endDay, 1));

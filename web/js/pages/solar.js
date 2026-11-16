@@ -65,7 +65,7 @@ export async function render(main, { meta, isCurrent }) {
     presets: ["1d", "2d", "7d", "30d", "90d", "1y", "all"],
     onChange: (r) => { range = r; return draw(); },
   });
-  picker.firstDay = primary.first ? new Date(Date.parse(primary.first) + 8 * 3600e3).toISOString().slice(0, 10) : null;
+  picker.setData(primary);
   sourceBar.querySelector('[name="primary"]').addEventListener("change", (e) => {
     current.primaryKey = e.target.value;
     setParams({ primary: current.primaryKey === DEFAULT_PRIMARY ? null : current.primaryKey });

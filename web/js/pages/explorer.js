@@ -32,6 +32,7 @@ export async function render(main, { meta, isCurrent }) {
 
   async function draw() {
     const keys = [...selected];
+    picker.setData(meta.series.filter((s) => selected.has(s.key)));
     if (!keys.length) { body.innerHTML = card({ title: "Chart", body: emptyState("Select at least one series") }); return; }
     const start = mytDayStart(range.startDay), end = mytDayStart(addDays(range.endDay, 1));
     body.innerHTML = loading(380);
