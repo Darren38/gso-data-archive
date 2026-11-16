@@ -1,5 +1,10 @@
 # Changelog
 
+## 16 November 2026 (forty-fifth update) — GSO Grid Archive 6.2.2
+
+- **Farms GSO stops listing are named, and no longer counted as "now":** since the morning of 15 November GSO's solar map no longer lists three farms (MCLS, KDLS and BSLS). The Solar page was still counting their last figures from that morning in "right now" totals. Now the map, the totals and the table show only the farms on GSO's newest map, and a note under the map names the farms GSO stopped listing, with their capacity and when they were last listed. Their history stays in the archive.
+- Behind the scenes: a trial of measured (satellite) hourly sunshine for the LSS regions, to decide whether it can be added next to the farms' output.
+
 ## 16 November 2026 (forty-fourth update) — GSO Grid Archive 6.2.1
 
 From the maintenance check.

@@ -6,7 +6,7 @@ import argparse
 import json
 import logging
 import sys
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from .config import PROJECT_ROOT, load_settings
@@ -77,6 +77,73 @@ def cmd_weather_trial(args, settings):
     except Exception as exc:  # noqa: BLE001
         _print({"weather_trial": "failed", "error": f"{type(exc).__name__}: {exc}"})
         sys.exit(3)
+
+
+def cmd_irradiance_trial(args, settings):
+    """Try two sources of measured (satellite-based) hourly sunshine for the LSS regions and report how recent their
+    newest hour is, writing nothing. Run by the probe job on GitHub before any such data is collected: it is added only
+    if it is hourly and recent enough to set beside GSO's readings."""
+    from datetime import timedelta
+
+    import httpx
+
+    from . import weather
+    from .timeutil import utcnow
+
+    try:
+        with make_engine_ro(settings) as conn:
+            points = weather.region_points(conn)
+    except Exception:  # noqa: BLE001
+        points = dict(weather.FALLBACK)
+    now = utcnow()
+    out: dict = {"irradiance_trial": now.isoformat(), "points": points, "writes": "none"}
+    with httpx.Client(timeout=30, headers={"User-Agent": settings.user_agent}) as c:
+        # 1. Open-Meteo satellite radiation (JMA Himawari), hourly averages of the preceding hour, UTC.
+        try:
+            res = c.get("https://satellite-api.open-meteo.com/v1/archive", params={
+                "latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
+                "hourly": "shortwave_radiation", "models": "jma_jaxa_himawari", "past_days": 3, "timezone": "UTC"})
+            body = res.json() if res.headers.get("content-type", "").startswith("application/json") else res.text[:300]
+            items = body if isinstance(body, list) else [body]
+            regions = {}
+            for name, item in zip(points, items):
+                h = (item or {}).get("hourly", {}) if isinstance(item, dict) else {}
+                pairs = [(t, v) for t, v in zip(h.get("time", []), h.get("shortwave_radiation", [])) if v is not None]
+                newest = pairs[-1][0] if pairs else None
+                regions[name] = {"hours_with_values": len(pairs), "newest": newest,
+                                 "behind_hours": round((now - datetime.fromisoformat(newest).replace(tzinfo=now.tzinfo)).total_seconds() / 3600, 1) if newest else None,
+                                 "last_values": pairs[-8:], "units": (item or {}).get("hourly_units") if isinstance(item, dict) else None}
+            out["open_meteo_satellite"] = {"status": res.status_code, "regions": regions,
+                                           **({"answer": body} if res.status_code != 200 or not regions else {})}
+        except Exception as exc:  # noqa: BLE001
+            out["open_meteo_satellite"] = {"error": f"{type(exc).__name__}: {exc}"}
+        # 2. NASA POWER hourly all-sky surface shortwave (one region: its delay is the same everywhere).
+        try:
+            lat, lon = points["central"]
+            res = c.get("https://power.larc.nasa.gov/api/temporal/hourly/point", params={
+                "parameters": "ALLSKY_SFC_SW_DWN", "community": "RE", "latitude": lat, "longitude": lon,
+                "start": (now - timedelta(days=14)).strftime("%Y%m%d"), "end": now.strftime("%Y%m%d"),
+                "format": "JSON", "time-standard": "UTC"})
+            data = res.json()
+            series = data.get("properties", {}).get("parameter", {}).get("ALLSKY_SFC_SW_DWN", {})
+            good = sorted(k for k, v in series.items() if v is not None and v > -900)
+            newest = good[-1] if good else None
+            behind = None
+            if newest:
+                t = datetime.strptime(newest, "%Y%m%d%H").replace(tzinfo=now.tzinfo)
+                behind = round((now - t).total_seconds() / 3600, 1)
+            out["nasa_power"] = {"status": res.status_code, "hours_with_values": len(good), "newest": newest, "behind_hours": behind,
+                                 "units": data.get("parameters", {}).get("ALLSKY_SFC_SW_DWN", {}).get("units"),
+                                 "last_values": [(k, series[k]) for k in good[-6:]]}
+        except Exception as exc:  # noqa: BLE001
+            out["nasa_power"] = {"error": f"{type(exc).__name__}: {exc}"}
+    _print(out)
+
+
+def make_engine_ro(settings):
+    from .db import make_engine
+
+    return make_engine(settings.database_url).connect()
 
 
 def cmd_backfill(args, settings):
@@ -207,6 +274,7 @@ def main(argv: list[str] | None = None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="create/upgrade the database schema").set_defaults(fn=cmd_migrate)
     sub.add_parser("collect", help="run one collection cycle (for cron / GitHub Actions)").set_defaults(fn=cmd_collect)
+    sub.add_parser("irradiance-trial", help="try measured hourly sunshine sources for the LSS regions, write nothing").set_defaults(fn=cmd_irradiance_trial)
     sub.add_parser("weather-trial", help="fetch and read one Open-Meteo forecast, write nothing").set_defaults(fn=cmd_weather_trial)
 
     b = sub.add_parser("backfill", help="fetch historical days the source still serves")

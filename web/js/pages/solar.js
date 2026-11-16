@@ -242,12 +242,22 @@ export async function render(main, { meta, isCurrent }) {
     const farms = meta.series.filter((s) => s.dataset === "solar_farms" && s.kind === "actual");
     if (farms.length) {
       const capOf = Object.fromEntries(meta.series.filter((s) => s.dataset === "solar_farms" && s.kind === "capacity").map((s) => [s.key.replace(/_capacity$/, ""), s.latest_value]));
-      const rows2 = farms.map((s) => {
+      const allFarms = farms.map((s) => {
         const m = s.name.match(/Solar farm (\S+) \(([^,]+), ([^,]+), ([^)]+)\)/) || [];
         const cap = capOf[s.key];
         return { code: m[1] || s.key, state: m[2] || "", region: m[3] || "", conn: m[4] || "", mw: s.latest_value, cap,
                  pct: cap && s.latest_value != null ? (100 * s.latest_value) / cap : null, last: s.last, key: s.key, lat: s.lat, lon: s.lon };
       }).sort((a, b) => (b.mw ?? -1) - (a.mw ?? -1));
+      // Farms GSO's newest solar map no longer lists (newest reading over an hour older than the map's): their last
+      // figure is not "now", so they are left out of the map, totals and table and named in a note instead
+      // (seen 15 Nov 2026: MCLS, BSLS, KDLS). Their history stays in the archive.
+      const mapNewest = allFarms.map((r) => r.last).filter(Boolean).sort().pop();
+      const dropped = allFarms.filter((r) => r.last && mapNewest && Date.parse(mapNewest) - Date.parse(r.last) > 3600e3)
+        .sort((a, b) => (a.last < b.last ? -1 : 1));
+      const rows2 = allFarms.filter((r) => !dropped.includes(r));
+      const droppedNote = dropped.length ? `<p class="notice small">GSO's newest solar map no longer lists ${dropped.length} farm${dropped.length > 1 ? "s" : ""}:
+        ${dropped.map((r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(r.code)}</a> (${esc(r.region)}, ${fmtNum(r.cap)} MW, last listed ${esc(fmtDateTime(r.last))} MYT)`).join(", ")}.
+        ${dropped.length > 1 ? "They are" : "It is"} left out of the figures here, which show only farms on GSO's newest map; the archive keeps ${dropped.length > 1 ? "their" : "its"} history.</p>` : "";
       const totalMw = rows2.reduce((t, r) => t + (r.mw || 0), 0), totalCap = rows2.reduce((t, r) => t + (r.cap || 0), 0);
       const newest = rows2.map((r) => r.last).filter(Boolean).sort().pop();
       // GSO's solar map: each LSS farm at its place, coloured by how much of its capacity it is producing.
@@ -260,13 +270,13 @@ export async function render(main, { meta, isCurrent }) {
         desc: "Each dot is one LSS solar farm on GSO's solar map, at its location. The colour shows how much of its capacity it is producing right now (grey = little or none, orange = close to full); bigger dots are bigger farms. Circles are grid-connected, diamonds distribution-connected. Drag or pinch to zoom.",
         body: `${staleNote(newest, "its solar map")}<div class="stat-row region-row">${regions.map((r) => `<span>${r.name} <b>${r.cap ? fmtNum((100 * r.mw) / r.cap, 0) : "—"}%</b> <small class="muted">${fmtNum(r.mw)} of ${fmtNum(r.cap)} MW</small></span>`).join("")}
           <span>All <b>${totalCap ? fmtNum((100 * totalMw) / totalCap, 0) : "—"}%</b> <small class="muted">${fmtNum(totalMw)} of ${fmtNum(totalCap)} MW, ${rows2.length} farms</small></span></div>
-          <div class="chart map"></div>` }));
+          <div class="chart map"></div>${droppedNote}` }));
       body.appendChild(mapCard);
       if (!rows2.some((r) => r.lat != null)) mapCard.querySelector(".chart").innerHTML = emptyState("Farm locations not archived yet", "They are saved from GSO's solar map on the next collection.", "◌");
       else await solarMap(mapCard.querySelector(".chart"), { farms: rows2, demo }).catch((err) => { mapCard.querySelector(".chart").innerHTML = errorState(err); });
       const farmCard = h(card({ title: "LSS Solar Farms Now", desc: "Every solar farm on GSO's solar map, highest output first. \"Of capacity\" shows how hard each farm is working.",
         sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity`,
-        body: `${staleNote(newest, "its solar map")}<div class="tbl"></div>` }));
+        body: `${staleNote(newest, "its solar map")}${dropped.length ? `<p class="small muted">${dropped.length} farm${dropped.length > 1 ? "s" : ""} GSO no longer lists ${dropped.length > 1 ? "are" : "is"} named under the map.</p>` : ""}<div class="tbl"></div>` }));
       body.appendChild(farmCard);
       renderTable(farmCard.querySelector(".tbl"), [
         { key: "code", label: "Farm", fmt: (v, r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(v)}</a>` },

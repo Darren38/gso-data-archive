@@ -230,6 +230,9 @@ jobs:
       - name: Try the weather forecast (Open-Meteo) for the LSS regions (writes nothing)
         continue-on-error: true  # not GSO data: a failure here is reported but never fails the run
         run: python -m gso_archive weather-trial
+      - name: Try measured sunshine (satellite) for the LSS regions (writes nothing)
+        continue-on-error: true  # not GSO data: tried here before anything is collected
+        run: python -m gso_archive irradiance-trial
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

@@ -249,6 +249,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     A row is known by its whole content, so an edit shows as "no longer listed" + "added". The probe summary prints
     any page lines with "onstraint|Outage" so a change of GSO's markup is visible.
 
+55. **A farm GSO stops listing must not count as "now".** On 15 Nov 2026 GSO's solar map dropped MCLS, KDLS and BSLS;
+    the Solar page's "now" map, totals and table took each farm's latest value, so their morning figures stayed in.
+    Farms whose newest reading is over an hour older than the map's newest are left out and named under the map
+    (`dropped` in solar.js). The LSS explorer is unaffected (it reads each moment's farms from the day files).
+
 ## How to check a change
 
 ```bash
