@@ -254,6 +254,15 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     Farms whose newest reading is over an hour older than the map's newest are left out and named under the map
     (`dropped` in solar.js). The LSS explorer is unaffected (it reads each moment's farms from the day files).
 
+56. **Measured sunshine comes from a satellite, hourly, and must never stand in for GSO's freshness.** `irradiance.py`
+    (Open-Meteo satellite API, model `jma_jaxa_himawari`, every hour, `past_days=2`) shares `weather.collect_from`
+    (never raises, same back-off). Chosen by `irradiance-trial` on GitHub: about 1 hour behind; NREL NSRDB stops at
+    2020 for Malaysia and NASA POWER hourly lagged over 2 weeks. Its series are "actual", so the health check's
+    "newest GSO reading" counts only enabled GSO collectors (it would otherwise hide a GSO outage); the page banner
+    already uses `LIVE_DATASETS`. The Weather page learns the tomorrow estimate from measured sunshine when there are
+    12+ hours of it, and "How Closely the Farms Follow the Sunshine" matches each hour's average farm output (3+
+    readings in the hour ending at T) with the satellite value at T.
+
 ## How to check a change
 
 ```bash

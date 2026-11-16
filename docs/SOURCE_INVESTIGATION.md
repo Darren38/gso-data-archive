@@ -132,6 +132,18 @@ which is the outage duration period of the transmission assets giving rise to th
 2026 the first had 4 rows (Types "Contingency" and "Basecase"), the second none. The `constraints` collector
 (`gso_archive/adapters/constraints.py`) keeps every row as text under GSO's headings; nothing is interpreted.
 
+### Measured sunshine (not GSO) **[TRIED ON GITHUB, 16 Nov 2026]**
+
+`https://satellite-api.open-meteo.com/v1/archive?models=jma_jaxa_himawari&hourly=shortwave_radiation&past_days=2&timezone=UTC`
+(Open-Meteo's satellite radiation API; the endpoint and model name from Open-Meteo's GitHub issue #1683 and the
+python-open-meteo client, PR #1387). `gso-archive irradiance-trial` (probe job) on 16 Nov 2026 12:57 UTC: all four
+regions answered, units "W/m²", 81-85 hourly values over 3 days, newest hour 12:00 UTC, i.e. about 1 hour behind;
+values plausible (about 780-870 W/m² at 13:00-14:00 MYT, 0 after sunset). Hours not yet processed are null and are
+skipped. The value at time T is the average over the hour ending at T. Open-Meteo reported its Himawari feed broken from
+6 Jan 2026 and working again on 4 Mar 2026, with some 10-minute steps missing (issue #1683).
+Not used: NREL NSRDB (its Himawari data for Malaysia covers 2016-2020 only) and NASA POWER hourly
+(`power.larc.nasa.gov/api/temporal/hourly/point`, ALLSKY_SFC_SW_DWN: no values for the last 14 days in the trial).
+
 ### Weather (not GSO) **[THIRD-PARTY DOCUMENTED]**
 
 `https://api.open-meteo.com/v1/forecast` (Open-Meteo, free, no key, CC BY 4.0), asked every 3 hours for four places:

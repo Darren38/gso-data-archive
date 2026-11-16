@@ -96,12 +96,12 @@ def parse(answer: object, points: dict[str, tuple[float, float]]) -> list[Readin
     return out
 
 
-def due(conn: Connection, now: datetime) -> bool:
-    last = store.last_success(conn, KEY)
-    if last is not None and now - last < EVERY:
+def due(conn: Connection, now: datetime, key: str = KEY, every: timedelta = EVERY) -> bool:
+    last = store.last_success(conn, key)
+    if last is not None and now - last < every:
         return False
     r = db.collection_runs.c
-    row = conn.execute(select(r.started_at, r.error_message).where(and_(r.adapter == KEY, r.status == "failed"))
+    row = conn.execute(select(r.started_at, r.error_message).where(and_(r.adapter == key, r.status == "failed"))
                        .order_by(desc(r.started_at)).limit(1)).first()
     if row is None or (last is not None and last > ensure_utc(row.started_at)):
         return True
@@ -109,36 +109,38 @@ def due(conn: Connection, now: datetime) -> bool:
     return now - ensure_utc(row.started_at) >= wait
 
 
-def collect_weather(engine: Engine, settings: Settings, now: datetime | None = None, client: httpx.Client | None = None,
-                    force: bool = False) -> WeatherResult:
-    """Fetch and store the forecast if it is due. Never raises: a failure is recorded as this collector's run."""
+def collect_from(engine: Engine, settings: Settings, now: datetime | None, client: httpx.Client | None, force: bool, *,
+                 key: str, spec: AdapterSpec, url: str, every: timedelta, params: dict, read) -> WeatherResult:
+    """Fetch one Open-Meteo answer for the LSS regions and store it, if due. Shared by the forecast (this module) and
+    the measured satellite sunshine (irradiance.py). Never raises: a failure is recorded as the collector's run, and
+    the same back-off applies (RETRY_AFTER, an hour after "too many requests"), so it can never slow GSO collection."""
     now = now or utcnow()
     with engine.connect() as conn:
-        if not force and not due(conn, now):
+        if not force and not due(conn, now, key, every):
             return WeatherResult("skipped")
         points = region_points(conn)
     started = time.monotonic()  # the run is dated `now` (the cycle's clock), which due() compares with
     with engine.begin() as conn:
-        run_id = store.start_run(conn, KEY, None, "schedule")
-    params = {"latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
-              "hourly": "shortwave_radiation,cloud_cover", "timezone": "UTC", "past_days": 1, "forecast_days": 3}
+        run_id = store.start_run(conn, key, None, "schedule")
+    query = {"latitude": ",".join(str(p[0]) for p in points.values()), "longitude": ",".join(str(p[1]) for p in points.values()),
+             **params}
     own = client is None
     client = client or httpx.Client(timeout=TIMEOUT, headers={"User-Agent": settings.user_agent, "Accept": "application/json"})
     try:
-        res = client.get(URL, params=params)
+        res = client.get(url, params=query)
         res.raise_for_status()
-        readings = parse(res.json(), points)
+        readings = read(res.json(), points)
         with engine.begin() as conn:
-            dataset_id = store.ensure_dataset(conn, SPEC)
-            series_ids = store.resolve_series(conn, SPEC, dataset_id, readings)
+            dataset_id = store.ensure_dataset(conn, spec)
+            series_ids = store.resolve_series(conn, spec, dataset_id, readings)
             stats = store.apply_readings(conn, readings, series_ids, run_id=run_id, snapshot_id=None, collected_at=now)
             store.finish_run(conn, run_id, status="success", started_at=now, http_status=res.status_code, records_seen=len(readings),
                              records_new=stats.new, records_revised=stats.revised, records_unchanged=stats.unchanged,
                              duration_ms=int((time.monotonic() - started) * 1000))
         return WeatherResult("success", len(readings))
-    except Exception as exc:  # noqa: BLE001 - weather must never stop GSO collection
+    except Exception as exc:  # noqa: BLE001 - outside data must never stop GSO collection
         kind = "network_error" if isinstance(exc, httpx.TransportError) else "http_error" if isinstance(exc, httpx.HTTPStatusError) else "parse_error"
-        log.warning("weather failed: %s: %s", kind, exc)
+        log.warning("%s failed: %s: %s", key, kind, exc)
         with engine.begin() as conn:
             store.finish_run(conn, run_id, status="failed", started_at=now, error_type=kind, error_message=str(exc)[:4000],
                              duration_ms=int((time.monotonic() - started) * 1000))
@@ -146,3 +148,11 @@ def collect_weather(engine: Engine, settings: Settings, now: datetime | None = N
     finally:
         if own:
             client.close()
+
+
+def collect_weather(engine: Engine, settings: Settings, now: datetime | None = None, client: httpx.Client | None = None,
+                    force: bool = False) -> WeatherResult:
+    """Fetch and store the forecast if it is due. Never raises: a failure is recorded as this collector's run."""
+    return collect_from(engine, settings, now, client, force, key=KEY, spec=SPEC, url=URL, every=EVERY,
+                        params={"hourly": "shortwave_radiation,cloud_cover", "timezone": "UTC", "past_days": 1, "forecast_days": 3},
+                        read=parse)

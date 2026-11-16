@@ -17,7 +17,7 @@
 - **Solar first**, straight from [GSO's Solar page](https://www.gso.org.my/SystemData/Solar.aspx): grid (transmission) solar, distribution solar, and NEM, FiT and SELCO rooftop solar (GSO's own estimates), with GSO's solar forecast to compare against. Plus daily peaks and when they happened, energy per day, how fast output rises and falls, solar's share of demand, and day / week / month / year comparisons.
 - **Every large solar farm, on a map**: a solar map of Peninsular Malaysia like GSO's, with each of the 60 or so LSS farms at its location, coloured by how much of its capacity it is producing, plus a table with state, region and grid or distribution connection.
 - **Any farm, any moment**: every LSS farm's output as a share of its capacity at a moment you choose, each farm's capacity factor over a period, the farms day by day or through one day; by region, connection, single farm and hours of the day, with a CSV download of every view.
-- **Weather at the farms**: a sunshine and cloud forecast for each region's LSS farms (from Open-Meteo, not GSO, and labelled so) beside what the farms actually produced, with a rough estimate of tomorrow's LSS energy.
+- **Weather at the farms**: sunshine measured hour by hour by the Himawari-9 satellite, and a sunshine and cloud forecast, for each region's LSS farms (from Open-Meteo, not GSO, and labelled so), beside what the farms actually produced: how closely they follow the sunshine, and a rough estimate of tomorrow's LSS energy.
 - **System constraints**: GSO's lists of existing constraints and of constraints due to outages in the next 7 days, exactly as GSO publishes them, with every row GSO adds or removes kept and a CSV download.
 - **The rest of the grid too**: grid demand and system demand (side by side, as on GSO's home page), generation by fuel (coal, gas, hydro, solar, co-generation, oil), other renewables, total generation, system availability, installed capacity, battery storage (BESS) charge and discharge, and the links to Thailand and Singapore.
 - **Nothing is ever lost or overwritten**: if GSO changes a reading later, the new value is shown and the old one is kept. Gaps stay gaps. A missing reading is never shown as zero.
@@ -39,6 +39,7 @@
 | Other renewables split (biogas, biomass, mini hydro) | About every 2–3 minutes, from GSO's home page, for today only |
 | Power stations (each station's fuel, type, capacity and agreement end date) and installed capacity | Once a day; every change GSO makes to the list is kept |
 | Weather forecast at the LSS farms (Open-Meteo, not GSO) | Every 3 hours |
+| Measured sunshine at the LSS farms (Himawari-9 satellite via Open-Meteo, not GSO) | Every hour, about an hour behind |
 | System constraints (GSO's Existing Constraints and Constraints Due to Outage, from its home page) | Every 30 minutes; every row GSO adds or removes is kept |
 | Backup of the whole archive | Once a day, to the `archive-backups` release |
 | An open page | Checks for new readings every minute and updates itself |

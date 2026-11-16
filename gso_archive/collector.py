@@ -283,6 +283,9 @@ def run_cycle(engine: Engine, settings: Settings, client: GsoClient | None = Non
                 from .weather import collect_weather
 
                 collect_weather(engine, settings, cycle.started_at)
+                from .irradiance import collect_irradiance  # measured (satellite) sunshine, hourly (irradiance.py)
+
+                collect_irradiance(engine, settings, cycle.started_at)
             _heartbeat(engine, cycle)
     except LockBusy as exc:
         cycle.skipped_reason = str(exc)

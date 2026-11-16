@@ -1,5 +1,14 @@
 # Changelog
 
+## 16 November 2026 (forty-sixth update) — GSO Grid Archive 6.3
+
+Measured sunshine at the solar farms, hour by hour, beside what the farms produced.
+
+- **Measured sunshine, not just a forecast:** the Weather page now shows the sunshine that actually reached the ground in each region (hourly, in W/m²), measured by the Himawari-9 weather satellite and served free by Open-Meteo. It arrives about an hour after each hour ends and is fetched every hour. It is not GSO data and is labelled so.
+- **Why this source:** it was tried on GitHub first for all four LSS regions. NREL's satellite data for Malaysia (NSRDB) only covers 2016-2020, and NASA POWER's hourly data had nothing for the last two weeks, so neither can be set beside GSO's readings from today.
+- **Related to the farms:** the sunshine chart shows measured (solid) and forecast (dashed) lines; the "LSS Output and Sunshine" chart shows the farms' output with both; a new card, "How Closely the Farms Follow the Sunshine", compares every daylight hour's average farm output with that hour's measured sunshine, per region and day: energy, output per kWh/m² and how closely they match. Tomorrow's rough estimate now learns from measured sunshine instead of the forecast.
+- **Safety:** this outside data can never hide a GSO outage: the hourly health check and the "Readings are delayed" note look only at GSO's own figures.
+
 ## 16 November 2026 (forty-fifth update) — GSO Grid Archive 6.2.2
 
 - **Farms GSO stops listing are named, and no longer counted as "now":** since the morning of 15 November GSO's solar map no longer lists three farms (MCLS, KDLS and BSLS). The Solar page was still counting their last figures from that morning in "right now" totals. Now the map, the totals and the table show only the farms on GSO's newest map, and a note under the map names the farms GSO stopped listing, with their capacity and when they were last listed. Their history stays in the archive.

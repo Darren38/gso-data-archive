@@ -124,8 +124,11 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                     w = c.get("worst") or {}
                     problems.append(f"GSO's pages disagree: {c['name']} held for only {c['agreeing']} of {c['compared']} "
                                     f"readings (e.g. {w.get('left')} vs {w.get('right')} at {w.get('time')})")
+            # GSO's own readings only: hourly satellite sunshine (not GSO) must never hide a GSO outage.
+            gso = {a["adapter"] for a in status.get("adapters", []) if a.get("enabled")}
             newest = max((f["latest_obs_time"] for f in status.get("freshness", [])
-                          if f.get("latest_obs_time") and f.get("kind") == "actual"), default=None)
+                          if f.get("latest_obs_time") and f.get("kind") == "actual" and f["series"].split(".")[0] in gso),
+                          default=None)
             if newest:
                 age = (now - datetime.fromisoformat(newest.replace("Z", "+00:00"))).total_seconds() / 60
                 if age > max_reading_age_minutes:

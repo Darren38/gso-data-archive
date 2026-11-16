@@ -67,3 +67,54 @@ def test_too_many_requests_waits_an_hour(engine, settings):
     assert collect_weather(engine, s, NOW, client=client).status == "failed"
     assert collect_weather(engine, s, NOW + timedelta(minutes=30), client=client).status == "skipped"
     assert collect_weather(engine, s, NOW + timedelta(minutes=61), client=client).status == "failed"
+
+
+# --- measured sunshine (satellite, irradiance.py) ------------------------------------------------------------------
+from gso_archive import irradiance  # noqa: E402
+
+
+def _sat(n=4):
+    times = [(NOW - timedelta(hours=3) + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M") for h in range(5)]
+    return [{"hourly_units": {"shortwave_radiation": "W/m²"},
+             "hourly": {"time": times, "shortwave_radiation": [500.0 + i, 600.0, 700.0, None, None]}} for i in range(n)]
+
+
+def test_satellite_sunshine_is_kept_as_hourly_readings_and_unprocessed_hours_skipped(engine, settings):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(200, json=_sat())
+
+    s = replace(settings, weather_enabled=True)
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    assert irradiance.collect_irradiance(engine, s, NOW, client=client).status == "success"
+    q = calls[0].url.params
+    assert q["models"] == "jma_jaxa_himawari" and q["hourly"] == "shortwave_radiation" and calls[0].url.host == "satellite-api.open-meteo.com"
+    with engine.connect() as c:
+        rows = c.execute(select(db.series.c.key, db.series.c.kind).where(db.series.c.key.like("irradiance.%"))).all()
+        assert {k for k, _ in rows} == {f"irradiance.{r}_ghi" for r in REGIONS} and {k for _, k in rows} == {"actual"}
+        n = c.execute(select(db.observations.c.value).join(db.series, db.series.c.id == db.observations.c.series_id)
+                      .where(db.series.c.key == "irradiance.north_ghi")).all()
+        assert sorted(v for (v,) in n) == [500.0, 600.0, 700.0]  # the two null (not yet processed) hours are not kept
+    # hourly, with the same back-off as the forecast
+    assert irradiance.collect_irradiance(engine, s, NOW + timedelta(minutes=30), client=client).status == "skipped"
+    assert irradiance.collect_irradiance(engine, s, NOW + timedelta(minutes=61), client=client).status == "success"
+
+
+def test_satellite_sunshine_never_hides_a_gso_outage(monkeypatch):
+    """The health check's "newest reading" counts GSO's own collectors only, not hourly satellite sunshine."""
+    import json as _json
+
+    from gso_archive import health
+
+    now = datetime.now(timezone.utc)
+    iso = lambda t: t.isoformat().replace("+00:00", "Z")  # noqa: E731
+    status = {"live_enabled": True, "collector_heartbeat": {"cycle_started_at": now.isoformat()},
+              "adapters": [{"adapter": "genmix_live", "enabled": True}, {"adapter": "irradiance", "enabled": False}],
+              "freshness": [{"series": "genmix_live.total_generation", "kind": "actual", "latest_obs_time": iso(now - timedelta(hours=5))},
+                            {"series": "irradiance.north_ghi", "kind": "actual", "latest_obs_time": iso(now - timedelta(minutes=50))}]}
+    pages = {"": b"GSO Grid Archive", "data/meta.json": b"{}", "data/status.json": _json.dumps(status).encode()}
+    monkeypatch.setattr(health, "_get", lambda url, timeout=30: pages[url.split("example.test/", 1)[1]])
+    problems = health.check_site("https://example.test/")["problems"]
+    assert any("newest GSO reading is 300 min old" in p for p in problems)

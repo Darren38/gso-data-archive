@@ -10,7 +10,7 @@ export async function render(main, { meta }) {
     so it can be searched, analysed and downloaded. Solar generation is the main focus.</p>
     <p><b>Not affiliated with GSO or Tenaga Nasional Berhad.</b> GSO's terms of use apply to the underlying data.
     Every GSO data address this archive uses was checked first-hand on gso.org.my, and the meaning of each value comes from GSO's own page scripts.
-    The only data that isn't GSO's is the sunshine and cloud forecast on the Weather page, from
+    The only data that isn't GSO's is on the Weather page: the sunshine and cloud forecast, and sunshine measured by the Himawari-9 weather satellite, both from
     <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>), labelled wherever it appears.
     GSO's NEM, FiT and SELCO rooftop solar values are GSO's estimates from registered capacity and are labelled that way.</p>
     <h2>Data conventions</h2>

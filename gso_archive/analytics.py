@@ -292,7 +292,7 @@ def status(conn: Connection, configured_adapters: list[str], live_enabled: bool)
     now = utcnow()
     r = db.collection_runs.c
     adapters_out = []
-    for key in sorted(set(configured_adapters) | set(ADAPTERS) | {"weather"}):
+    for key in sorted(set(configured_adapters) | set(ADAPTERS) | {"weather", "irradiance"}):
         recent = conn.execute(
             select(db.collection_runs).where(r.adapter == key).order_by(desc(r.started_at)).limit(50)
         ).all()
