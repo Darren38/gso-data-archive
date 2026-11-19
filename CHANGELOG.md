@@ -1,5 +1,10 @@
 # Changelog
 
+## 19 November 2026 (fifty-second update) — GSO Grid Archive 6.5
+
+- **◀ ▶ for periods:** in "LSS Farms: Any Moment or Period", the "Capacity factor over a period" and "Day by day" views now have ◀ ▶ buttons that move the whole period back or forward by its own length (7 days → the 7 days before), so you can go period by period. The map keeps your zoom and position as you step, and each button turns grey at the start or end of the archive.
+- **Farms above 100% shown the way GSO shows them:** GSO's solar map sometimes gives a farm slightly more output than its capacity (MRLS: 111 of 106 MW, 105%, on 17 November). GSO's own map corrects this on screen to 100% (and the output to the capacity), so the maps here now do the same. Pointing at such a farm also shows GSO's figure, and the tables and CSV files keep GSO's figures exactly as published.
+
 ## 19 November 2026 (fifty-first update) — GSO Grid Archive 6.4.2
 
 - **Every farm's percentage appears as you zoom in:** on the solar farm maps, zooming with the mouse wheel or by pinching left the percentages as they were at the whole-peninsula view, so many farms stayed without one however far you zoomed. The labels are now worked out again after every zoom, so more appear the closer you look, and you can zoom in further than before. A few farms sit almost on top of each other; tap one to see its figures.

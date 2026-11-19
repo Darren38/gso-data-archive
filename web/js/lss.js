@@ -85,6 +85,8 @@ export async function lssExplorer(el, { demo = false } = {}) {
         <button type="button" class="btn primary" data-play aria-pressed="false" title="Step through the readings one by one, like GSO's replay">▶ Play</button></span>
       <span data-show="period daily"><label class="inline">From <input type="date" name="from" min="${oldest}" max="${newest}"></label>
         <label class="inline">To <input type="date" name="to" min="${oldest}" max="${newest}"></label>
+        <button type="button" class="btn" data-pstep="-1" title="The same number of days, just before" aria-label="Previous period">◀</button>
+        <button type="button" class="btn" data-pstep="1" title="The same number of days, just after" aria-label="Next period">▶</button>
         <span class="seg">${[["7", "7 days"], ["30", "30 days"], ["month", "This month"], ["all", "All"]].map(([k, v]) => `<button type="button" data-quick="${k}">${v}</button>`).join("")}</span></span>
     </div>
     <div class="toolbar lss-filter" role="group" aria-label="Which farms">
@@ -109,6 +111,9 @@ export async function lssExplorer(el, { demo = false } = {}) {
       lssreg: state.region || null, lssconn: state.conn || null, lssfarm: state.farm || null,
       lssh: state.h0 === 0 && state.h1 === 24 ? null : `${state.h0}-${state.h1}`, lssbad: state.bad ? "1" : null });
     if (state.mode !== "moment") { delete out.dataset.view; stopPlay(); }
+    const lo = state.from <= state.to ? state.from : state.to, hi = state.from <= state.to ? state.to : state.from;
+    el.querySelector('[data-pstep="-1"]').disabled = lo <= oldest;
+    el.querySelector('[data-pstep="1"]').disabled = hi >= newest;
     try {
       await VIEWS[state.mode](out, state, { demo, days, oldest, newest, jump });
     } catch (err) { out.innerHTML = errorState(err); }
@@ -153,6 +158,18 @@ export async function lssExplorer(el, { demo = false } = {}) {
       : (addDay(newest, -(+k - 1)) > oldest ? addDay(newest, -(+k - 1)) : oldest);
     sync(); draw();
   }));
+  // ◀ ▶ for periods: move the whole period back or forward by its own length (7 days → the 7 days before), staying
+  // inside the archive; the map keeps its zoom and position, as in the moment view.
+  const pstep = (dir) => {
+    const [a, b] = state.from <= state.to ? [state.from, state.to] : [state.to, state.from];
+    const n = Math.round((Date.parse(b) - Date.parse(a)) / 864e5) + 1;
+    let from = addDay(a, dir * n), to = addDay(b, dir * n);
+    if (from < oldest) { from = oldest; to = addDay(oldest, n - 1) > newest ? newest : addDay(oldest, n - 1); }
+    if (to > newest) { to = newest; from = addDay(newest, -(n - 1)) < oldest ? oldest : addDay(newest, -(n - 1)); }
+    if (from === a && to === b) return;
+    state.from = from; state.to = to; sync(); draw();
+  };
+  el.querySelectorAll("[data-pstep]").forEach((b) => b.addEventListener("click", () => pstep(+b.dataset.pstep)));
   el.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => { stopPlay(); stepMoment(state, +b.dataset.step, days, jump); }));
   el.querySelector("[data-newest]").addEventListener("click", async () => {
     const f = await getFarmsDay(newest).catch(() => null);
@@ -323,6 +340,8 @@ const VIEWS = {
   },
 
   async period(out, state, { demo }) {
+    const prevMap = out.querySelector(".chart.map"), prev = prevMap && window.echarts?.getInstanceByDom(prevMap);
+    const view = prev && !prev.isDisposed() ? (({ zoom, center }) => ({ zoom, center }))(prev.getOption().geo[0]) : null;
     out.innerHTML = '<div class="skeleton" style="height:420px"></div>';
     const p = await loadPeriod(state);
     if (!p.files.length) { out.innerHTML = emptyState("No solar map readings in this period"); return; }
@@ -345,7 +364,8 @@ const VIEWS = {
         so this is the capacity factor over the covered time.</p>
       ${rows.length ? regionRow(use, cfOf) : ""}<div class="chart map"></div><div class="tbl"></div>${flagNote(rows, state)}`;
     if (!rows.length) { out.querySelector(".chart").outerHTML = emptyState("No farm matches these choices"); return; }
-    await solarMap(out.querySelector(".chart"), { farms: use, demo, metric: "cf" });
+    const map = await solarMap(out.querySelector(".chart"), { farms: use, demo, metric: "cf" });
+    if (map && view?.zoom > 1) map.setOption({ geo: { zoom: view.zoom, center: view.center }, series: [{ id: "farms", labelLayout: { hideOverlap: true } }] });
     renderTable(out.querySelector(".tbl"), [...farmCols,
       { key: "cap", label: "Capacity (MW)", num: true, fmt: (v) => fmtNum(v) },
       { key: "energy", label: "Energy (covered time)", num: true, fmt: (v) => (v == null ? "—" : fmtEnergy(v)) },

@@ -287,6 +287,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     them on `georoam` (debounced) and at the end of a button glide; zoom goes to 40x. Nudging labels apart
     (`moveOverlap: "shiftY"`) was tried and made clusters unreadable. The demo browser check zooms with a `geoRoam`.
 
+60. **The farm map corrects figures the way GSO's does; the data never changes.** GSO's `getData` (Solar.v19.js, "Data
+    correction") shows a share below 0 as 0 and above 100 as 100, and output above capacity as the capacity. `solarMap`'s
+    `shownOf` does the same for the real-time metric (labels, colour, tooltip, which also names GSO's figure); tables,
+    totals and CSVs keep GSO's figures (MRLS 111 of 106 MW on 17 Nov). The period views' ◀ ▶ (`pstep` in lss.js) move
+    the period by its own length within the archive and keep the map's zoom (read from the old map before redrawing).
+
 ## How to check a change
 
 ```bash

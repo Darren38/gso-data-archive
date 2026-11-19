@@ -312,7 +312,8 @@ export async function render(main, { meta, isCurrent }) {
       const farmCard = h(card({ title: "LSS Solar Farms Now",
         when: newest ? `Real time: GSO's newest solar map reading, ${fmtLong(newest)}` : "",
         desc: `Every solar farm on GSO's newest solar map, highest output first. "Output now" is each farm's output in that one reading;
-          "Share of capacity now" is that output ÷ the farm's capacity, at that moment (not an average). For a past moment, a period's
+          "Share of capacity now" is that output ÷ the farm's capacity, at that moment (not an average). The table gives GSO's figures as
+          published, which can be a little over 100%; the map shows them as GSO's own map does, at most 100%. For a past moment, a period's
           capacity factor or a day's energy, use "LSS Farms: Any Moment or Period" below.`,
         sub: `${rows2.length} farms counted · ${fmtNum(totalMw)} MW now, of ${fmtNum(totalCap)} MW capacity`,
         body: `${staleNote(newest, "its solar map")}${dropped.length ? `<p class="small muted">${dropped.length} farm${dropped.length > 1 ? "s" : ""} GSO no longer lists ${dropped.length > 1 ? "are" : "is"} named under the map.</p>` : ""}${badCodes.size ? `<p class="small muted">${[...badCodes].map((c) => esc(c)).join(" and ")}: listed last, marked "GSO figures look wrong" and not counted in the totals.</p>` : ""}<div class="tbl"></div>` }));

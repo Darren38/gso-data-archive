@@ -314,8 +314,16 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
   const narrow = el.clientWidth < 480;
   const maxCap = Math.max(1, ...farms.map((f) => f.cap || 0));
   const top = metric === "cf" ? 40 : 100;
+  // GSO's map corrects what it shows (Solar.v19.js getData, "Data correction"): a share below 0% shows as 0% and above
+  // 100% as 100%, and output above capacity as the capacity. The real-time map does the same; the archive, tables and
+  // CSVs keep GSO's figures as published, and the tooltip names the figure that was corrected.
+  const shownOf = (f) => {
+    if (metric === "cf" || f.pct == null) return { pct: f.pct, mw: f.mw, corrected: false };
+    const pct = Math.min(100, Math.max(0, f.pct)), mw = f.cap != null && f.mw > f.cap ? f.cap : f.mw;
+    return { pct, mw, corrected: pct !== f.pct || mw !== f.mw };
+  };
   const data = farms.filter((f) => f.lat != null && f.lon != null).map((f) => ({
-    name: f.code, value: [f.lon, f.lat, f.pct == null ? null : Math.min(f.pct, top)], farm: f,
+    name: f.code, value: [f.lon, f.lat, f.pct == null ? null : Math.min(Math.max(f.pct, 0), top)], farm: f, shown: shownOf(f),
     symbol: f.conn === "distribution" ? "diamond" : "circle",
     symbolSize: (narrow ? 9 : 12) + (narrow ? 10 : 16) * Math.sqrt((f.cap || 0) / maxCap) }));
   const existing = window.echarts.getInstanceByDom(el);
@@ -329,12 +337,13 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
     animationDurationUpdate: 450, animationEasingUpdate: "cubicOut",
     tooltip: { trigger: "item", backgroundColor: css("--surface"), borderColor: css("--border"), textStyle: { color: css("--text"), fontSize: 13 },
       formatter: (p) => {
-        const f = p.data?.farm;
+        const f = p.data?.farm, sh = p.data?.shown;
         if (!f) return "";
         return `<b>${f.code}</b> · ${f.state}, ${f.region}<br>${f.conn === "distribution" ? "Distribution" : "Grid"} connected<br>` +
           (metric === "cf"
             ? `Average <b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : `<br>Capacity factor <b>${fmtNum(f.pct, 1)}%</b>`)
-            : `Solar PV generation <b>${fmtNum(f.mw, 1)} / ${fmtNum(f.cap)} MW</b>` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b>)`));
+            : `Solar PV generation <b>${fmtNum(sh.mw, 1)} / ${fmtNum(f.cap)} MW</b>` + (sh.pct == null ? "" : ` (<b>${fmtNum(sh.pct, 0)}%</b>)`)
+              + (sh.corrected ? `<br><small>As GSO's map shows it. GSO's figure: ${fmtNum(f.mw, 1)} MW (${fmtNum(f.pct, 0)}%)</small>` : ""));
       } },
     geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 40 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
       // keep the true shape: near the equator a degree east is about as long as a degree north (aspectScale 1)
@@ -352,9 +361,9 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
       // The share on every dot, as on GSO's map; labels that would overlap are hidden until you zoom in.
       label: { show: true, position: "inside", fontSize: narrow ? 9 : 10, fontWeight: 700, color: "#1f2328",
         textBorderColor: "rgba(255,255,255,0.85)", textBorderWidth: 2,
-        formatter: (p) => (p.data.farm.pct == null ? "" : `${fmtNum(p.data.farm.pct, metric === "cf" ? 0 : 0)}%`) },
+        formatter: (p) => (p.data.shown.pct == null ? "" : `${fmtNum(p.data.shown.pct, 0)}%`) },
       labelLayout: { hideOverlap: true },
-      emphasis: { scale: 1.3, label: { show: true, formatter: (p) => `${p.data.name} ${p.data.farm.pct == null ? "" : `${fmtNum(p.data.farm.pct, 0)}%`}`, position: "top", color: css("--text"), fontWeight: 700 } } }],
+      emphasis: { scale: 1.3, label: { show: true, formatter: (p) => `${p.data.name} ${p.data.shown.pct == null ? "" : `${fmtNum(p.data.shown.pct, 0)}%`}`, position: "top", color: css("--text"), fontWeight: 700 } } }],
   });
   if (!chart) return null;
   chart.__solarMetric = metric;

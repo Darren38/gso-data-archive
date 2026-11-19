@@ -53,6 +53,9 @@ export async function render(main, { meta }) {
         figures, so this site names them separately instead of treating one as the other.</li>
       <li><b>Tie-line direction.</b> GSO's Tie-Line page counts power going out (export) as positive; its home page counts the same flow the other way round.
         Each chart says which way it counts.</li>
+      <li><b>Solar farms above their capacity.</b> GSO's solar map sometimes gives a farm a little more output than its capacity (MRLS 111 of 106 MW, 105%,
+        on 17 November). GSO's own map shows such a farm at 100%, and so do the maps here (the farm's tooltip gives GSO's figure); the tables and CSVs keep
+        GSO's figures as published.</li>
       <li><b>Rooftop solar is estimated.</b> NEM, FiT and SELCO figures are GSO's estimates from registered capacity, not meter readings.</li>
       <li><b>Checked every collection:</b> figures GSO publishes twice (Distribution Solar, Grid solar, Grid Demand, tie-line total) are compared each time;
         the results are on the <a href="#/status">Collection Status</a> page, and a disagreement alerts the site's owner.</li>

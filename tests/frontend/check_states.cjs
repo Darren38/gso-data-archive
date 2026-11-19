@@ -124,6 +124,15 @@ async function visit(page, base, route, wait = 1200) {
         }
         if (!(await page.$$(".lss-out [data-dl]")).length && !(await page.$(".lss-out .state"))) fail.push(`LSS explorer ${mode} has no CSV button`);
       }
+      // ◀ ▶ for periods: moving back gives the same number of days just before, kept in the address.
+      await page.click('.lss [data-mode="period"]'); await page.waitForTimeout(1200);
+      const before = await page.evaluate(() => [document.querySelector('.lss [name="from"]').value, document.querySelector('.lss [name="to"]').value]);
+      if (await page.$('.lss [data-pstep="-1"]:not([disabled])')) {
+        await page.click('.lss [data-pstep="-1"]'); await page.waitForTimeout(1500);
+        const after = await page.evaluate(() => [document.querySelector('.lss [name="from"]').value, document.querySelector('.lss [name="to"]').value, location.hash]);
+        if (after[1] >= before[1] || !after[2].includes(`lssto=${after[1]}`)) fail.push(`LSS explorer ◀ did not move the period (${before} -> ${after.slice(0, 2)})`);
+        if (await page.$(".lss-out .state.error")) fail.push("LSS explorer shows an error after ◀");
+      } else if (!(await page.$('.lss [data-pstep="1"]:not([disabled])')) && before[0] !== before[1]) fail.push("LSS explorer period ◀ ▶ both disabled");
       await page.selectOption('.lss select[name="region"]', "North"); await page.waitForTimeout(800);
       if (!(await page.evaluate(() => location.hash)).includes("lssreg=North")) fail.push("LSS explorer region not kept in the address");
       if (await page.$(".lss-out .state.error")) fail.push("LSS explorer shows an error after choosing a region");
