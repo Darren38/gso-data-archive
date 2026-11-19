@@ -1,8 +1,8 @@
 // Solar dashboard: the archive's primary page.
 import { lssExplorer } from "../lss.js";
-import { getDaily, getPoints, exportUrl, rollup } from "../data.js";
+import { getDaily, getFarmsDay, getPoints, exportUrl, rollup } from "../data.js";
 import { COLORS, FUELS, SOLAR_PARTS, solarMap, categoryChart, profileChart, timeChart } from "../charts.js";
-import { combine, dailyFromPoints, extent, forecastError, intradayProfiles, ramps, sumSeries } from "../analysis.js";
+import { combine, dailyFromPoints, extent, forecastError, implausibleSolar, intradayProfiles, ramps, sumSeries } from "../analysis.js";
 import {
   addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtLong, fmtNum, fmtTime,
   freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, staleNote, verificationTag,
@@ -254,7 +254,23 @@ export async function render(main, { meta, isCurrent }) {
       const mapNewest = allFarms.map((r) => r.last).filter(Boolean).sort().pop();
       const dropped = allFarms.filter((r) => r.last && mapNewest && Date.parse(mapNewest) - Date.parse(r.last) > 3600e3)
         .sort((a, b) => (a.last < b.last ? -1 : 1));
-      const rows2 = allFarms.filter((r) => !dropped.includes(r));
+      const listed = allFarms.filter((r) => !dropped.includes(r));
+      // Farms whose GSO figures can't be real solar output (half capacity or more before 07:30 or after 18:45 MYT, at
+      // two moments or more, yesterday or today: PTRM and SKCL in Nov 2026) are listed with a mark but left out of the
+      // map and the totals, as in the LSS explorer (lesson 51).
+      const badCodes = new Set();
+      if (mapNewest) {
+        const today = new Date(Date.parse(mapNewest) + 8 * 3600e3).toISOString().slice(0, 10);
+        const files = (await Promise.all([addDays(today, -1), today].map((d) => getFarmsDay(d).catch(() => null)))).filter((f) => f?.times?.length);
+        const pts = new Map();
+        for (const f of files) {
+          const ts = f.times.map((t) => Date.parse(t));
+          for (const farm of f.farms) pts.set(farm.code, [...(pts.get(farm.code) || []), ...farm.mw.map((v, j) => [ts[j], v])]);
+        }
+        for (const r of listed) if (implausibleSolar(pts.get(r.code) || [], r.cap)) badCodes.add(r.code);
+      }
+      listed.forEach((r) => { r.bad = badCodes.has(r.code); });
+      const rows2 = listed.filter((r) => !r.bad);
       const droppedNote = dropped.length ? `<p class="notice small">GSO's newest solar map no longer lists ${dropped.length} farm${dropped.length > 1 ? "s" : ""}:
         ${dropped.map((r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(r.code)}</a> (${esc(r.region)}, ${fmtNum(r.cap)} MW, last listed ${esc(fmtDateTime(r.last))} MYT)`).join(", ")}.
         ${dropped.length > 1 ? "They are" : "It is"} left out of the figures here, which show only farms on GSO's newest map; the archive keeps ${dropped.length > 1 ? "their" : "its"} history.</p>` : "";
@@ -266,25 +282,34 @@ export async function render(main, { meta, isCurrent }) {
         const mw = rs.reduce((t, r) => t + (r.mw || 0), 0), cap = rs.reduce((t, r) => t + (r.cap || 0), 0);
         return { name, n: rs.length, mw, cap };
       }).filter((r) => r.n);
-      const mapCard = h(card({ title: "Solar Map (Peninsular Malaysia)", when: newest ? fmtLong(newest) : "",
+      const mapCard = h(card({ title: "Solar Map (Peninsular Malaysia)", when: newest ? `Real time: GSO's newest solar map reading, ${fmtLong(newest)}` : "",
         desc: "Each dot is one LSS solar farm on GSO's solar map, at its location. The colour shows how much of its capacity it is producing right now (grey = little or none, orange = close to full); bigger dots are bigger farms. Circles are grid-connected, diamonds distribution-connected. Drag or pinch to zoom.",
         body: `${staleNote(newest, "its solar map")}<div class="stat-row region-row">${regions.map((r) => `<span>${r.name} <b>${r.cap ? fmtNum((100 * r.mw) / r.cap, 0) : "—"}%</b> <small class="muted">${fmtNum(r.mw)} of ${fmtNum(r.cap)} MW</small></span>`).join("")}
           <span>All <b>${totalCap ? fmtNum((100 * totalMw) / totalCap, 0) : "—"}%</b> <small class="muted">${fmtNum(totalMw)} of ${fmtNum(totalCap)} MW, ${rows2.length} farms</small></span></div>
-          <div class="chart map"></div>${droppedNote}` }));
+          <div class="chart map"></div>${droppedNote}${badCodes.size ? `<p class="small muted">Left out of the map and the totals because GSO's figures can't be real solar output
+          (half their capacity or more with the sun down or barely up): ${[...badCodes].map((c) => esc(c)).join(", ")}. They are still listed in the table below, as GSO publishes them.</p>` : ""}` }));
       body.appendChild(mapCard);
       if (!rows2.some((r) => r.lat != null)) mapCard.querySelector(".chart").innerHTML = emptyState("Farm locations not archived yet", "They are saved from GSO's solar map on the next collection.", "◌");
       else await solarMap(mapCard.querySelector(".chart"), { farms: rows2, demo }).catch((err) => { mapCard.querySelector(".chart").innerHTML = errorState(err); });
-      const farmCard = h(card({ title: "LSS Solar Farms Now", desc: "Every solar farm on GSO's solar map, highest output first. \"Of capacity\" shows how hard each farm is working.",
-        sub: `${rows2.length} farms · ${fmtNum(totalMw)} MW of ${fmtNum(totalCap)} MW capacity`,
-        body: `${staleNote(newest, "its solar map")}${dropped.length ? `<p class="small muted">${dropped.length} farm${dropped.length > 1 ? "s" : ""} GSO no longer lists ${dropped.length > 1 ? "are" : "is"} named under the map.</p>` : ""}<div class="tbl"></div>` }));
+      // Real time, not a period: every figure is one reading of GSO's solar map, named here so it can't be mistaken for
+      // an average or a capacity factor (those are in the card below).
+      const atTime = (iso) => new Date(Date.parse(iso) + 8 * 3600e3).toISOString().slice(11, 16);
+      const farmCard = h(card({ title: "LSS Solar Farms Now",
+        when: newest ? `Real time: GSO's newest solar map reading, ${fmtLong(newest)}` : "",
+        desc: `Every solar farm on GSO's newest solar map, highest output first. "Output now" is each farm's output in that one reading;
+          "Share of capacity now" is that output ÷ the farm's capacity, at that moment (not an average). For a past moment, a period's
+          capacity factor or a day's energy, use "LSS Farms: Any Moment or Period" below.`,
+        sub: `${rows2.length} farms counted · ${fmtNum(totalMw)} MW now, of ${fmtNum(totalCap)} MW capacity`,
+        body: `${staleNote(newest, "its solar map")}${dropped.length ? `<p class="small muted">${dropped.length} farm${dropped.length > 1 ? "s" : ""} GSO no longer lists ${dropped.length > 1 ? "are" : "is"} named under the map.</p>` : ""}${badCodes.size ? `<p class="small muted">${[...badCodes].map((c) => esc(c)).join(" and ")}: listed last, marked "GSO figures look wrong" and not counted in the totals.</p>` : ""}<div class="tbl"></div>` }));
       body.appendChild(farmCard);
       renderTable(farmCard.querySelector(".tbl"), [
-        { key: "code", label: "Farm", fmt: (v, r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(v)}</a>` },
+        { key: "code", label: "Farm", fmt: (v, r) => `<a class="mono" href="#/explorer?series=${encodeURIComponent(r.key)}">${esc(v)}</a>${r.bad ? ' <span class="pill warn" title="GSO\'s figures for this farm can\'t be real solar output (half its capacity or more with the sun down or barely up); left out of the totals">GSO figures look wrong</span>' : ""}` },
         { key: "state", label: "State" }, { key: "region", label: "Region" }, { key: "conn", label: "Connected to" },
-        { key: "mw", label: "Output (MW)", num: true, fmt: (v) => fmtNum(v) },
+        // A farm missing from the newest reading (but on the map within the last hour) shows its own reading time.
+        { key: "mw", label: "Output now (MW)", num: true, fmt: (v, r) => `${fmtNum(v)}${r.last && newest && r.last !== newest ? ` <small class="muted" title="This farm was not in GSO's newest reading; this is its latest">at ${esc(atTime(r.last))}</small>` : ""}` },
         { key: "cap", label: "Capacity (MW)", num: true, fmt: (v) => fmtNum(v) },
-        { key: "pct", label: "Of capacity", num: true, fmt: (v) => (v == null ? "—" : `${fmtNum(v, 0)}%`) },
-      ], rows2, 15);
+        { key: "pct", label: "Share of capacity now", num: true, fmt: (v) => (v == null ? "—" : `${fmtNum(v, 0)}%`) },
+      ], [...rows2, ...listed.filter((r) => r.bad)], 15);
       // Any moment, or a period's capacity factor, from the archive (lss.js).
       const lssCard = h(card({ title: "LSS Farms: Any Moment or Period",
         desc: "Every LSS farm at a moment you choose, each farm's capacity factor over a period, the farms day by day, or their output through one day. Choose the region, connection, a single farm and the hours; download any view as CSV. From GSO's solar map as the archive collected it.",

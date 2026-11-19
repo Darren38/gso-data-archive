@@ -1,5 +1,10 @@
 # Changelog
 
+## 19 November 2026 (forty-eighth update) — GSO Grid Archive 6.3.2
+
+- **"LSS Solar Farms Now" says exactly what it shows:** every figure in it is real time, from one reading of GSO's solar map, and the card now says which ("Real time: GSO's newest solar map reading, 16 November 2026, 07:40 MYT"). The columns are now "Output now (MW)" and "Share of capacity now" (that output ÷ the farm's capacity at that moment, not an average), and the card points to the explorer below for a past moment, a period's capacity factor or a day's energy. The solar map says the same.
+- **Farms with impossible figures are no longer counted "now":** PTRM and SKCL, which GSO shows at nearly full output with the sun down, were left out of the explorer's totals but still counted in the "now" map and totals. They are now left out there too, and listed last in the table with the "GSO figures look wrong" mark (on 16 November at 07:40 they had added 36 MW that can't have been solar).
+
 ## 16 November 2026 (forty-seventh update) — GSO Grid Archive 6.3.1
 
 - **Every date bar says how much is archived:** instead of "Calendar days in MYT", the date bar on the Solar, Demand, Generation, BESS, Tie-Line and Explorer pages now shows the first and newest day of that page's readings and how many days that is (for example "Archived 21 Oct 2026 – 16 Nov 2026 · 27 days"). The "All" button starts at that first day.

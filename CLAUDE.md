@@ -253,6 +253,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     the Solar page's "now" map, totals and table took each farm's latest value, so their morning figures stayed in.
     Farms whose newest reading is over an hour older than the map's newest are left out and named under the map
     (`dropped` in solar.js). The LSS explorer is unaffected (it reads each moment's farms from the day files).
+    Farms `implausibleSolar` flags over yesterday's and today's day files are also left out of the "now" map and
+    totals and listed last with the mark, as in the explorer. Every "now" card names the reading's time.
 
 56. **Measured sunshine comes from a satellite, hourly, and must never stand in for GSO's freshness.** `irradiance.py`
     (Open-Meteo satellite API, model `jma_jaxa_himawari`, every hour, `past_days=2`) shares `weather.collect_from`
