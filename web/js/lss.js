@@ -295,7 +295,7 @@ const VIEWS = {
     };
     const when = data.times[i];
     head.innerHTML = `<p class="small"><b>${esc(fmtDateTime(when))} MYT</b> (${esc(describe(state))}): the reading of GSO's solar map nearest to your time.
-      Each farm's output as a share of its capacity at that moment; the share is printed on each farm (zoom in to see them all).</p>${rows.length ? regionRow(use, pctOf) : ""}`;
+      Each farm's output as a share of its capacity at that moment; the share is printed on each farm: zoom in to see more, and tap a farm for its figures (a few farms sit almost on top of each other).</p>${rows.length ? regionRow(use, pctOf) : ""}`;
     // The day's readings on a slider: drag to any moment of the day, as on GSO's map.
     const hhmm = (iso) => new Date(Date.parse(iso) + MYT).toISOString().slice(11, 16);
     slider.innerHTML = `<label class="lss-range"><span class="small muted">${esc(hhmm(data.times[0]))}</span>

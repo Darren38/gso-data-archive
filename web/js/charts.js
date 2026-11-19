@@ -336,7 +336,7 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
             ? `Average <b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : `<br>Capacity factor <b>${fmtNum(f.pct, 1)}%</b>`)
             : `Solar PV generation <b>${fmtNum(f.mw, 1)} / ${fmtNum(f.cap)} MW</b>` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b>)`));
       } },
-    geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 12 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
+    geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 40 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
       // keep the true shape: near the equator a degree east is about as long as a degree north (aspectScale 1)
       aspectScale: 1, layoutCenter: ["50%", "46%"], layoutSize: "90%",
       itemStyle: { areaColor: css("--surface-2"), borderColor: css("--border"), borderWidth: 0.8 },
@@ -358,6 +358,12 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
   });
   if (!chart) return null;
   chart.__solarMetric = metric;
+  // Labels follow the zoom, as on GSO's map: a label that would overlap another is hidden, and zooming in spreads the
+  // farms apart so more appear. ECharts works this out only when the chart is redrawn, not after a mouse-wheel, pinch
+  // or drag zoom, so each zoom ends with a redraw of the labels (CLAUDE.md lesson 59).
+  let relabel = 0;
+  const applyLabels = () => chart.setOption({ series: [{ id: "farms", labelLayout: { hideOverlap: true } }] });
+  chart.on("georoam", () => { clearTimeout(relabel); relabel = setTimeout(applyLabels, 120); });
   // + / − / reset, gliding to the new zoom over a quarter of a second (the wheel and pinch zoom too, by ECharts).
   el.style.position = "relative";
   el.querySelector(":scope > .map-zoom")?.remove();
@@ -374,7 +380,7 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
       const cur = chart.getOption().geo[0].center;
       chart.setOption({ geo: { zoom: from + (to - from) * e,
         ...(center && cur ? { center: [cur[0] + (center[0] - cur[0]) * e, cur[1] + (center[1] - cur[1]) * e] } : center && k === 1 ? { center } : {}) } }, { lazyUpdate: true });
-      if (k < 1) anim = requestAnimationFrame(step);
+      if (k < 1) anim = requestAnimationFrame(step); else applyLabels();
     };
     anim = requestAnimationFrame(step);
   };
@@ -382,7 +388,7 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
     const z = Number(btn.dataset.z);
     const now = chart.getOption().geo[0].zoom || 1;
     // ⟲: back to the whole peninsula (the middle of the map's bounding box, at zoom 1)
-    if (z === 0) glide(1, [102.0, 4.0]); else glide(Math.max(1, Math.min(12, now * z)));
+    if (z === 0) glide(1, [102.0, 4.0]); else glide(Math.max(1, Math.min(40, now * z)));
   }));
   return chart;
 }

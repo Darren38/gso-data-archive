@@ -282,6 +282,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     map is "now" only, so per-farm gaps are permanent. The live site can't be fetched from a cloud session; read the
     `build` job's collect log (`get_job_logs`, saved to a file) for each collector's counts.
 
+59. **ECharts lays labels out only when a chart is redrawn, not after a wheel, pinch or drag zoom.** The farm map's
+    `hideOverlap` labels stayed as laid out at the whole-peninsula view (24 of 54 shown at any zoom). `solarMap` redraws
+    them on `georoam` (debounced) and at the end of a button glide; zoom goes to 40x. Nudging labels apart
+    (`moveOverlap: "shiftY"`) was tried and made clusters unreadable. The demo browser check zooms with a `geoRoam`.
+
 ## How to check a change
 
 ```bash

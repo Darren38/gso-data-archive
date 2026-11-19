@@ -1,5 +1,9 @@
 # Changelog
 
+## 19 November 2026 (fifty-first update) — GSO Grid Archive 6.4.2
+
+- **Every farm's percentage appears as you zoom in:** on the solar farm maps, zooming with the mouse wheel or by pinching left the percentages as they were at the whole-peninsula view, so many farms stayed without one however far you zoomed. The labels are now worked out again after every zoom, so more appear the closer you look, and you can zoom in further than before. A few farms sit almost on top of each other; tap one to see its figures.
+
 ## 19 November 2026 (fiftieth update) — GSO Grid Archive 6.4.1
 
 - **Gaps in GSO's solar map are now shown, not skipped over:** on 19 November GSO's Solar page and solar map published nothing from 08:10 to 13:00 MYT. In "LSS Farms: Any Moment or Period", ◀ ▶ went straight from 08:10 to 13:00 without saying why. The moment view now says when it jumps across such a gap ("GSO's solar map published no farm figures between 08:10 and 13:00 MYT"), and the "Through a day" chart leaves the gap blank instead of drawing a straight line across it, with a note naming it. GSO later refilled its Solar page's totals for those hours, but its solar map only ever shows the present moment, so each farm's figures for that time can't be recovered.

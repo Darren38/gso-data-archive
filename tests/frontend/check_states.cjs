@@ -92,6 +92,22 @@ async function visit(page, base, route, wait = 1200) {
     });
     if (!map.farms) fail.push("solar map has no farms");
     if (!/[\d.,]+ \/ [\d,]+ MW/.test(map.tip)) fail.push("solar map shows no farm details");
+    // Zooming with the wheel or a pinch (a "geoRoam", not a redraw) must re-place the labels, so more appear
+    // (they once stayed as laid out at the whole-peninsula view; CLAUDE.md lesson 59).
+    const labels = await page.evaluate(async () => {
+      const el = document.querySelector(".chart.map"); const c = el && window.echarts.getInstanceByDom(el);
+      if (!c) return null;
+      const shown = () => { let n = 0; c._chartsViews[0].group.traverse((e) => { const t = e.getTextContent && e.getTextContent(); if (t && t.style && t.style.text && !t.ignore && !t.invisible) n++; }); return n; };
+      // The demo has a few far-apart farms, so make their labels big enough to crowd each other first.
+      c.setOption({ series: [{ id: "farms", label: { fontSize: 90 } }] }); await new Promise((r) => setTimeout(r, 300));
+      const before = shown();
+      c.dispatchAction({ type: "geoRoam", componentType: "geo", geoId: c.getModel().getComponent("geo").id, zoom: 8, originX: el.clientWidth / 2, originY: el.clientHeight / 2 });
+      await new Promise((r) => setTimeout(r, 600));
+      const after = shown(); c.setOption({ geo: { zoom: 1, center: [102.0, 4.0] }, series: [{ id: "farms", label: { fontSize: 10 }, labelLayout: { hideOverlap: true } }] });
+      return { before, after, total: c.getOption().series[0].data.length };
+    });
+    if (!labels || labels.before >= labels.total) fail.push(`solar map label check could not run (${JSON.stringify(labels)})`);
+    else if (labels.after <= labels.before) fail.push(`solar map labels did not follow a zoom (${labels.before} -> ${labels.after} of ${labels.total})`);
     // LSS farm explorer: every view draws, filters apply, and every CSV button gives a file with a header and rows.
     if (!(await page.$(".lss [data-mode]"))) fail.push("LSS farm explorer missing on the Solar page");
     else {
