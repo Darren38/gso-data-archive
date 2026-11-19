@@ -36,7 +36,9 @@ export async function render(main, { meta }) {
     desc: "Found by comparing GSO's figures with each other at every collection. Nothing here is corrected or invented: GSO's figures are kept as published.",
     body: `<div class="prose"><ul>
       <li><b>GSO sometimes stops publishing.</b> On the night of 3-4 November 2026 its home page and System Demand page stopped from 9:10 pm to about 1 am;
-        on 15 November its Solar page, solar forecast and solar map published nothing from 8:10 am. Those hours can't be recovered from anyone.
+        on 15 November its Solar page, solar forecast and solar map published nothing from 8:10 am, and on 19 November nothing from 8:10 am to 1 pm.
+        On 19 November GSO later refilled its Solar page's figures for those hours, but its solar map only ever shows the present moment, so each farm's
+        figures for them can't be recovered from anyone.
         Charts leave them blank, longer gaps are shaded “No readings from GSO”, and every page warns when the newest reading is over 45 minutes old.</li>
       <li><b>A stalled figure repeated as new.</b> At midnight on 4 November GSO's home page restarted with one value that only repeated its stalled figures
         (Grid Demand 20,858 MW). While a reading stands alone like that it is marked “frozen”: kept in the archive, left out of charts, totals and current figures.

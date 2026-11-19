@@ -274,6 +274,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     answers carry them too (actual r[5] current, r[6] past change; forecast r[2] peak label, r[3] next-hour change),
     and on 16 Nov they matched, except that GSO's next-hour figure lagged one reading behind.
 
+58. **The explorer must show a gap, not step over it.** On 19 Nov 2026 GSO's Solar page and solar map sent nothing from
+    08:10 to 13:00 MYT (collectors "success" with 0 new and 0 unchanged: the tell of an empty answer, lesson 44). ◀ ▶ went
+    08:10 → 13:00 silently and "Through a day" drew a straight line across. `gapsOf`/`withBreaks` (lss.js) name gaps over
+    30 minutes and break the line. GSO refilled its Solar page's day list afterwards (460 = 5 parts × 92 times), but the
+    map is "now" only, so per-farm gaps are permanent. The live site can't be fetched from a cloud session; read the
+    `build` job's collect log (`get_job_logs`, saved to a file) for each collector's counts.
+
 ## How to check a change
 
 ```bash

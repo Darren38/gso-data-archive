@@ -240,6 +240,24 @@ function joinFarms(files, state) {
 }
 
 /** The selected farms' summed output at each moment, when at least 90% of them have a reading then (else no reading). */
+/** Stretches of a day with no solar map reading for more than 30 minutes (GSO publishing nothing, as on 19 Nov 2026
+ * 08:10-13:00 MYT): [from, to] in ms, the readings either side. Shown, never bridged (CLAUDE.md lesson 36). */
+const GAP_MS = 30 * 60e3;
+function gapsOf(times) {
+  const ms = times.map((t) => (typeof t === "number" ? t : Date.parse(t))).sort((a, b) => a - b), out = [];
+  for (let k = 1; k < ms.length; k++) if (ms[k] - ms[k - 1] > GAP_MS) out.push([ms[k - 1], ms[k]]);
+  return out;
+}
+const hm = (ms) => new Date(ms + MYT).toISOString().slice(11, 16);
+const gapText = (g) => g.map(([a, b]) => `${hm(a)} and ${hm(b)}`).join(", ");
+
+/** A chart line breaks at every gap: a missing point is put in the middle of each one. */
+function withBreaks(pts) {
+  const out = [];
+  pts.forEach((p, k) => { if (k && p[0] - pts[k - 1][0] > GAP_MS) out.push([Math.round((p[0] + pts[k - 1][0]) / 2), null]); out.push(p); });
+  return out;
+}
+
 function fleetSeries(farms) {
   const byT = new Map();
   for (const f of farms) for (const [t, v] of f.pts) { const e = byT.get(t) || { n: 0, mw: 0 }; if (v != null) { e.n += 1; e.mw += v; } byT.set(t, e); }
@@ -287,7 +305,9 @@ const VIEWS = {
     const range = slider.querySelector("input"), nowLbl = slider.querySelector(".lss-range-now");
     range.addEventListener("input", () => { nowLbl.textContent = hhmm(data.times[+range.value]); });
     range.addEventListener("change", () => jump(state.day, hhmm(data.times[+range.value])));
-    notes.innerHTML = flagNote(rows, state);
+    const near = gapsOf(data.times).filter(([a, b]) => a === Date.parse(when) || b === Date.parse(when));
+    notes.innerHTML = (near.length ? `<p class="notice small">GSO's solar map published no farm figures between ${esc(gapText(near))} MYT,
+      so ◀ ▶ and the slider jump straight across that time. Nothing is filled in for it.</p>` : "") + flagNote(rows, state);
     if (!rows.length) { mapEl.hidden = true; tbl.innerHTML = emptyState("No farm matches these choices at this moment"); dl.innerHTML = ""; return; }
     mapEl.hidden = false;
     await solarMap(mapEl, { farms: use.map((r) => ({ ...r, mw: r.mwNow })), demo });
@@ -389,17 +409,20 @@ const VIEWS = {
     const farms = counted(all, state);
     if (!farms.length) { out.innerHTML = emptyState("No farm matches these choices on this day"); return; }
     const fl = fleetSeries(farms);
+    const dayGaps = gapsOf(data.times);
+    const drawn = withBreaks(fl.pts);
     const energy = farms.reduce((s, f) => s + (capacityFactor(f.pts, f.cap)?.energyMwh || 0), 0);
     const peak = fl.pts.filter((x) => x[1] != null).reduce((m, x) => (m && m[1] >= x[1] ? m : x), null);
     out.innerHTML = `<p class="small"><b>${esc(fmtDate(state.day))}</b>, ${esc(describe(state))}: the selected farms' total output at each moment GSO's solar map was
       collected (a moment where fewer than 90% of them have a reading is left blank). ${farms.length} farm${farms.length === 1 ? "" : "s"}, ${fmtNum(fl.cap)} MW.</p>
       <div class="stat-row region-row"><span>Energy <b>${fmtEnergy(energy)}</b></span><span>Peak <b>${peak ? `${fmtNum(peak[1])} MW` : "—"}</b>
       ${peak ? `<small class="muted">${esc(new Date(peak[0] + MYT).toISOString().slice(11, 16))}, ${pct((100 * peak[1]) / fl.cap)} of capacity</small>` : ""}</span>
-      <span>Readings <b>${fmtNum(data.times.length)}</b></span></div><div class="chart"></div>${flagNote(all, state)}`;
+      <span>Readings <b>${fmtNum(data.times.length)}</b></span></div>${dayGaps.length ? `<p class="notice small">No solar map readings from GSO between
+      ${esc(gapText(dayGaps))} MYT: the line is left blank there, and that time is not counted in the energy.</p>` : ""}<div class="chart"></div>${flagNote(all, state)}`;
     timeChart(out.querySelector(".chart"), { demo, yAxes: [{ name: "MW", min: 0 }, { name: "%", min: 0, max: 100 }],
-      series: [{ name: "Output", color: COLORS.solar, area: true, areaOpacity: 0.3, unit: "MW", points: fl.pts.map(([t, v]) => [new Date(t).toISOString(), v, "ok"]) },
+      series: [{ name: "Output", color: COLORS.solar, area: true, areaOpacity: 0.3, unit: "MW", points: drawn.map(([t, v]) => [new Date(t).toISOString(), v, "ok"]) },
         { name: "Share of capacity", color: COLORS.forecast, yAxisIndex: 1, unit: "%", width: 1.4,
-          points: fl.pts.map(([t, v]) => [new Date(t).toISOString(), v == null || !fl.cap ? null : +((100 * v) / fl.cap).toFixed(1), "derived"]) }] });
+          points: drawn.map(([t, v]) => [new Date(t).toISOString(), v == null || !fl.cap ? null : +((100 * v) / fl.cap).toFixed(1), "derived"]) }] });
     csvButtons(out, [
       { label: "Total at each moment (CSV)", file: `lss_day_${state.day}_${slug(state)}.csv`,
         text: () => SOURCE_NOTE + `\n# ${describe(state)}; ${farms.length} farms, ${fl.cap} MW.\n` + csv(["time_myt", "output_mw", "capacity_mw", "percent_of_capacity"],
