@@ -42,6 +42,21 @@ export async function render(main, { meta, isCurrent }) {
   const primary = actuals.find((s) => s.key === getParam("primary")) || actuals.find((s) => s.key === DEFAULT_PRIMARY) || actuals[0];
   const demo = meta.is_demo;
 
+  // GSO's "Today's Solar Profile" strip, its four figures worked out GSO's way (checked against GSO's own answers on
+  // 16 Nov 2026: Solar.v19.js UpdateSolarDashboard): current = Grid + Distribution + NEM + FiT + SELCO at the newest
+  // reading; past 1 hour change = current − the total an hour earlier; peak forecast = the highest point of GSO's
+  // forecast for today, with its time; next 1 hour forecast = GSO's forecast an hour after the newest reading − current
+  // (a fall never larger than current, as GSO caps it).
+  // Loaded alongside the rest of the page (its own placeholder), and awaited before render ends (lesson 7).
+  let stripDone = Promise.resolve();
+  if (PROFILE.length === 5) {
+    const slot = h(`<div>${loading(110)}</div>`);
+    main.appendChild(slot);
+    stripDone = solarProfileStrip(PROFILE, meta.series.find((s) => s.key === "solar_forecast.total"))
+      .then((html) => { if (html) slot.replaceWith(h(html)); else slot.remove(); })
+      .catch(() => slot.remove());
+  }
+
   const toolbarSlot = h("<div></div>");
   main.appendChild(toolbarSlot);
 
@@ -394,4 +409,43 @@ export async function render(main, { meta, isCurrent }) {
   }
 
   await picker.start();
+  await stripDone;
 }
+
+
+async function solarProfileStrip(parts, forecast) {
+  const MYTMS = 8 * 3600e3;
+  const today = new Date(Date.now() + MYTMS).toISOString().slice(0, 10);
+  const start = mytDayStart(today), end = mytDayStart(addDays(today, 1));
+  const [lists, fc] = await Promise.all([Promise.all(parts.map((s) => getPoints(s.key, start, end))),
+    forecast ? getPoints(forecast.key, start, end).catch(() => null) : null]);
+  const total = new Map();
+  lists.forEach((l, k) => l.points.forEach(([t, v]) => {
+    if (v == null) return;
+    const e = total.get(t) || { n: 0, v: 0 };
+    e.n += 1; e.v += v; total.set(t, e);
+  }));
+  const moments = [...total.entries()].filter(([, e]) => e.n === parts.length).map(([t, e]) => [Date.parse(t), e.v]).sort((a, b) => a[0] - b[0]);
+  if (!moments.length) return "";
+  const [tNow, current] = moments[moments.length - 1];
+  const hourAgo = moments.find(([t]) => t === tNow - 3600e3);
+  const fcPts = (fc?.points || []).filter((p) => p[1] != null).map(([t, v]) => [Date.parse(t), v]);
+  const peak = fcPts.reduce((m, p) => (m && m[1] >= p[1] ? m : p), null);
+  const fcNext = fcPts.find(([t]) => t === tNow + 3600e3);
+  let next = fcNext ? fcNext[1] - current : null;
+  if (next != null && next < 0 && Math.abs(next) > current) next = -current;
+  const hhmm = (ms) => new Date(ms + MYTMS).toISOString().slice(11, 16);
+  const arrow = (v) => (v == null ? "" : v > 0 ? '<span class="up" aria-label="up">↑</span> ' : v < 0 ? '<span class="down" aria-label="down">↓</span> ' : "");
+  const mw = (v, signed) => (v == null ? "—" : `${signed && v > 0 ? "+" : ""}${fmtNum(v)} MW`);
+  return card({ title: "Today's Solar Profile",
+    when: `Newest reading ${fmtDateTime(new Date(tNow).toISOString())} MYT`,
+    desc: "GSO's four headline solar figures, worked out the way GSO's Solar page does: all solar (Grid + Distribution + NEM + FiT + SELCO), "
+      + "its change over the past hour, the peak of GSO's forecast for today, and GSO's forecast change over the next hour.",
+    body: `${staleNote(new Date(tNow).toISOString(), "its solar figures")}<div class="gso-strip">
+      <div><div class="lbl">Current solar generation</div><div class="val">${mw(current)}</div></div>
+      <div><div class="lbl">Peak forecast</div><div class="val">${peak ? `${mw(peak[1])} <small class="muted">@ ${hhmm(peak[0])}</small>` : "—"}</div></div>
+      <div><div class="lbl">Past 1 hour change</div><div class="val">${hourAgo ? `${arrow(current - hourAgo[1])}${mw(current - hourAgo[1], true)}` : "—"}</div></div>
+      <div><div class="lbl">Next 1 hour forecast</div><div class="val">${next == null ? "—" : `${arrow(next)}${mw(next, true)}`}</div></div>
+    </div>` });
+}
+

@@ -1,5 +1,14 @@
 # Changelog
 
+## 19 November 2026 (forty-ninth update) — GSO Grid Archive 6.4
+
+The solar farm map now looks and moves like GSO's own "Real Time Solar Generation" map, and the Solar page opens with GSO's "Today's Solar Profile".
+
+- **GSO's colours and numbers on the map:** each farm is coloured on GSO's own scale (grey-blue at 0%, olive, yellow, amber, red at 100%), and its share of capacity is printed on the dot. Where dots crowd together, the numbers that would overlap are hidden until you zoom in. Pointing at a farm shows "Solar PV generation 5 / 50 MW (10%)", as on GSO's map.
+- **Smooth zooming:** + and − buttons that glide to the new zoom, a ⟲ button back to the whole peninsula, and drag, pinch or mouse-wheel zoom as before.
+- **Step through a day without losing your place:** in "LSS Farms: Any Moment or Period", ◀ ▶, a new slider across the day's readings, and a new ▶ Play button (one reading about every second, like GSO's replay) now update the map in place: your zoom and position stay, and the colours change smoothly instead of the map being redrawn.
+- **Today's Solar Profile:** GSO's four headline solar figures at the top of the Solar page: current solar generation, peak forecast (with its time), past 1 hour change and next 1 hour forecast, with up and down arrows. They are worked out the way GSO's Solar page works them out, checked against GSO's own answers: current and past-hour change matched exactly, the peak forecast too (3,224 MW at 12:00 on 16 November).
+
 ## 19 November 2026 (forty-eighth update) — GSO Grid Archive 6.3.2
 
 - **"LSS Solar Farms Now" says exactly what it shows:** every figure in it is real time, from one reading of GSO's solar map, and the card now says which ("Real time: GSO's newest solar map reading, 16 November 2026, 07:40 MYT"). The columns are now "Output now (MW)" and "Share of capacity now" (that output ÷ the farm's capacity at that moment, not an average), and the card points to the explorer below for a past moment, a period's capacity factor or a day's energy. The solar map says the same.

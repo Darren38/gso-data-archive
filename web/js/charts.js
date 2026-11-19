@@ -290,17 +290,43 @@ function loadMap() {
  * farms: [{code, state, region, conn, mw, cap, pct, lat, lon}] */
 /** GSO-style solar map. metric "now": colour = output as % of capacity at one moment; "cf": colour = capacity factor
  * over a period (f.pct holds it, f.mw the average output), on a 0-40% scale since farms rarely average more. */
+/** GSO's own solar-map colour scale (Solar.v19.js colorAxis stops: 0% grey-blue, 1% olive, 10% dark yellow, 30% yellow,
+ * 50% amber, 70% orange-amber, 100% red), sampled every 10% so a continuous scale follows GSO's stops exactly. */
+const GSO_STOPS = [[0, [120, 120, 160, 1]], [0.01, [160, 160, 0, 0.9]], [0.1, [205, 205, 0, 0.9]], [0.3, [255, 255, 0, 0.9]],
+  [0.5, [255, 200, 0, 0.9]], [0.7, [255, 187, 0, 0.9]], [1, [255, 0, 0, 0.9]]];
+export function gsoSolarColor(share) {
+  const x = Math.max(0, Math.min(1, share));
+  let i = 1;
+  while (i < GSO_STOPS.length - 1 && GSO_STOPS[i][0] < x) i += 1;
+  const [a, ca] = GSO_STOPS[i - 1], [b, cb] = GSO_STOPS[i], t = b === a ? 0 : (x - a) / (b - a);
+  const c = ca.map((v, k) => v + (cb[k] - v) * t);
+  return `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${c[3].toFixed(2)})`;
+}
+const GSO_SCALE = Array.from({ length: 21 }, (_, k) => gsoSolarColor(k / 20));
+
+/** Every LSS farm on the map of Peninsular Malaysia, coloured on GSO's scale, with its share printed on the dot (labels
+ * that would overlap are hidden and appear as you zoom in), +/− buttons that glide, and drag/pinch/wheel zoom.
+ * Drawing again on the same element (the explorer's ◀ ▶ and Play) updates the dots in place, keeping the visitor's
+ * zoom and position and animating the colours, as GSO's map does, instead of building a new map. */
 export async function solarMap(el, { farms, demo = false, metric = "now" }) {
   if (!window.echarts) { el.innerHTML = '<div class="state error"><h3>Chart library failed to load</h3></div>'; return null; }
   await loadMap();
-  const b = base(demo);
   const narrow = el.clientWidth < 480;
   const maxCap = Math.max(1, ...farms.map((f) => f.cap || 0));
-  const point = (f) => ({ name: f.code, value: [f.lon, f.lat, f.pct], farm: f,
+  const top = metric === "cf" ? 40 : 100;
+  const data = farms.filter((f) => f.lat != null && f.lon != null).map((f) => ({
+    name: f.code, value: [f.lon, f.lat, f.pct == null ? null : Math.min(f.pct, top)], farm: f,
     symbol: f.conn === "distribution" ? "diamond" : "circle",
-    symbolSize: (narrow ? 7 : 9) + (narrow ? 12 : 18) * Math.sqrt((f.cap || 0) / maxCap) });
-  return mount(el, {
+    symbolSize: (narrow ? 9 : 12) + (narrow ? 10 : 16) * Math.sqrt((f.cap || 0) / maxCap) }));
+  const existing = window.echarts.getInstanceByDom(el);
+  if (existing && !existing.isDisposed() && existing.__solarMetric === metric) {
+    existing.setOption({ series: [{ id: "farms", data }] }); // in place: zoom and position stay, colours animate
+    return existing;
+  }
+  const b = base(demo);
+  const chart = mount(el, {
     ...b,
+    animationDurationUpdate: 450, animationEasingUpdate: "cubicOut",
     tooltip: { trigger: "item", backgroundColor: css("--surface"), borderColor: css("--border"), textStyle: { color: css("--text"), fontSize: 13 },
       formatter: (p) => {
         const f = p.data?.farm;
@@ -308,21 +334,55 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
         return `<b>${f.code}</b> · ${f.state}, ${f.region}<br>${f.conn === "distribution" ? "Distribution" : "Grid"} connected<br>` +
           (metric === "cf"
             ? `Average <b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : `<br>Capacity factor <b>${fmtNum(f.pct, 1)}%</b>`)
-            : `<b>${fmtNum(f.mw, 1)} MW</b> of ${fmtNum(f.cap)} MW` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b> of capacity)`));
+            : `Solar PV generation <b>${fmtNum(f.mw, 1)} / ${fmtNum(f.cap)} MW</b>` + (f.pct == null ? "" : ` (<b>${fmtNum(f.pct, 0)}%</b>)`));
       } },
-    geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 8 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
+    geo: { map: "peninsular", roam: true, scaleLimit: { min: 1, max: 12 }, boundingCoords: [[99.6, 6.8], [104.4, 1.2]],
       // keep the true shape: near the equator a degree east is about as long as a degree north (aspectScale 1)
       aspectScale: 1, layoutCenter: ["50%", "46%"], layoutSize: "90%",
       itemStyle: { areaColor: css("--surface-2"), borderColor: css("--border"), borderWidth: 0.8 },
       regions: [{ name: "Malaysia", itemStyle: { areaColor: "rgba(31, 166, 74, 0.10)", borderColor: css("--text-3"), borderWidth: 1 } }],
       // silent: the land ignores the pointer. (geo tooltip show:false would also hide every farm's tooltip.)
       emphasis: { disabled: true }, select: { disabled: true }, silent: true },
-    visualMap: { type: "continuous", min: 0, max: metric === "cf" ? 40 : 100, dimension: 2, calculable: false, orient: "horizontal",
-      left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220, text: metric === "cf" ? ["40% capacity factor", "0%"] : ["100% of capacity", "0%"],
-      textStyle: { color: css("--text-2"), fontSize: 12 },
-      inRange: { color: ["#9aa5b1", "#FFE066", "#F2AD00", "#E06D00"] }, outOfRange: { color: "#9aa5b1" } },
-    series: [{ type: "scatter", coordinateSystem: "geo", data: farms.filter((f) => f.lat != null && f.lon != null).map(point),
-      itemStyle: { borderColor: css("--surface"), borderWidth: 1, opacity: 0.95 },
-      emphasis: { scale: 1.3, label: { show: true, formatter: "{b}", position: "top", color: css("--text"), fontWeight: 600 } } }],
+    visualMap: { type: "continuous", min: 0, max: top, dimension: 2, calculable: false, orient: "horizontal",
+      left: "center", bottom: 4, itemWidth: 12, itemHeight: narrow ? 160 : 220,
+      text: metric === "cf" ? ["40% capacity factor", "0%"] : ["100% of capacity", "0%"],
+      textStyle: { color: css("--text-2"), fontSize: 12 }, inRange: { color: GSO_SCALE }, outOfRange: { color: "#9aa5b1" } },
+    series: [{ id: "farms", type: "scatter", coordinateSystem: "geo", data,
+      itemStyle: { borderColor: "rgba(255,255,255,0.9)", borderWidth: 1.2, opacity: 0.95, shadowBlur: 6, shadowColor: "rgba(0,0,0,0.18)" },
+      // The share on every dot, as on GSO's map; labels that would overlap are hidden until you zoom in.
+      label: { show: true, position: "inside", fontSize: narrow ? 9 : 10, fontWeight: 700, color: "#1f2328",
+        textBorderColor: "rgba(255,255,255,0.85)", textBorderWidth: 2,
+        formatter: (p) => (p.data.farm.pct == null ? "" : `${fmtNum(p.data.farm.pct, metric === "cf" ? 0 : 0)}%`) },
+      labelLayout: { hideOverlap: true },
+      emphasis: { scale: 1.3, label: { show: true, formatter: (p) => `${p.data.name} ${p.data.farm.pct == null ? "" : `${fmtNum(p.data.farm.pct, 0)}%`}`, position: "top", color: css("--text"), fontWeight: 700 } } }],
   });
+  if (!chart) return null;
+  chart.__solarMetric = metric;
+  // + / − / reset, gliding to the new zoom over a quarter of a second (the wheel and pinch zoom too, by ECharts).
+  el.style.position = "relative";
+  el.querySelector(":scope > .map-zoom")?.remove();
+  const box = document.createElement("div");
+  box.className = "map-zoom";
+  box.innerHTML = '<button type="button" data-z="1.6" aria-label="Zoom in">+</button><button type="button" data-z="0.625" aria-label="Zoom out">−</button><button type="button" data-z="0" aria-label="Show all of Peninsular Malaysia" title="Show all">⟲</button>';
+  el.appendChild(box);
+  let anim = 0;
+  const glide = (to, center) => {
+    cancelAnimationFrame(anim);
+    const geo = chart.getOption().geo[0], from = geo.zoom || 1, t0 = performance.now();
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / 260), e = 1 - (1 - k) ** 3;
+      const cur = chart.getOption().geo[0].center;
+      chart.setOption({ geo: { zoom: from + (to - from) * e,
+        ...(center && cur ? { center: [cur[0] + (center[0] - cur[0]) * e, cur[1] + (center[1] - cur[1]) * e] } : center && k === 1 ? { center } : {}) } }, { lazyUpdate: true });
+      if (k < 1) anim = requestAnimationFrame(step);
+    };
+    anim = requestAnimationFrame(step);
+  };
+  box.querySelectorAll("button").forEach((btn) => btn.addEventListener("click", () => {
+    const z = Number(btn.dataset.z);
+    const now = chart.getOption().geo[0].zoom || 1;
+    // ⟲: back to the whole peninsula (the middle of the map's bounding box, at zoom 1)
+    if (z === 0) glide(1, [102.0, 4.0]); else glide(Math.max(1, Math.min(12, now * z)));
+  }));
+  return chart;
 }

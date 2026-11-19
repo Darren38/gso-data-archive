@@ -91,7 +91,7 @@ async function visit(page, base, route, wait = 1200) {
       return { farms: c.getOption().series[0].data.length, tip: [...el.querySelectorAll("div")].map((d) => d.innerText).join(" ") };
     });
     if (!map.farms) fail.push("solar map has no farms");
-    if (!/MW of [\d,]+ MW/.test(map.tip)) fail.push("solar map shows no farm details");
+    if (!/[\d.,]+ \/ [\d,]+ MW/.test(map.tip)) fail.push("solar map shows no farm details");
     // LSS farm explorer: every view draws, filters apply, and every CSV button gives a file with a header and rows.
     if (!(await page.$(".lss [data-mode]"))) fail.push("LSS farm explorer missing on the Solar page");
     else {

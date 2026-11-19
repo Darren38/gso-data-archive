@@ -81,7 +81,8 @@ export async function lssExplorer(el, { demo = false } = {}) {
       <span data-show="moment"><label class="inline">Time <input type="time" name="time" step="600"></label>
         <button type="button" class="btn" data-step="-1" title="Previous reading" aria-label="Previous reading">◀</button>
         <button type="button" class="btn" data-step="1" title="Next reading" aria-label="Next reading">▶</button>
-        <button type="button" class="btn" data-newest>Newest</button></span>
+        <button type="button" class="btn" data-newest>Newest</button>
+        <button type="button" class="btn primary" data-play aria-pressed="false" title="Step through the readings one by one, like GSO's replay">▶ Play</button></span>
       <span data-show="period daily"><label class="inline">From <input type="date" name="from" min="${oldest}" max="${newest}"></label>
         <label class="inline">To <input type="date" name="to" min="${oldest}" max="${newest}"></label>
         <span class="seg">${[["7", "7 days"], ["30", "30 days"], ["month", "This month"], ["all", "All"]].map(([k, v]) => `<button type="button" data-quick="${k}">${v}</button>`).join("")}</span></span>
@@ -107,12 +108,28 @@ export async function lssExplorer(el, { demo = false } = {}) {
     setParams({ lss: state.mode === "moment" ? null : state.mode, lssday: state.day, lsstime: state.time, lssfrom: state.from, lssto: state.to,
       lssreg: state.region || null, lssconn: state.conn || null, lssfarm: state.farm || null,
       lssh: state.h0 === 0 && state.h1 === 24 ? null : `${state.h0}-${state.h1}`, lssbad: state.bad ? "1" : null });
+    if (state.mode !== "moment") { delete out.dataset.view; stopPlay(); }
     try {
       await VIEWS[state.mode](out, state, { demo, days, oldest, newest, jump });
     } catch (err) { out.innerHTML = errorState(err); }
   }
   // Moves the moment view to another reading (◀ ▶, also across days) and redraws.
-  function jump(day, time) { state.day = day; state.time = time; sync(); draw(); }
+  function jump(day, time) { state.day = day; state.time = time; sync(); return draw(); }
+  // ▶ Play: step to the next reading about once a second (each step waits for the map to update), until the newest
+  // reading or a press of Pause. The map keeps its zoom and position while it plays.
+  let playing = false;
+  const playBtn = el.querySelector("[data-play]");
+  function stopPlay() { playing = false; playBtn.textContent = "▶ Play"; playBtn.setAttribute("aria-pressed", "false"); }
+  playBtn.addEventListener("click", async () => {
+    if (playing) { stopPlay(); return; }
+    playing = true; playBtn.textContent = "❚❚ Pause"; playBtn.setAttribute("aria-pressed", "true");
+    while (playing && el.isConnected) {
+      const moved = await stepMoment(state, 1, days, jump);
+      if (!moved) break;
+      await new Promise((ok) => setTimeout(ok, 900));
+    }
+    stopPlay();
+  });
   el.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => { state.mode = b.dataset.mode; draw(); }));
   for (const n of ["day", "time", "from", "to"]) {
     input(n).addEventListener("change", () => {
@@ -136,7 +153,7 @@ export async function lssExplorer(el, { demo = false } = {}) {
       : (addDay(newest, -(+k - 1)) > oldest ? addDay(newest, -(+k - 1)) : oldest);
     sync(); draw();
   }));
-  el.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => stepMoment(state, +b.dataset.step, days, jump)));
+  el.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => { stopPlay(); stepMoment(state, +b.dataset.step, days, jump); }));
   el.querySelector("[data-newest]").addEventListener("click", async () => {
     const f = await getFarmsDay(newest).catch(() => null);
     const t = f?.times?.length ? f.times[f.times.length - 1] : null;
@@ -153,10 +170,11 @@ async function stepMoment(state, dir, days, jump) {
     const f = await getFarmsDay(day).catch(() => null);
     const times = (f?.times || []).map((t) => Date.parse(t));
     const next = dir > 0 ? times.find((t) => t > want + 60e3) : [...times].reverse().find((t) => t < want - 60e3);
-    if (next != null) { jump(dayOf(next), new Date(next + MYT).toISOString().slice(11, 16)); return; }
+    if (next != null) { await jump(dayOf(next), new Date(next + MYT).toISOString().slice(11, 16)); return true; }
     const i = days.indexOf(day); // newest first
     day = dir > 0 ? days[i - 1] : days[i + 1];
   }
+  return false;
 }
 
 /** The farms the filters select, each with its readings as [ms, MW] and whether GSO's figures look wrong. */
@@ -230,16 +248,24 @@ function fleetSeries(farms) {
 }
 
 const VIEWS = {
-  async moment(out, state, { demo }) {
-    out.innerHTML = '<div class="skeleton" style="height:420px"></div>';
+  async moment(out, state, { demo, jump }) {
+    // The view is built once and then updated in place, so stepping (◀ ▶, the slider, Play) keeps the map's zoom and
+    // position and only the dots' colours and numbers change, as on GSO's map.
+    if (out.dataset.view !== "moment") {
+      out.innerHTML = `<div class="lss-m-head"><div class="skeleton" style="height:60px"></div></div>
+        <div class="lss-slider"></div><div class="chart map"></div><div class="lss-m-notes"></div><div class="tbl"></div><div class="lss-dl-slot"></div>`;
+      out.dataset.view = "moment";
+    }
+    const head = out.querySelector(".lss-m-head"), notes = out.querySelector(".lss-m-notes"), slider = out.querySelector(".lss-slider");
+    const mapEl = out.querySelector(".chart.map"), tbl = out.querySelector(".tbl"), dl = out.querySelector(".lss-dl-slot");
     const data = await getFarmsDay(state.day);
-    if (!data?.times?.length) { out.innerHTML = emptyState("No solar map readings on this day"); return; }
+    const blank = (msg, more = "") => { head.innerHTML = emptyState(msg, more, "◌"); slider.innerHTML = notes.innerHTML = tbl.innerHTML = dl.innerHTML = ""; mapEl.hidden = true; };
+    if (!data?.times?.length) { blank("No solar map readings on this day"); return; }
     const want = Date.parse(`${state.day}T${state.time}:00+08:00`);
     const i = nearestMoment(data.times, want);
     if (i < 0) {
       const near = data.times.map((t) => Math.abs(Date.parse(t) - want)).reduce((a, b) => Math.min(a, b), Infinity);
-      out.innerHTML = emptyState("No solar map reading near that time",
-        `The nearest one this day is ${fmtNum(near / 60e3)} minutes away. Use ◀ ▶ to step to the readings there are.`, "◌");
+      blank("No solar map reading near that time", `The nearest one this day is ${fmtNum(near / 60e3)} minutes away. Use ◀ ▶ or the slider to step to the readings there are.`);
       return;
     }
     const rows = select(data, state).map((f) => ({ ...f, mwNow: f.mw[i], pct: f.cap && f.mw[i] != null ? (100 * f.mw[i]) / f.cap : null }))
@@ -250,16 +276,28 @@ const VIEWS = {
       return cap ? `${fmtNum((100 * mw) / cap, 0)}% <small class="muted">${fmtNum(mw)} of ${fmtNum(cap)} MW</small>` : "—";
     };
     const when = data.times[i];
-    out.innerHTML = `<p class="small"><b>${esc(fmtDateTime(when))} MYT</b> (${esc(describe(state))}): the reading of GSO's solar map nearest to your time.
-      Each farm's output as a share of its capacity.</p>${rows.length ? regionRow(use, pctOf) : ""}<div class="chart map"></div><div class="tbl"></div>${flagNote(rows, state)}`;
-    if (!rows.length) { out.querySelector(".chart").outerHTML = emptyState("No farm matches these choices at this moment"); return; }
-    await solarMap(out.querySelector(".chart"), { farms: use.map((r) => ({ ...r, mw: r.mwNow })), demo });
-    renderTable(out.querySelector(".tbl"), [...farmCols,
+    head.innerHTML = `<p class="small"><b>${esc(fmtDateTime(when))} MYT</b> (${esc(describe(state))}): the reading of GSO's solar map nearest to your time.
+      Each farm's output as a share of its capacity at that moment; the share is printed on each farm (zoom in to see them all).</p>${rows.length ? regionRow(use, pctOf) : ""}`;
+    // The day's readings on a slider: drag to any moment of the day, as on GSO's map.
+    const hhmm = (iso) => new Date(Date.parse(iso) + MYT).toISOString().slice(11, 16);
+    slider.innerHTML = `<label class="lss-range"><span class="small muted">${esc(hhmm(data.times[0]))}</span>
+      <input type="range" min="0" max="${data.times.length - 1}" step="1" value="${i}" aria-label="Reading of the day">
+      <span class="small muted">${esc(hhmm(data.times[data.times.length - 1]))}</span>
+      <b class="lss-range-now">${esc(hhmm(when))}</b></label>`;
+    const range = slider.querySelector("input"), nowLbl = slider.querySelector(".lss-range-now");
+    range.addEventListener("input", () => { nowLbl.textContent = hhmm(data.times[+range.value]); });
+    range.addEventListener("change", () => jump(state.day, hhmm(data.times[+range.value])));
+    notes.innerHTML = flagNote(rows, state);
+    if (!rows.length) { mapEl.hidden = true; tbl.innerHTML = emptyState("No farm matches these choices at this moment"); dl.innerHTML = ""; return; }
+    mapEl.hidden = false;
+    await solarMap(mapEl, { farms: use.map((r) => ({ ...r, mw: r.mwNow })), demo });
+    renderTable(tbl, [...farmCols,
       { key: "mwNow", label: "Output (MW)", num: true, fmt: (v) => fmtNum(v, 1) },
       { key: "cap", label: "Capacity (MW)", num: true, fmt: (v) => fmtNum(v) },
-      { key: "pct", label: "Of capacity", num: true, fmt: (v) => pct(v) }], rows, 15);
+      { key: "pct", label: "Share of capacity", num: true, fmt: (v) => pct(v) }], rows, 15);
     const stamp = mytIso(Date.parse(when)).slice(0, 16).replace(":", "");
-    csvButtons(out, [{ label: "This moment (CSV)", file: `lss_moment_${stamp}_${slug(state)}.csv`,
+    dl.innerHTML = "";
+    csvButtons(dl, [{ label: "This moment (CSV)", file: `lss_moment_${stamp}_${slug(state)}.csv`,
       text: () => SOURCE_NOTE + "\n" + csv(["time_myt", "farm", "state", "region", "connection", "output_mw", "capacity_mw", "percent_of_capacity", "gso_figures_look_wrong"],
         rows.map((r) => [mytIso(Date.parse(when)), r.code, r.state, r.region, r.conn, r.mwNow, r.cap, r.pct == null ? null : +r.pct.toFixed(2), r.bad ? "yes" : "no"])) }]);
   },

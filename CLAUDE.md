@@ -265,6 +265,15 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     12+ hours of it, and "How Closely the Farms Follow the Sunshine" matches each hour's average farm output (3+
     readings in the hour ending at T) with the satellite value at T.
 
+57. **The farm map follows GSO's (Solar.v19.js) and updates in place.** `solarMap` (charts.js) colours on GSO's colorAxis
+    stops (`GSO_STOPS`/`gsoSolarColor`), prints each farm's share on its dot (`labelLayout.hideOverlap`, so zooming in
+    reveals them), and has gliding +/−/⟲ buttons. Calling it again on the same element with the same metric only
+    replaces the series data, so the explorer's ◀ ▶, slider and Play keep the visitor's zoom; the moment view keeps
+    its DOM (`out.dataset.view === "moment"`) for that reason. "Today's Solar Profile" (solar.js
+    `solarProfileStrip`) works out GSO's UpdateSolarDashboard figures from the five parts and the forecast; GSO's
+    answers carry them too (actual r[5] current, r[6] past change; forecast r[2] peak label, r[3] next-hour change),
+    and on 16 Nov they matched, except that GSO's next-hour figure lagged one reading behind.
+
 ## How to check a change
 
 ```bash
