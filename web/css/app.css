@@ -274,3 +274,9 @@ td.num, th.num { text-align: right; }
   .kpi .value small { font-size: 13px; margin-left: 3px; }
 }
 @container (max-width: 135px) { .kpi .value, .kpi.big .value { font-size: 20px; } }
+
+/* Locked history: the 🔒 button and its password form wrap on phones (lesson 1). */
+.lock-slot { min-width: 0; max-width: 100%; }
+.lock-form { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; max-width: 100%; }
+.lock-form input[type="password"] { min-width: 0; width: 11rem; max-width: 100%; }
+.lock-form input[type="password"] { padding: .45rem .6rem; border: 1px solid var(--border); border-radius: 8px; font: inherit; background: var(--surface); color: var(--text); }

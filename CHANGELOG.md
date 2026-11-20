@@ -1,5 +1,14 @@
 # Changelog
 
+## 20 November 2026 (fifty-sixth update) — GSO Grid Archive 7.0
+
+The full history is now for the owner: everyone sees the newest 7 days, and older readings open with the owner's password.
+
+- **Public: the last 7 days.** Every page still works for everyone, with Today, 7 days and All (which now means the 7 public days). The date bar says "Public: last 7 days, … (MYT)", and older dates can't be picked.
+- **Owner: everything, with a password.** A 🔒 Full history button beside the dates asks for the password once. After that the 30-day, 90-day and 1-year ranges and every older day come back, in this browser tab (or on this device, with "Remember on this device"). 🔓 Lock closes them again.
+- **Locked, not just hidden.** The older history is published only in locked files (AES-256, opened in your browser), so it can't be downloaded around the page. The monthly CSV files are no longer published; every chart still has its own CSV button.
+- The About page explains the lock. GSO's figures, the collection and the checks are unchanged.
+
 ## 20 November 2026 (fifty-fifth update) — GSO Grid Archive 6.6
 
 - **The archive copies can be kept for the owner only:** the repository is public, so the daily backups and the full archive file published with the site could be downloaded by anyone. Once the owner adds a passphrase (a repository secret named `ARCHIVE_PASSPHRASE`), both are locked with it (AES-256 encryption). The site publishes only the locked copy and no longer offers it on the About page, the older unlocked backups are removed, and only someone with the passphrase can open them. Until the passphrase is added, nothing changes. The website's charts and tables stay public as before.

@@ -23,7 +23,7 @@ from sqlalchemy.engine import Engine
 
 from . import analytics, db, export
 from .config import Settings
-from .sealing import passphrase
+from .sealing import PUBLIC_DAYS, lock_info, passphrase, seal_bytes, site_key
 from .timeutil import MYT, UTC, ensure_utc, to_utc_iso
 
 RECENT_DAYS = 3  # data/points/<key>/recent.json: the newest days of every series in one small file
@@ -35,6 +35,15 @@ def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
     start = datetime(year, month, 1, tzinfo=MYT)
     nxt = datetime(year + (month == 12), month % 12 + 1, 1, tzinfo=MYT)
     return start.astimezone(UTC), nxt.astimezone(UTC)
+
+
+def _myt_day(iso: str) -> date:
+    return ensure_utc(datetime.fromisoformat(iso.replace("Z", "+00:00"))).astimezone(MYT).date()
+
+
+def _iso(s: str) -> str:
+    """A point's time in the same text form as to_utc_iso, so times compare as text."""
+    return to_utc_iso(datetime.fromisoformat(s.replace("Z", "+00:00")))
 
 
 def _write(path: Path, obj) -> None:
@@ -57,17 +66,47 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
     )
     data = out_dir / "data"
     files = 0
+    # With ARCHIVE_PASSPHRASE set the public sees the newest PUBLIC_DAYS days only (the owner's choice): every history
+    # file is published trimmed to those days, and in full locked beside it (NAME.json.enc, web/js/lock.js opens it).
+    secret = passphrase()
+    key = site_key(secret) if secret else None
     with engine.connect() as conn:
         meta = analytics.meta(conn)
+        lasts = [s["last"] for s in meta["series"] if s.get("last") and s.get("kind") != "forecast" and not s.get("is_demo")]
+        firsts = [s["first"] for s in meta["series"] if s.get("first") and s.get("kind") != "forecast" and not s.get("is_demo")]
+        newest_day = max(_myt_day(x) for x in lasts) if lasts else datetime.now(MYT).date()
+        public_from = newest_day - timedelta(days=PUBLIC_DAYS - 1)
+        cut_iso = to_utc_iso(datetime.combine(public_from, datetime.min.time(), MYT))
+        cut_day = public_from.isoformat()
+
+        def put(rel: str, full, public=...) -> None:
+            """Write `full` at `rel`; when locked, write it sealed at rel.enc and `public` (None: nothing) at rel."""
+            if key is None:
+                _write(data / rel, full)
+                return
+            enc = data / (rel + ".enc")
+            enc.parent.mkdir(parents=True, exist_ok=True)
+            enc.write_bytes(seal_bytes(key, json.dumps(full, separators=(",", ":")).encode("utf-8")))
+            if public is ...:
+                _write(data / rel, full)
+            elif public is not None:
+                _write(data / rel, public)
+
+        def recent_points(payload):
+            pts = [p for p in payload["points"] if _iso(p[0]) >= cut_iso]
+            return {**payload, "points": pts} if pts else None
         meta["static_export"] = True
         meta["collection"] = collection_info(settings, conn)
         # A locked archive (ARCHIVE_PASSPHRASE set) is for the owner only, so the About page offers no download.
-        meta["archive_download"] = bool(include_archive and engine.dialect.name == "sqlite" and not passphrase())
+        meta["archive_download"] = bool(include_archive and engine.dialect.name == "sqlite" and not secret)
+        if key is not None:
+            meta["lock"] = lock_info(key, cut_day, min(_myt_day(x) for x in firsts).isoformat() if firsts else None)
         _write(data / "meta.json", meta)
         _write(data / "status.json", analytics.status(conn, settings.adapters, settings.gso_live_enabled))
         files += 2
-        for key in analytics.TABLES:
-            _write(data / "tables" / f"{key}.json", analytics.table(conn, key))
+        for tkey in analytics.TABLES:
+            tab = analytics.table(conn, tkey)
+            put(f"tables/{tkey}.json", tab, tab and {**tab, "changes": [c for c in tab.get("changes", []) if str(c.get("at", "")) >= cut_iso]})
             files += 1
         o = db.observations.c
         for s in meta["series"]:
@@ -87,17 +126,17 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
             if months:
                 first = max(first, (last.replace(day=1) - timedelta(days=31 * (months - 1))).replace(day=1))
             if info.kind != "forecast":
-                _write(data / "daily" / f"{info.key}.json",
-                       {"series": info.key, "unit": info.unit, "rows": analytics.daily(conn, info, first, last),
-                        "is_demo": info.is_demo})
+                full = {"series": info.key, "unit": info.unit, "rows": analytics.daily(conn, info, first, last),
+                        "is_demo": info.is_demo}
+                put(f"daily/{info.key}.json", full, {**full, "rows": [r for r in full["rows"] if r["date"] >= cut_day]})
                 files += 1
             y, m = first.year, first.month
             while (y, m) <= (last.year, last.month):
                 t0, t1 = _month_bounds(y, m)
                 payload = analytics.points(conn, info, t0, t1, max_points=10**9)
                 tag = f"{y}-{m:02d}"
-                _write(data / "points" / info.key / f"{tag}.json", payload)
-                if info.kind != "forecast":
+                put(f"points/{info.key}/{tag}.json", payload, recent_points(payload) if key else None)
+                if info.kind != "forecast" and key is None:  # monthly CSVs: not published when history is locked
                     csv_path = data / "exports" / info.key / f"{tag}.csv"
                     csv_path.parent.mkdir(parents=True, exist_ok=True)
                     csv_path.write_text(export.to_csv(export.rows_for_export([(payload, info)])), encoding="utf-8")
@@ -116,9 +155,9 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
         days = analytics.farm_days(conn)
         if months:
             days = days[: 31 * months]
-        _write(data / "farms" / "index.json", {"days": days})
+        put("farms/index.json", {"days": days}, {"days": [d for d in days if d >= cut_day], "locked": key is not None})
         for d in days:
-            _write(data / "farms" / f"{d}.json", analytics.farms_day(conn, date.fromisoformat(d)))
+            put(f"farms/{d}.json", analytics.farms_day(conn, date.fromisoformat(d)), ... if d >= cut_day else None)
         files += 1 + len(days)
     archive_bytes = None
     if include_archive and engine.dialect.name == "sqlite":

@@ -26,6 +26,9 @@ secret) and from the next run:
 * the daily backup job's log prints the check-up figures (readings per source and day, collection stops), so a
   check-up can be done without opening the backup.
 
+The same passphrase also limits the public website to the newest 7 days: older history is published only in
+locked files (`*.json.enc`) and opens in the browser with the passphrase (🔒 Full history beside the dates).
+
 Open a locked file with OpenSSL (it asks for the passphrase), then restore as below:
 
 ```bash

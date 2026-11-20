@@ -1,5 +1,7 @@
 // Shared UI helpers: formatting (always MYT), states, KPI cards, tables, range picker, CSV.
 import { ICONS } from "./icons.js";
+import { clearCache, historyLock } from "./data.js";
+import { forget, tryUnlock } from "./lock.js";
 export const MYT_OFFSET_MS = 8 * 3600e3;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -158,7 +160,7 @@ export function rangePicker(container, { initial = "7d", onChange, presets = ["1
       <div class="seg">${presets.map((p) => `<button type="button" data-preset="${p}" aria-pressed="false">${labels[p]}</button>`).join("")}</div>
       <label class="inline">From <input type="date" name="from"></label>
       <label class="inline">To <input type="date" name="to"></label>
-      <span class="grow"></span><span class="small muted" data-span>Calendar days in MYT</span>
+      <span class="grow"></span><span class="small muted" data-span>Calendar days in MYT</span><span class="lock-slot" data-lock hidden></span>
     </div>`);
   container.appendChild(el);
   const from = el.querySelector('[name="from"]'), to = el.querySelector('[name="to"]');
@@ -177,8 +179,9 @@ export function rangePicker(container, { initial = "7d", onChange, presets = ["1
   el.querySelectorAll("[data-preset]").forEach((b) => b.addEventListener("click", () => { state.preset = b.dataset.preset; applyPreset(state.preset, picker.firstDay); emit(); }));
   [from, to].forEach((inp) => inp.addEventListener("change", () => {
     if (!DAY_RE.test(from.value) || !DAY_RE.test(to.value)) return;
-    const max = mytDay(new Date());
-    const a = from.value > max ? max : from.value, b = to.value > max ? max : to.value; // no future days
+    const max = mytDay(new Date()), min = locked() ? picker.lock.public_from : "";
+    const clamp = (v) => (v > max ? max : min && v < min ? min : v); // no future days; no locked days
+    const a = clamp(from.value), b = clamp(to.value);
     state.preset = "custom";
     state.startDay = a <= b ? a : b;
     state.endDay = a <= b ? b : a;
@@ -189,18 +192,70 @@ export function rangePicker(container, { initial = "7d", onChange, presets = ["1
     /** How much this page's data the archive holds: the first and newest day of the given series (meta.series
      * entries), shown beside the dates; the "All" preset starts at that first day. */
     setData(list) {
+      picker.data = list; // written again once the lock check is done (it may finish after the page calls this)
       const ss = (Array.isArray(list) ? list : [list]).filter((x) => x && x.first && x.last);
       if (!ss.length) return;
       const day = (iso) => new Date(Date.parse(iso) + MYT_OFFSET_MS).toISOString().slice(0, 10);
       const first = ss.map((x) => day(x.first)).sort()[0], last = ss.map((x) => day(x.last)).sort().pop();
       const n = Math.round((Date.parse(last) - Date.parse(first)) / 864e5) + 1;
-      picker.firstDay = first;
       const span = el.querySelector("[data-span]");
+      if (locked() && last >= picker.lock.public_from) {
+        const pf = first > picker.lock.public_from ? first : picker.lock.public_from;
+        const m = Math.round((Date.parse(last) - Date.parse(pf)) / 864e5) + 1;
+        picker.firstDay = pf;
+        span.textContent = `Public: last ${m} day${m === 1 ? "" : "s"}, ${fmtDate(pf)} – ${fmtDate(last)} (MYT)`;
+        span.title = "Older readings are kept but need the owner's password (🔒 Full history).";
+        return;
+      }
+      picker.firstDay = first;
       span.textContent = `Archived ${fmtDate(first)} – ${fmtDate(last)} · ${n.toLocaleString("en-MY")} day${n === 1 ? "" : "s"} (MYT)`;
       span.title = "The first and newest day of this page's readings in the archive. Days with no readings from GSO inside that span are shown as gaps.";
     },
-    start() { if (state.preset !== "custom") applyPreset(state.preset, picker.firstDay); return emit(); },
+    async start() {
+      await lockReady;
+      if (state.preset !== "custom") applyPreset(state.preset, picker.firstDay);
+      return emit();
+    },
+    lock: null,
   };
+  // Locked history (the owner's choice): without the passphrase only the newest public days can be chosen; the
+  // 🔒 button opens the rest for this tab (or this device). gso_archive/sealing.py, web/js/lock.js.
+  const locked = () => !!(picker.lock && !picker.lock.unlocked);
+  const lockReady = historyLock().catch(() => null).then((lk) => {
+    picker.lock = lk;
+    if (picker.data) picker.setData(picker.data);
+    const slot = el.querySelector("[data-lock]");
+    if (!lk) return;
+    slot.hidden = false;
+    if (lk.unlocked) {
+      slot.innerHTML = '<button type="button" class="btn" data-relock title="Full history is open in this browser. Close it again.">🔓 Full history · Lock</button>';
+      slot.querySelector("[data-relock]").addEventListener("click", () => { forget(); clearCache(); location.reload(); });
+      return;
+    }
+    const pf = lk.public_from;
+    el.querySelectorAll("[data-preset]").forEach((b) => { if (["30d", "90d", "1y"].includes(b.dataset.preset)) b.hidden = true; });
+    if (["30d", "90d", "1y"].includes(state.preset)) state.preset = "7d";
+    if (state.preset === "custom") {
+      if (state.startDay < pf) state.startDay = pf;
+      if (state.endDay < pf) state.endDay = pf;
+    }
+    from.min = to.min = pf;
+    picker.firstDay = pf;
+    slot.innerHTML = `<button type="button" class="btn" data-unlock title="Readings before ${esc(fmtDate(pf))}${lk.history_from ? `, back to ${esc(fmtDate(lk.history_from))},` : ""} need the owner's password">🔒 Full history</button>`;
+    slot.querySelector("[data-unlock]").addEventListener("click", () => {
+      slot.innerHTML = `<form class="lock-form" autocomplete="on"><input type="password" name="pw" placeholder="Password" aria-label="Password" autocomplete="current-password" required>
+        <label class="inline small"><input type="checkbox" name="keep"> Remember on this device</label>
+        <button type="submit" class="btn primary">Unlock</button><span class="small" data-msg role="status"></span></form>`;
+      const form = slot.querySelector("form"), msg = slot.querySelector("[data-msg]");
+      form.pw.focus();
+      form.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        msg.textContent = "Checking…";
+        if (await tryUnlock(form.pw.value, lk, form.keep.checked)) { msg.textContent = "Unlocked"; clearCache(); location.reload(); }
+        else { msg.textContent = "Wrong password"; form.pw.select(); }
+      });
+    });
+  });
   return picker;
 }
 

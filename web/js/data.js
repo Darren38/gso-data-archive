@@ -1,5 +1,7 @@
 // Data access layer. Same interface in "api" mode (live read-only API) and
 // "static" mode (pre-exported JSON on GitHub Pages).
+import { forget, openBytes, storedKey } from "./lock.js";
+
 const CFG = window.GSO_CONFIG || { mode: "api", apiBase: "", dataBase: "data" };
 export const MODE = CFG.mode;
 const cache = new Map();
@@ -21,6 +23,39 @@ async function getJSON(url) {
 }
 
 export function clearCache() { cache.clear(); }
+
+// History files that are published trimmed to the newest days and in full locked (NAME.json.enc) when the owner has
+// set a passphrase (gso_archive/export_static.py). With the key from lock.js the full copy is read instead.
+const LOCKABLE = /^(points\/[^/]+\/\d{4}-\d{2}|daily\/[^/]+|farms\/[^/]+|tables\/[^/]+)\.json$/;
+
+async function getData(path) {
+  const raw = MODE === "static" && LOCKABLE.test(path) ? storedKey() : null;
+  if (!raw) return getJSON(stat(path));
+  const url = stat(`${path}.enc`);
+  if (cache.has(url)) return cache.get(url);
+  const p = (async () => {
+    const r = await fetch(url);
+    if (r.status === 404) return getJSON(stat(path)); // not locked (or not published): the plain file
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    try {
+      return JSON.parse(new TextDecoder().decode(await openBytes(raw, await r.arrayBuffer())));
+    } catch {
+      forget(); // the passphrase was changed: back to the public files
+      return getJSON(stat(path));
+    }
+  })();
+  cache.set(url, p);
+  p.catch(() => cache.delete(url));
+  return p;
+}
+
+/** The history lock as the site publishes it ({public_days, public_from, history_from, ...} and whether this browser
+ * holds the key), or null when the whole history is public. */
+export async function historyLock() {
+  if (MODE !== "static") return null;
+  const lock = (await getMeta().catch(() => null))?.lock;
+  return lock ? { ...lock, unlocked: !!storedKey() } : null;
+}
 
 const api = (path) => `${CFG.apiBase || ""}/api/v1${path}`;
 const stat = (path) => `${CFG.dataBase || "data"}/${path}`;
@@ -73,7 +108,7 @@ async function fetchPoints(key, start, end) {
   const from = info?.first ? new Date(Math.max(start.getTime(), Date.parse(info.first))) : start;
   const to = info?.last ? new Date(Math.min(end.getTime(), Date.parse(info.last) + 1)) : end;
   const months = from < to ? monthsBetween(from, to) : [];
-  const parts = await Promise.all(months.map((m) => getJSON(stat(`points/${key}/${m}.json`))));
+  const parts = await Promise.all(months.map((m) => getData(`points/${key}/${m}.json`)));
   const found = parts.filter(Boolean);
   const points = [];
   for (const part of found) {
@@ -92,7 +127,7 @@ export async function getDaily(key, startDay, endDay) {
     const q = new URLSearchParams({ start: startDay, end: endDay });
     return getJSON(api(`/series/${encodeURIComponent(key)}/daily?${q}`));
   }
-  const all = await getJSON(stat(`daily/${key}.json`));
+  const all = await getData(`daily/${key}.json`);
   if (!all) return { series: key, unit: "MW", rows: [] };
   const rows = all.rows.filter((r) => r.date >= startDay && r.date <= endDay);
   return { ...all, rows };
@@ -103,17 +138,17 @@ const RECENT_DAYS = 3; // gso_archive/export_static.py RECENT_DAYS
 
 /** MYT days with LSS solar farm readings, newest first. */
 export async function getFarmDays() {
-  const res = MODE === "static" ? await getJSON(stat("farms/index.json")) : await getJSON(api("/farms"));
+  const res = MODE === "static" ? await getData("farms/index.json") : await getJSON(api("/farms"));
   return res?.days || [];
 }
 
 /** Every LSS farm's output at every collected moment of one MYT day ({date, times, farms: [{code, mw: [...], cap, ...}]}). */
 export async function getFarmsDay(day) {
-  return MODE === "static" ? getJSON(stat(`farms/${day}.json`)) : getJSON(api(`/farms/${day}`));
+  return MODE === "static" ? getData(`farms/${day}.json`) : getJSON(api(`/farms/${day}`));
 }
 
 export async function getTable(key) {
-  return MODE === "static" ? getJSON(stat(`tables/${key}.json`)) : getJSON(api(`/tables/${encodeURIComponent(key)}`));
+  return MODE === "static" ? getData(`tables/${key}.json`) : getJSON(api(`/tables/${encodeURIComponent(key)}`));
 }
 
 export async function getRevisions(key, start, end) {

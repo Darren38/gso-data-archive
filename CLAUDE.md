@@ -22,7 +22,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
 - The owner wants the archive copies (backups and the site's `archive.sqlite3.gz`) kept to themselves: they are locked
-  with the secret `ARCHIVE_PASSPHRASE` (`sealing.py`, docs/BACKUP_RESTORE.md). Never ask for the passphrase in chat.
+  with the secret `ARCHIVE_PASSPHRASE` (`sealing.py`, docs/BACKUP_RESTORE.md). Never ask for the passphrase in chat,
+  and never write the real one into the repository (tests use a made-up one).
+- The public sees only the newest 7 days (`PUBLIC_DAYS`); the full history opens with the same passphrase in the
+  browser (lesson 63). Keep it that way unless the owner says otherwise.
 - No `Version N/` folders on `main` (the owner asked for them to be hidden). Like Physics Fruit Rush, a substantial
   update gets a new version number (`gso_archive/__init__.py`, the commit message "GSO Grid Archive N.0 - …" and a
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
@@ -313,6 +316,17 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     after the secret is added. The backup job seals, checks the copy opens again (`cmp`), uploads, then deletes the
     unlocked assets. OpenSSL AES-256-CBC + PBKDF2 (600,000 rounds), passphrase through the environment only. Its
     "Check-up figures" step (`gso-archive checkup`) prints readings per source and day and collection stops.
+
+63. **The public sees the newest 7 days; the owner's passphrase opens the rest, in the browser.** With
+    `ARCHIVE_PASSPHRASE` set, `export_static`'s `put` writes each history file (points months, daily, farms index
+    and days, tables) in full as `NAME.json.enc` and a public copy trimmed to the 7 days from `public_from` (newest
+    reading day - 6; months before it have no public file; monthly CSVs aren't written). meta.json carries `lock`
+    (salt, rounds, a check value). `lock.js` derives the same key once (PBKDF2-SHA256, 600,000 rounds, fixed salt) and
+    opens "GSO1" + nonce + AES-256-GCM files; `data.js` `getData` reads `.enc` when a key is held (falls back to the
+    plain file, and forgets a key that no longer opens anything). `rangePicker` waits for the lock check in `start()`,
+    hides 30d/90d/1y, sets the date inputs' min and re-writes `setData`'s text when the check finishes after it.
+    Tested: Python/JS round trip (`check_lock.mjs`), the unlock flow at 320 and 1280 px (`check_lock_ui.cjs`), and a
+    sweep of every page on the real archive, locked and unlocked.
 
 ## How to check a change
 
