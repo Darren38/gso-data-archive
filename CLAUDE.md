@@ -300,6 +300,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     other run is in progress and no newer one finished properly, it cancels the waiting newer runs and starts again
     (twice at most; it never fails the run, lesson 42). The logic was tried with a stand-in `gh` (healthy, stuck once,
     stuck always). Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
+    Run 10811 has no jobs at all, and GitHub answers 409 "has not been queued yet" to a normal cancel. Only
+    `POST .../runs/{id}/force-cancel` or deleting the run (Actions tab, "..." menu) removes it; the GitHub tools in a
+    cloud session can't. It points at an old commit, so it must never be allowed to start late.
 
 ## How to check a change
 
