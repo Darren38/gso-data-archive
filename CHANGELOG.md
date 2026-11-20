@@ -1,5 +1,11 @@
 # Changelog
 
+## 20 November 2026 (sixty-fourth update) — GSO Grid Archive 7.5
+
+- **Every hour the site now proves it has everything GSO shows.** The hourly check fetches each of GSO's figures once, the same way collection does, and compares them with the archive. A missing reading is found within the hour, while GSO still shows it. Solar gets extra care: GSO's solar farm map shows only the present moment, so each daylight moment on GSO's Solar page must also have a map reading, and any moment that was not read is reported. GSO starts a new list for every source at midnight, so there is an extra check at about 23:40 Malaysia time, before that happens.
+- **The two look after each other:** every collection run makes sure the hourly check has happened (it runs whenever the last one is more than 55 minutes old), and the hourly check makes sure collection has kept everything.
+- **Fewer, more useful emails:** only the hourly check can now email you. It emails when it finds a new problem, then at most once a day while the problem lasts, and the email says what is wrong in plain words. A brief GitHub hiccup in publishing, the backup or tidying no longer emails you. If one keeps failing, the check notices (an old site, or a backup more than two days old) and tells you once.
+
 ## 20 November 2026 (sixty-third update) — GSO Grid Archive 7.4.1
 
 - **The site looks after itself for longer:** it now measures its own size every few minutes, and the hourly check emails the owner well before GitHub's 1 GB limit for websites is reached (from 700 MB; the live check measured 61 MB today, and it grows about 1.5-2 MB a day), so there is plenty of time to decide what to do.

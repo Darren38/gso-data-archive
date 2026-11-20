@@ -13,6 +13,9 @@ list, fix what is wrong (CLAUDE.md lessons first), and end with the improvements
 - The hourly check's notes: last collection age, collectors failing in a row and why (GSO timeouts are notes for
   12 hours; anything else is a bug here), series without new readings.
 
+The hourly check also proves collection against GSO itself (lesson 67): its summary page says "every reading GSO
+shows now is in the archive", or lists what is missing and any solar map moments not read.
+
 ## 2. Are the numbers right? (lesson 31: check numbers, not just pages)
 
 Once the backups are locked (`ARCHIVE_PASSPHRASE`, docs/BACKUP_RESTORE.md) a session can't open them: read the

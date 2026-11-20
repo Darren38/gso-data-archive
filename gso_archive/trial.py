@@ -18,8 +18,9 @@ from .http import FetchError, GsoClient
 from .timeutil import myt_today, to_utc_iso, utcnow
 
 
-def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, shared: dict) -> dict:
-    out: dict = {"adapter": spec.key, "listed_in_GSO_ADAPTERS": spec.key in settings.adapters}
+def fetch_parse(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, shared: dict):
+    """Fetch GSO's current answer for one collector (one try) and read it as collection would, writing nothing.
+    Returns (payload, None, None) or (None, result, details) where result says what went wrong."""
     ctx: dict = {"shared": shared}
     try:
         if spec.time_source:
@@ -37,16 +38,23 @@ def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, sh
             fetched = client.post_pagemethod(spec.url(settings.gso_base_url), spec.request_body(day),
                                              referer=spec.page_url(settings.gso_base_url), retries=0)  # one try: fits the job's time
     except (FetchError, SourceError) as exc:
-        return {**out, "result": "could not fetch", "error": f"{type(exc).__name__}: {exc}"}
+        return None, "could not fetch", {"error": f"{type(exc).__name__}: {exc}"}
     ctx["now"] = utcnow()
     try:
-        payload = parse(spec, fetched.content, day, ctx)
+        return parse(spec, fetched.content, day, ctx), None, None
     except SourceError as exc:
-        return {**out, "result": "refused (GSO's answer is not what the collector expects)", "error": str(exc),
-                "answer_start": fetched.content[:300].decode("utf-8", errors="replace")}
+        return None, "refused (GSO's answer is not what the collector expects)", {
+            "error": str(exc), "answer_start": fetched.content[:300].decode("utf-8", errors="replace")}
     except Exception as exc:  # noqa: BLE001 - exactly what this trial is for
-        return {**out, "result": "COLLECTOR BUG (would have failed live)", "error": f"{type(exc).__name__}: {exc}",
-                "answer_start": fetched.content[:300].decode("utf-8", errors="replace")}
+        return None, "COLLECTOR BUG (would have failed live)", {
+            "error": f"{type(exc).__name__}: {exc}", "answer_start": fetched.content[:300].decode("utf-8", errors="replace")}
+
+
+def _try(client: GsoClient, settings: Settings, spec: AdapterSpec, day: date, shared: dict) -> dict:
+    out: dict = {"adapter": spec.key, "listed_in_GSO_ADAPTERS": spec.key in settings.adapters}
+    payload, result, details = fetch_parse(client, settings, spec, day, shared)
+    if payload is None:
+        return {**out, "result": result, **details}
     times = sorted(r.obs_time for r in payload.readings)
     return {
         **out, "result": "ok",

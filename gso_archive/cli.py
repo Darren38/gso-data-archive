@@ -230,11 +230,44 @@ def cmd_merge(args, settings):
 
 
 def cmd_health_check(args, settings):
-    from .health import check_site
+    """Checks the live site and, with --verify, GSO's current answers against the archive (verify.py). Fails (GitHub
+    then emails the owner) only for problems not emailed in the last day (alerts.py, with --state)."""
+    from datetime import datetime, timezone
+    from pathlib import Path
 
-    result = check_site(args.base, args.max_age_minutes, args.max_failures)
+    from . import alerts
+    from .health import check_site, write_step_summary
+
+    now = datetime.now(timezone.utc)
+    result = check_site(args.base, args.max_age_minutes, args.max_failures, write_summary=False)
+    if args.newest_backup is not None:
+        from .verify import backup_problem
+
+        msg = backup_problem(args.newest_backup, now)
+        if msg:
+            result["problems"].append(msg)
+    state_path = Path(args.state) if args.state else None
+    state = alerts.load(state_path)
+    if args.verify:
+        from dataclasses import replace
+
+        from .verify import verify
+
+        try:
+            v = verify(_engine(settings), replace(settings, gso_live_enabled=True), now, set(state.get("missing") or []))
+        except Exception as exc:  # noqa: BLE001 - the site check above must still report
+            v = {"problems": [], "notes": [f"GSO comparison could not run: {type(exc).__name__}: {exc}"], "missing": []}
+        result["problems"] += v["problems"]
+        result["notes"] += v["notes"]
+        state["missing"] = v["missing"][:2000]
+    send, quiet, state = alerts.decide(result["problems"], state, now) if state_path else (result["problems"], [], state)
+    alerts.save(state_path, state)
+    result.update(ok=not result["problems"], emailed=send, already_emailed=quiet)
+    write_step_summary(send, quiet, result["notes"])
     _print(result)
-    if not result["ok"]:
+    for p in send:
+        print(f"::error title=GSO archive needs a look::{p}")
+    if send:
         sys.exit(1)
 
 
@@ -331,6 +364,9 @@ def main(argv: list[str] | None = None) -> None:
     hc.add_argument("--base", required=True)
     hc.add_argument("--max-age-minutes", type=int, default=120)
     hc.add_argument("--max-failures", type=int, default=12)
+    hc.add_argument("--verify", action="store_true", help="also compare GSO's current answers with the archive (DATABASE_URL)")
+    hc.add_argument("--state", help="file remembering which problems were emailed (email each once a day at most)")
+    hc.add_argument("--newest-backup", help="name of the newest file in the archive-backups release ('' if none)")
     hc.set_defaults(fn=cmd_health_check)
 
     d = sub.add_parser("seed-demo", help="create a SEPARATE demonstration database with synthetic data")

@@ -371,6 +371,18 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     Switching the lock on (lesson 62) once deleted every unlocked daily backup; each backup holds the whole archive,
     so nothing was lost, but only that day's copies were left.
 
+67. **Collection is proven every hour against GSO itself, and only real problems email.** The `check` job (archive.yml)
+    restores the archive its own run just saved, fetches every source's current answer once and reads it as collection
+    does (`trial.fetch_parse`), and `verify.py` reports any reading GSO shows that the archive lacks (a hole, or over 45
+    minutes old). Found once, it is noted (GSO may have just added it); found again an hour later, it is a problem. GSO's
+    lists cover only today, so the check also runs at about 23:40 MYT, when anything missing is a problem at once.
+    Solar map moments (the map shows only the present) are compared with the Solar page's daylight times; a moment no
+    map collector attempt covered is "lost". The check runs whenever the last one is 55 minutes old, so every collection
+    run makes sure it happens. Emails (owner, 20 Nov 2026: "only meaningful and important"): only the check may fail a
+    run (the other jobs have `continue-on-error`; what keeps failing in them shows in the check as an old site or an old
+    backup), and `alerts.decide` emails a problem when it is new and then at most once a day while it lasts
+    (`problem_id` ignores the figures in it); its memory is the `health-state-` Actions cache.
+
 ## How to check a change
 
 ```bash

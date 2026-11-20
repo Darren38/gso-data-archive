@@ -46,6 +46,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    continue-on-error: true  # never emails: the hourly check reports anything that keeps failing
     timeout-minutes: 30
     # One build at a time, never stopped half way; the next one waits its turn (GitHub keeps one waiting).
     concurrency:
@@ -126,6 +127,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-24.04
+    continue-on-error: true  # never emails: the hourly check reports anything that keeps failing
     concurrency:
       group: archive-deploy
       cancel-in-progress: false
@@ -164,22 +166,54 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
 
-  # A check-up of the live site, once an hour (and after a push or a manual run) so a broken source means one email an
-  # hour, not one per run. It only reads the site. A failure marks the run red, so GitHub emails the owner; the details
-  # are on the run's summary page.
+  # The hourly check, and the only job allowed to email the owner (owner, 20 Nov 2026: "only meaningful and important
+  # updates"). It checks the live site and compares every source's current answer at GSO with the archive this run has
+  # just saved (gso_archive/verify.py): a reading GSO shows that the archive lacks is found within the hour, while GSO
+  # still shows it, and a solar map moment that was not read is reported (the map shows only the present moment).
+  # It runs whenever the last check is 55 minutes old, so every collection run makes sure the check happens, and once
+  # more at about 23:40 MYT, before GSO starts the new day's lists. It fails (GitHub then emails) only for a problem not
+  # emailed in the last day (gso_archive/alerts.py); the other jobs never fail a run, and anything that keeps going
+  # wrong in them shows here (an old site, an old backup). Details: the run's summary page.
   check:
-    needs: deploy
-    if: needs.deploy.outputs.deployed == 'true'
+    needs: [build, deploy]
+    if: always() && github.ref == 'refs/heads/main' && needs.build.result != 'cancelled'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
+    permissions:
+      actions: write  # to tidy its own notes in the Actions cache
+      contents: read
     env:
       SITE_URL: ${{ vars.SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+      GSO_ADAPTERS: ${{ vars.GSO_ADAPTERS || 'generation_mix,system_demand,tieline_egat,tieline_hvdc,tieline_pltg,power_station,solar_profile,solar_forecast,genmix_live,other_re,headlines,cbpe,availability,solar_farms,constraints' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
-      # Once an hour (and after every push); decided before installing anything, so other runs finish in seconds.
+      - name: What the last check found
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: health-state
+          key: health-state-${{ github.run_id }}
+          restore-keys: health-state-
+      # Decided before installing anything, so most runs finish this job in seconds.
       - name: Is a check due?
         id: due
         run: |
-          if [ "${{ github.event_name }}" != "push" ] && [ "$(date -u +%M)" -ge 6 ]; then echo "Checked once an hour; not this run."; else echo "due=true" >> "$GITHUB_OUTPUT"; fi
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          from datetime import datetime, timedelta, timezone
+          now = datetime.now(timezone.utc)
+          try:
+              last = datetime.fromisoformat(json.load(open("health-state/state.json"))["checked_at"])
+          except Exception:
+              last = None
+          myt = now + timedelta(hours=8)
+          reset = (myt.replace(hour=23, minute=35, second=0, microsecond=0) - timedelta(hours=8)).replace(tzinfo=timezone.utc)
+          due = (os.environ["EVENT"] == "push" or last is None or now - last >= timedelta(minutes=55)
+                 or (myt.hour == 23 and myt.minute >= 35 and last < reset))
+          print(f"due={'true' if due else 'false'}")
+          PY
+          cat "$GITHUB_OUTPUT" | tail -1
+        env:
+          EVENT: ${{ github.event_name }}
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.due.outputs.due == 'true'
         with:
@@ -192,11 +226,36 @@ jobs:
           cache-dependency-path: requirements.txt
       - run: pip install --quiet -r requirements.txt
         if: steps.due.outputs.due == 'true'
-      - name: Check the live site
+      - name: Pick up this run's archive
+        if: steps.due.outputs.due == 'true' && needs.build.outputs.store == 'github'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: archive-store
+          key: ${{ needs.build.outputs.key }}
+      - name: Check the live site, and GSO's answers against the archive
         if: steps.due.outputs.due == 'true'
         run: |
           sleep 30
-          python -m gso_archive health-check --base "$SITE_URL" --max-age-minutes 60
+          args=(--base "$SITE_URL" --max-age-minutes 60 --state health-state/state.json)
+          if newest=$(gh release view archive-backups --repo "$GITHUB_REPOSITORY" --json assets --jq '[.assets[].name] | max // ""'); then
+            args+=(--newest-backup "$newest")
+          fi
+          if [ -f archive-store/archive.sqlite3 ]; then
+            export DATABASE_URL="sqlite:///$GITHUB_WORKSPACE/archive-store/archive.sqlite3"; args+=(--verify)
+          fi
+          python -m gso_archive health-check "${args[@]}"
+      - name: Remember what was found and emailed
+        if: always() && steps.due.outputs.due == 'true' && hashFiles('health-state/state.json') != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: health-state
+          key: health-state-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Remove older notes
+        if: always() && steps.due.outputs.due == 'true'
+        continue-on-error: true
+        run: |
+          gh cache list --repo "$GITHUB_REPOSITORY" --key health-state- --sort created_at --order desc --limit 100 \
+            --json id --jq '.[2:][].id' | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY"
 
   # Tells Bing and other search engines (IndexNow) that the site changed. The data changes every few minutes but the page
   # itself only when the code does, so this runs only after a push has been published. It waits until the new page is
@@ -313,6 +372,7 @@ jobs:
     needs: build
     if: needs.build.outputs.store == 'github'
     runs-on: ubuntu-24.04
+    continue-on-error: true  # never emails: the hourly check reports anything that keeps failing
     timeout-minutes: 5
     permissions:
       actions: write
@@ -346,6 +406,7 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
+    continue-on-error: true  # never emails: the hourly check reports anything that keeps failing
     timeout-minutes: 30
     permissions:
       contents: write
@@ -440,6 +501,7 @@ jobs:
   keepalive:
     if: github.event_name == 'schedule' && github.event.schedule == '43 19 * * *'
     runs-on: ubuntu-24.04
+    continue-on-error: true  # never emails: the hourly check reports anything that keeps failing
     timeout-minutes: 5
     permissions:
       actions: write

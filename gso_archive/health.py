@@ -95,7 +95,7 @@ def silence_email_due(newest: datetime, now: datetime) -> bool:
 
 
 def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
-               max_reading_age_minutes: int = 180, max_outage_hours: float = 12) -> dict:
+               max_reading_age_minutes: int = 180, max_outage_hours: float = 12, write_summary: bool = True) -> dict:
     base = base_url.rstrip("/") + "/"
     problems: list[str] = []
     notes: list[str] = []
@@ -168,12 +168,22 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
             notes.append(f"published site {meta['site_bytes'] / 1e6:.0f} MB (GitHub Pages allows 1,000 MB)")
         notes.append(f"{len(meta.get('series', []))} series published" + (" (demonstration data)" if meta.get("is_demo") else ""))
     result = {"ok": not problems, "problems": problems, "notes": notes, "site": base}
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a", encoding="utf-8") as fh:
-            fh.write(f"## Site check-up: {'passed' if result['ok'] else 'FAILED'}\n\n")
-            for p in problems:
-                fh.write(f"- ❌ {p}\n")
-            for n in notes:
-                fh.write(f"- {n}\n")
+    if write_summary:
+        write_step_summary(problems, [], notes)
     return result
+
+
+def write_step_summary(emailed: list[str], quiet: list[str], notes: list[str]) -> None:
+    """The check's page on GitHub: what failed (and was emailed), what is still wrong (emailed before), the notes."""
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not summary:
+        return
+    with open(summary, "a", encoding="utf-8") as fh:
+        state = "FAILED" if emailed else "problems already reported" if quiet else "passed"
+        fh.write(f"## Site check-up: {state}\n\n")
+        for p in emailed:
+            fh.write(f"- ❌ {p}\n")
+        for p in quiet:
+            fh.write(f"- ⚠️ {p} (still; emailed earlier, a reminder after a day)\n")
+        for n in notes:
+            fh.write(f"- {n}\n")
