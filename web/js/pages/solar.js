@@ -155,7 +155,10 @@ export async function render(main, { meta, isCurrent }) {
         meta: rampExt.min ? `Fastest fall ${fmtNum(rampExt.min[1], 1)} MW/min` : rawOk ? "Not enough consecutive readings" : "Shorten the range to compute ramps" })}
       ${kpi({ icon: "share", label: "Peak Solar Share", value: shareExt.max ? fmtNum(shareExt.max[1], 1) : null, unit: "%",
         meta: shareExt.max ? `${fmtDateTime(shareExt.max[0])} MYT` : demand ? "Needs overlapping demand data" : "Demand not archived" })}
-      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Readings archived ÷ readings GSO has published (one every 10 minutes)${since && since > range.startDay ? `, since collection began on ${fmtDate(since)}` : ""}` })}
+      ${kpi({ icon: "check", label: "Data Completeness", value: fmtNum(completeness * 100, 1), unit: "%", meta: `Readings in the archive ÷ readings expected (GSO publishes one every 10 minutes; today counts only the time so far)${since && since > range.startDay ? `, since collection began on ${fmtDate(since)}` : ""}${(() => {
+        const low = counted.filter((r) => r.completeness < 0.9).sort((a, b) => a.completeness - b.completeness).slice(0, 2);
+        return low.length ? `. Lowest: ${low.map((r) => `${fmtDate(r.date)} (${fmtNum(r.completeness * 100, 0)}%)`).join(", ")}` : "";
+      })()}` })}
     </div>`));
     body.appendChild(h(shortForms(["MW", "MWh", "MW/min", "MYT", "Grid", "Distribution", "NEM", "FiT", "SELCO", "LSS"])));
 

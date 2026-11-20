@@ -302,8 +302,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     fired for 4 h and 2 h 45 min. Whole-day lists were refilled later, but "now only" answers (headlines,
     availability, solar_farms) were lost. The `next` job now watches for about 4 minutes after starting a run: if no
     other run is in progress and no newer one finished properly, it cancels the waiting newer runs and starts again
-    (twice at most; it never fails the run, lesson 42). The logic was tried with a stand-in `gh` (healthy, stuck once,
-    stuck always). Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
+    (twice at most; it never fails the run, lesson 42). Only runs NEWER than the current one count as the next
+    collection: on 20 Nov 2026 an older run still finishing its slow backup job was counted, no run was started, and
+    collection stopped for an hour (14:06-15:09 MYT). The logic is tried with a stand-in `gh` (healthy, an older run
+    finishing, newer running, newer waiting for its turn, stuck once, stuck always). Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
     Run 10811 has no jobs at all, and GitHub refuses a normal cancel (409 "has not been queued yet"), from the API and
     from the website; the website offers no delete for it either. The `tidy` job therefore force-cancels
     (`POST .../runs/{id}/force-cancel`) any run of this workflow still queued after an hour: such a run points at old

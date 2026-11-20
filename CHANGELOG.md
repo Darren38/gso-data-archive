@@ -1,5 +1,10 @@
 # Changelog
 
+## 20 November 2026 (fifty-eighth update) — GSO Grid Archive 7.1.1
+
+- **Fixed: collection paused for an hour today (14:06 to 15:09 MYT).** The check added on 20 November to restart collection when GitHub doesn't start a run mistook an earlier run that was still finishing its backup for the next collection, so no new run was started. Only a newer run now counts. GSO's whole-day figures for that hour were filled in on the next run; its "now only" figures (the home page headline boxes, Generation Availability and the solar farm map) for that hour can't be fetched again.
+- **Clearer "Data Completeness" card on the Solar page:** it now says it is the readings in the archive ÷ the readings expected (one every 10 minutes, today only up to now), and names the least complete days, e.g. 15 Nov (GSO's solar outage).
+
 ## 20 November 2026 (fifty-seventh update) — GSO Grid Archive 7.1
 
 - **No password any more: the full history is open to everyone again.** At the owner's request the history lock from 7.0 is switched off. Every page offers all its ranges again (30 days, 90 days, 1 year, All) without a password, the full archive download is back on the About page, the monthly CSV files are published again, and the daily backups are no longer locked. The locking feature stays in the code, switched off, in case it is wanted again.

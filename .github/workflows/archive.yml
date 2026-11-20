@@ -266,13 +266,15 @@ jobs:
             done
             gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main && echo "Next run started."
           }
-          # Collection is running when another run is under way, or a newer one has finished properly.
+          # The next collection is on its way when a run NEWER than this one is waiting, starting or running, or has
+          # finished properly. Older runs never count: one still finishing its backup is not the next collection
+          # (20 Nov 2026: counting it stopped collection for an hour).
           running() {
-            gh api "$api" --jq "[.workflow_runs[] | select(.id != $me and (.status == \"in_progress\" or (.id > $me and .status == \"completed\" and .conclusion != \"startup_failure\" and .conclusion != \"cancelled\")))] | length" || echo 0
+            gh api "$api" --jq "[.workflow_runs[] | select(.id > $me and (.status == \"in_progress\" or .status == \"pending\" or .status == \"waiting\" or (.status == \"completed\" and .conclusion != \"startup_failure\" and .conclusion != \"cancelled\")))] | length" || echo 0
           }
-          # Newer runs that are waiting but have not begun.
+          # Newer runs GitHub has not given a machine yet ("queued"; 16 Nov 2026: one stayed so for days).
           waiting() {
-            gh api "$api" --jq "[.workflow_runs[] | select(.id > $me and (.status == \"queued\" or .status == \"pending\" or .status == \"waiting\" or .status == \"requested\")) | .id] | join(\" \")" || true
+            gh api "$api" --jq "[.workflow_runs[] | select(.id > $me and (.status == \"queued\" or .status == \"requested\")) | .id] | join(\" \")" || true
           }
           sleep 60
           if [ -n "$(waiting)" ] || [ "$(running)" -gt 0 ]; then echo "A newer run is already on its way."; else start; fi
