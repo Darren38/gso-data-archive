@@ -21,6 +21,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   steps in the README; developer instructions live in docs/DEVELOPMENT.md), and credits.
 - GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
+- The owner wants the archive copies (backups and the site's `archive.sqlite3.gz`) kept to themselves: they are locked
+  with the secret `ARCHIVE_PASSPHRASE` (`sealing.py`, docs/BACKUP_RESTORE.md). Never ask for the passphrase in chat.
 - No `Version N/` folders on `main` (the owner asked for them to be hidden). Like Physics Fruit Rush, a substantial
   update gets a new version number (`gso_archive/__init__.py`, the commit message "GSO Grid Archive N.0 - …" and a
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.
@@ -304,6 +306,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     from the website; the website offers no delete for it either. The `tidy` job therefore force-cancels
     (`POST .../runs/{id}/force-cancel`) any run of this workflow still queued after an hour: such a run points at old
     code and must never start late, and no real run waits that long.
+
+62. **Locked copies must still be readable by the next run, and check-ups must not need them.** With
+    `ARCHIVE_PASSPHRASE` set, `export_static` publishes only `archive.sqlite3.gz.enc` (meta `archive_download: false`
+    hides the About page button) and `seed_from_live` reads it, falling back to the unlocked file for the first run
+    after the secret is added. The backup job seals, checks the copy opens again (`cmp`), uploads, then deletes the
+    unlocked assets. OpenSSL AES-256-CBC + PBKDF2 (600,000 rounds), passphrase through the environment only. Its
+    "Check-up figures" step (`gso-archive checkup`) prints readings per source and day and collection stops.
 
 ## How to check a change
 

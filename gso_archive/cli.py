@@ -262,6 +262,12 @@ def cmd_backup(args, settings):
     _print(result)
 
 
+def cmd_checkup(args, settings):
+    from .checkup import as_text, summary
+
+    print(as_text(summary(_engine(settings), days=args.days)))
+
+
 def cmd_restore_portable(args, settings):
     from .backup import portable_restore
 
@@ -338,6 +344,9 @@ def main(argv: list[str] | None = None) -> None:
     bk.add_argument("--format", choices=["native", "portable", "both"], default="both")
     bk.set_defaults(fn=cmd_backup)
 
+    cu = sub.add_parser("checkup", help="print readings per source and day, and collection stops (maintenance check-up)")
+    cu.add_argument("--days", type=int, default=8)
+    cu.set_defaults(fn=cmd_checkup)
     rp = sub.add_parser("restore-portable", help="restore a portable backup into an EMPTY database")
     rp.add_argument("path")
     rp.set_defaults(fn=cmd_restore_portable)

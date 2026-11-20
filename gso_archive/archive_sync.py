@@ -27,9 +27,10 @@ from sqlalchemy.engine import Engine
 from . import db
 from .db import make_engine
 from .migrations import migrate
+from .sealing import SUFFIX, passphrase, unseal
 from .timeutil import ensure_utc
 
-ARCHIVE_FILE = "archive.sqlite3.gz"
+ARCHIVE_FILE = "archive.sqlite3.gz"  # with ARCHIVE_PASSPHRASE set, published locked as archive.sqlite3.gz.enc
 UA = "gso-data-archive/2.0 (+https://github.com/Darren38/gso-data-archive)"
 
 
@@ -179,20 +180,31 @@ def write_snapshot(database_url: str, out_file: Path) -> int:
 
 
 def seed_from_live(database_url: str, base_url: str, timeout: float = 60) -> dict:
-    """Download the published archive and merge it into the local one. Never raises for network trouble."""
+    """Download the published archive and merge it into the local one. Never raises for network trouble.
+
+    With ARCHIVE_PASSPHRASE set the locked copy is read first; the unlocked one is still tried, for the first run
+    after the passphrase is added (the live site then still has the old, unlocked copy)."""
     local = sqlite_path(database_url)
-    url = base_url.rstrip("/") + "/data/" + ARCHIVE_FILE
+    base = base_url.rstrip("/") + "/data/"
+    names = ([ARCHIVE_FILE + SUFFIX] if passphrase() else []) + [ARCHIVE_FILE]
     with tempfile.TemporaryDirectory() as tmp:
-        gz_path, db_path = Path(tmp) / ARCHIVE_FILE, Path(tmp) / "live.sqlite3"
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA, "Cache-Control": "no-cache"})
-            with urllib.request.urlopen(req, timeout=timeout) as res, open(gz_path, "wb") as fh:
-                shutil.copyfileobj(res, fh)
-            with gzip.open(gz_path, "rb") as gz, open(db_path, "wb") as fh:
-                shutil.copyfileobj(gz, fh)
-            sqlite3.connect(db_path).execute("PRAGMA integrity_check").fetchone()
-        except Exception as exc:  # noqa: BLE001 - first deploy, offline, or a corrupt copy: keep what we have
-            return {"seeded": False, "reason": f"live copy not available ({type(exc).__name__}: {exc})"}
+        db_path, reasons = Path(tmp) / "live.sqlite3", []
+        for name in names:
+            got, gz_path = Path(tmp) / name, Path(tmp) / ARCHIVE_FILE
+            try:
+                req = urllib.request.Request(base + name, headers={"User-Agent": UA, "Cache-Control": "no-cache"})
+                with urllib.request.urlopen(req, timeout=timeout) as res, open(got, "wb") as fh:
+                    shutil.copyfileobj(res, fh)
+                if name.endswith(SUFFIX):
+                    unseal(got, gz_path)
+                with gzip.open(gz_path, "rb") as gz, open(db_path, "wb") as fh:
+                    shutil.copyfileobj(gz, fh)
+                sqlite3.connect(db_path).execute("PRAGMA integrity_check").fetchone()
+                break
+            except Exception as exc:  # noqa: BLE001 - first deploy, offline, or a corrupt copy: keep what we have
+                reasons.append(f"{name}: {type(exc).__name__}: {exc}")
+        else:
+            return {"seeded": False, "reason": "live copy not available (" + "; ".join(reasons) + ")"}
         live = make_engine(f"sqlite:///{db_path}")
         migrate(live)
         if not local.exists() or local.stat().st_size == 0:

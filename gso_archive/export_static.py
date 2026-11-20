@@ -23,6 +23,7 @@ from sqlalchemy.engine import Engine
 
 from . import analytics, db, export
 from .config import Settings
+from .sealing import passphrase
 from .timeutil import MYT, UTC, ensure_utc, to_utc_iso
 
 RECENT_DAYS = 3  # data/points/<key>/recent.json: the newest days of every series in one small file
@@ -60,6 +61,8 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
         meta = analytics.meta(conn)
         meta["static_export"] = True
         meta["collection"] = collection_info(settings, conn)
+        # A locked archive (ARCHIVE_PASSPHRASE set) is for the owner only, so the About page offers no download.
+        meta["archive_download"] = bool(include_archive and engine.dialect.name == "sqlite" and not passphrase())
         _write(data / "meta.json", meta)
         _write(data / "status.json", analytics.status(conn, settings.adapters, settings.gso_live_enabled))
         files += 2
@@ -120,8 +123,17 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
     archive_bytes = None
     if include_archive and engine.dialect.name == "sqlite":
         from .archive_sync import ARCHIVE_FILE, write_snapshot
+        from .sealing import SUFFIX, seal
 
-        archive_bytes = write_snapshot(settings.database_url, data / ARCHIVE_FILE)
+        if passphrase():  # locked: only the encrypted copy is published
+            import tempfile
+
+            with tempfile.TemporaryDirectory() as tmp:
+                write_snapshot(settings.database_url, Path(tmp) / ARCHIVE_FILE)
+                seal(Path(tmp) / ARCHIVE_FILE, data / (ARCHIVE_FILE + SUFFIX))
+            archive_bytes = (data / (ARCHIVE_FILE + SUFFIX)).stat().st_size
+        else:
+            archive_bytes = write_snapshot(settings.database_url, data / ARCHIVE_FILE)
         files += 1
     return {"out_dir": str(out_dir), "files": files, "archive_bytes": archive_bytes,
             "generated_for": date.today().isoformat()}

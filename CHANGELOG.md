@@ -1,5 +1,11 @@
 # Changelog
 
+## 20 November 2026 (fifty-fifth update) — GSO Grid Archive 6.6
+
+- **The archive copies can be kept for the owner only:** the repository is public, so the daily backups and the full archive file published with the site could be downloaded by anyone. Once the owner adds a passphrase (a repository secret named `ARCHIVE_PASSPHRASE`), both are locked with it (AES-256 encryption). The site publishes only the locked copy and no longer offers it on the About page, the older unlocked backups are removed, and only someone with the passphrase can open them. Until the passphrase is added, nothing changes. The website's charts and tables stay public as before.
+- **Check-ups without opening the backup:** the daily backup now also writes into its log how many readings each source had per day and any stops in collection, which is what the maintenance check-up needs.
+- **The stuck run from 16 November:** GitHub refuses to cancel it, even with a force-cancel, so the workflow now also tries deleting such a run.
+
 ## 20 November 2026 (fifty-fourth update) — GSO Grid Archive 6.5.2
 
 - **Runs GitHub never starts are cleared away automatically:** the run GitHub left waiting on 16 November could not be cancelled, either from the website or otherwise. If GitHub ever started it late, it would have published the 16 November version of the site. Every collection now force-cancels any run that has waited over an hour without starting (real runs start within minutes).

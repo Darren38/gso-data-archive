@@ -53,6 +53,9 @@ jobs:
       cancel-in-progress: false
     env:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
+      # Optional secret: when set, the archive copy published with the site is locked with it (owner only; read back
+      # by the next run with the same secret). Unset: published unlocked, as before.
+      ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}
       # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
       GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
       WEATHER_ENABLED: ${{ vars.WEATHER_ENABLED || 'true' }}  # Open-Meteo sunshine forecasts for the LSS regions, every 3 hours
@@ -315,8 +318,10 @@ jobs:
             --jq '.workflow_runs[] | select((now - (.created_at | fromdateiso8601)) > 3600) | .id' |
           while read -r id; do
             echo "Run $id has waited over an hour without starting; force-cancelling it."
+            # 16 Nov's run refuses even a force-cancel ("has not been queued yet"); deleting it is the last way.
             gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/force-cancel" >/dev/null \
-              || echo "::warning::Could not cancel run $id."
+              || gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/runs/$id" \
+              || echo "Could not cancel or delete run $id; it has never started and is left alone."
           done
         env:
           GH_TOKEN: ${{ github.token }}
@@ -334,6 +339,7 @@ jobs:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       GH_TOKEN: ${{ github.token }}
       BACKUP_S3_URI: ${{ secrets.BACKUP_S3_URI }}
+      ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -346,7 +352,7 @@ jobs:
         id: today
         run: |
           if gh release view archive-backups --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' 2>/dev/null \
-             | grep -q "gso-archive-$(date -u +%F).tar.gz"; then echo "done=true" >> "$GITHUB_OUTPUT"; echo "Today's backup exists."; fi
+             | grep -qx "gso-archive-$(date -u +%F).tar.gz${ARCHIVE_PASSPHRASE:+.enc}"; then echo "done=true" >> "$GITHUB_OUTPUT"; echo "Today's backup exists."; fi
       - name: Pick up this run's archive
         if: needs.build.outputs.store == 'github' && steps.today.outputs.done != 'true'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -360,24 +366,52 @@ jobs:
           [ -n "$EXTERNAL_DB" ] || [ -f "$GITHUB_WORKSPACE/archive-store/archive.sqlite3" ] || { echo "No archive yet - nothing to back up."; exit 0; }
           python -m gso_archive backup --format portable --out "$RUNNER_TEMP/bk"
           cd "$RUNNER_TEMP/bk" && tar czf "$RUNNER_TEMP/gso-archive-$(date -u +%F).tar.gz" gso-archive-portable-*
+          # Locked with ARCHIVE_PASSPHRASE when it is set (owner only). Open with:
+          #   openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in FILE.tar.gz.enc -out FILE.tar.gz
+          if [ -n "$ARCHIVE_PASSPHRASE" ]; then
+            F="$RUNNER_TEMP/gso-archive-$(date -u +%F).tar.gz"
+            openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:ARCHIVE_PASSPHRASE -in "$F" -out "$F.enc"
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:ARCHIVE_PASSPHRASE -in "$F.enc" | cmp - "$F"  # opens again
+            rm "$F"
+          else
+            echo "::warning::Backups are published unlocked: anyone can download them. Add the repository secret ARCHIVE_PASSPHRASE to lock them."
+          fi
+      - name: Check-up figures (readings per source and day, collection stops; for docs/MAINTENANCE.md)
+        if: steps.today.outputs.done != 'true'
+        continue-on-error: true
+        run: |
+          if [ -n "$EXTERNAL_DB" ]; then export DATABASE_URL="$EXTERNAL_DB"; else export DATABASE_URL="sqlite:///$GITHUB_WORKSPACE/archive-store/archive.sqlite3"; fi
+          [ -n "$EXTERNAL_DB" ] || [ -f "$GITHUB_WORKSPACE/archive-store/archive.sqlite3" ] || exit 0
+          python -m gso_archive checkup --days 8
       - name: Upload to the archive-backups release
         if: steps.today.outputs.done != 'true'
         run: |
-          FILE=$(ls "$RUNNER_TEMP"/gso-archive-*.tar.gz 2>/dev/null | head -1)
+          FILE=$(ls "$RUNNER_TEMP"/gso-archive-*.tar.gz* 2>/dev/null | head -1)
           [ -n "$FILE" ] || exit 0
           R="--repo $GITHUB_REPOSITORY"
-          gh release view archive-backups $R >/dev/null 2>&1 || gh release create archive-backups $R --latest=false \
-            --title "Archive backups" --notes "Daily copies of the GSO archive. Restore with: python -m gso_archive restore-portable <folder>"
+          if [ -n "$ARCHIVE_PASSPHRASE" ]; then
+            NOTES="Daily copies of the GSO archive, locked with the owner's passphrase. Open with: openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in FILE.tar.gz.enc -out FILE.tar.gz, then: python -m gso_archive restore-portable <folder>"
+          else
+            NOTES="Daily copies of the GSO archive. Restore with: python -m gso_archive restore-portable <folder>"
+          fi
+          gh release view archive-backups $R >/dev/null 2>&1 || gh release create archive-backups $R --latest=false --title "Archive backups" --notes "$NOTES"
+          gh release edit archive-backups $R --notes "$NOTES" >/dev/null
           gh release upload archive-backups "$FILE" --clobber $R
-          gh release view archive-backups $R --json assets --jq '.assets[].name' | sort -r | awk 'NR>14 && !/-01\.tar\.gz$/' \
-            | xargs -r -n1 gh release delete-asset archive-backups -y $R
+          # Keep the newest 14 days and the 1st of every month. Once a locked copy is uploaded, the unlocked ones go:
+          # every backup holds the whole archive, so the newest locked copy replaces them all.
+          names=$(gh release view archive-backups $R --json assets --jq '.assets[].name')
+          if [ -n "$ARCHIVE_PASSPHRASE" ]; then
+            echo "$names" | grep -E '\.tar\.gz$' | xargs -r -n1 gh release delete-asset archive-backups -y $R
+            names=$(echo "$names" | grep -E '\.enc$')
+          fi
+          echo "$names" | sort -r | awk 'NR>14 && !/-01\.tar\.gz(\.enc)?$/' | xargs -r -n1 gh release delete-asset archive-backups -y $R
       - name: Also copy to your own object storage (optional)
         if: env.BACKUP_S3_URI != '' && steps.today.outputs.done != 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           ENDPOINT: ${{ vars.BACKUP_S3_ENDPOINT }}
-        run: aws s3 cp "$RUNNER_TEMP"/gso-archive-*.tar.gz "$BACKUP_S3_URI/" ${ENDPOINT:+--endpoint-url "$ENDPOINT"}
+        run: aws s3 cp "$RUNNER_TEMP"/gso-archive-*.tar.gz* "$BACKUP_S3_URI/" ${ENDPOINT:+--endpoint-url "$ENDPOINT"}
 
   # GitHub switches off scheduled workflows in a public repository after 60 days without a push. Once a day this job
   # uses GitHub's own "enable workflow" switch, which keeps it on without any commit.

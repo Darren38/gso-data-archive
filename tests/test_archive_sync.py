@@ -232,3 +232,44 @@ def test_silence_emails_once_then_once_a_day():
     # Day two: 10.5 daytime hours on day one, so the next 12 are reached at 14:30 on day two: one more email, at 15:00.
     due2 = [t for t in (at(2, h, 2) for h in range(0, 24)) if silence_email_due(newest, t)]
     assert due2 == [at(2, 15, 2)]
+
+
+def test_locked_archive(two_archives, settings, tmp_path, monkeypatch):
+    """With ARCHIVE_PASSPHRASE set only the encrypted copy is published, the About page offers no download, and the
+    next run still reads it back. A wrong passphrase reads nothing (and falls back to keeping the local copy)."""
+    a, b, a_url, b_url = two_archives
+    monkeypatch.setenv("ARCHIVE_PASSPHRASE", "correct horse battery staple")
+    site = tmp_path / "site"
+    export_site(a, replace(settings, database_url=a_url), site)
+    data = site / "data"
+    assert (data / "archive.sqlite3.gz.enc").exists() and not (data / "archive.sqlite3.gz").exists()
+    assert not (data / "archive.sqlite3.gz.enc").read_bytes().startswith(b"\x1f\x8b")  # not a readable gzip
+    assert json.loads((data / "meta.json").read_text())["archive_download"] is False
+    httpd, base = serve(site)
+    try:
+        fresh_url = f"sqlite:///{tmp_path / 'fresh' / 'archive.sqlite3'}"
+        r = seed_from_live(fresh_url, base)
+        assert r["seeded"] and counts(make_engine(fresh_url)) == counts(a)
+        monkeypatch.setenv("ARCHIVE_PASSPHRASE", "wrong")
+        r = seed_from_live(f"sqlite:///{tmp_path / 'other' / 'archive.sqlite3'}", base)
+        assert r["seeded"] is False and "not available" in r["reason"]
+        monkeypatch.delenv("ARCHIVE_PASSPHRASE")
+        assert seed_from_live(f"sqlite:///{tmp_path / 'third' / 'archive.sqlite3'}", base)["seeded"] is False
+    finally:
+        httpd.shutdown()
+
+
+def test_unlocked_site_still_read_after_passphrase_added(two_archives, settings, tmp_path, monkeypatch):
+    """The first run after the owner adds the passphrase finds only the old, unlocked copy on the live site."""
+    a, _, a_url, _ = two_archives
+    site = tmp_path / "site"
+    export_site(a, replace(settings, database_url=a_url), site)
+    assert json.loads((site / "data" / "meta.json").read_text())["archive_download"] is True
+    monkeypatch.setenv("ARCHIVE_PASSPHRASE", "new secret")
+    httpd, base = serve(site)
+    try:
+        fresh_url = f"sqlite:///{tmp_path / 'fresh' / 'archive.sqlite3'}"
+        assert seed_from_live(fresh_url, base)["seeded"]
+        assert counts(make_engine(fresh_url)) == counts(a)
+    finally:
+        httpd.shutdown()

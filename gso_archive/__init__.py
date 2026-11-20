@@ -1,3 +1,3 @@
 """GSO Historical Data Archive — collector, storage, API and dashboard."""
 
-__version__ = "6.5.2"
+__version__ = "6.6.0"

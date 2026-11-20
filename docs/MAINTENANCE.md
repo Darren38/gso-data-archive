@@ -15,7 +15,10 @@ list, fix what is wrong (CLAUDE.md lessons first), and end with the improvements
 
 ## 2. Are the numbers right? (lesson 31: check numbers, not just pages)
 
-Download the newest `archive-backups` asset (github.com release downloads work from a session) and restore it:
+Once the backups are locked (`ARCHIVE_PASSPHRASE`, docs/BACKUP_RESTORE.md) a session can't open them: read the
+newest `backup` job's "Check-up figures" step instead (readings per source and MYT day, collection stops), and ask
+the owner to restore a backup for anything deeper. Never ask for the passphrase in chat. While they are unlocked,
+download the newest `archive-backups` asset (github.com release downloads work from a session) and restore it:
 `gso-archive restore-portable <folder>` into an empty SQLite file. Then:
 
 - **Readings per day per series** for the last few days: 144 for 10-minute series (fewer today). Missing times in a
