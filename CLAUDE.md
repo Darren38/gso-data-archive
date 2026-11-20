@@ -13,6 +13,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
 - Keep the owner updated while working: short progress notes with a text progress bar (e.g. `▓▓▓▓▓░░░░░ 50% · step 3 of 6`).
+- **The owner's rule for this website (20 Nov 2026): it must fetch every new piece of GSO data automatically, store
+  all of it from time to time (nothing GSO publishes may be lost), load it properly and display it correctly, and the
+  website must be kept fast.** Every change is judged against this first.
 - The owner's first rule: the site must keep collecting by itself whenever GSO publishes. Any change to `archive.yml`
   (above all the `next` job) must pass `tests/test_workflow_next.py`, and after pushing, watch several runs on GitHub
   follow each other every 2-3 minutes before calling it done.
@@ -226,9 +229,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     as `EMPTY_NOTE` (lesson 44); anything else it can't read still raises.
 
 50. **Recent views must not download whole months.** Late in a month the Overview fetched ~1.1 MB of month files for
-    24 hours of readings. `export-static` writes `data/points/<key>/recent.json` (newest 3 days) and `getPoints`
-    (data.js) uses it when the range starts inside it: the Overview is now ~100 KB. Keep `RECENT_DAYS` equal in
-    `export_static.py` and `data.js`.
+    24 hours of readings. `export-static` writes `data/points/<key>/recent.json` (newest 3 days) and `week.json`
+    (newest 8 days, for the "7 days" views: 40-60% less to download on 20 Nov, more late in a month), and `getPoints`
+    (data.js) uses the smallest one the range starts inside: the Overview is now ~100 KB. Keep `RECENT_DAYS` and
+    `WEEK_DAYS` equal in `export_static.py` and `data.js`.
 
 51. **GSO's solar map can show output that can't be solar.** PTRM and SKCL show ~18 of 18 MW at 07:20 and 19:10.
     `implausibleSolar` (analysis.js: half capacity or more before 07:30 or after 18:45, at two moments or more) marks
@@ -312,7 +316,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     (twice at most; it never fails the run, lesson 42). Only runs NEWER than the current one count as the next
     collection: on 20 Nov 2026 an older run still finishing its slow backup job was counted, no run was started, and
     collection stopped for an hour (14:06-15:09 MYT). The logic is tried with a stand-in `gh` (healthy, an older run
-    finishing, newer running, newer waiting for its turn, stuck once, stuck always). Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
+    finishing, newer running, newer waiting for its turn, stuck once, stuck always).
+    Root cause of that hour, three parts: (1) the check counted older runs; (2) it was only tried against the cases
+    imagined, not the run list GitHub really shows, and after pushing only ONE live run was read, whose log said "A
+    newer run is already on its way" when none existed: a log line was taken on trust; (3) the backup and check jobs
+    installed packages on every run (once 5 minutes), which kept old runs "in progress". Now: a job decides whether it
+    has work before installing anything, installs use `cache: pip`, and after any change to the chain, compare what
+    each `next` log says with the run list itself, for several runs in a row, before calling it done. Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
     Run 10811 has no jobs at all, and GitHub refuses a normal cancel (409 "has not been queued yet"), from the API and
     from the website; the website offers no delete for it either. The `tidy` job therefore force-cancels
     (`POST .../runs/{id}/force-cancel`) any run of this workflow still queued after an hour: such a run points at old

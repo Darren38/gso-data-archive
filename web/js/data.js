@@ -97,10 +97,12 @@ async function fetchPoints(key, start, end) {
   }
   // Only the months this series has readings in: asking for earlier or later months just fetches missing files.
   const info = (await getMeta().catch(() => null))?.series?.find((x) => x.key === key);
-  // Recent ranges (the Overview's 24 hours, "today") come from one small file of the newest 3 days, not whole months.
-  if (info?.last && start.getTime() >= Date.parse(info.last) + 1000 - RECENT_DAYS * 864e5) {
-    const recent = await getJSON(stat(`points/${key}/recent.json`)).catch(() => null);
-    if (recent?.points) {
+  // Recent ranges come from one small file, not whole months: the newest 3 days (the Overview's 24 hours, "today") or
+  // the newest 8 days (the "7 days" views). An older export without week.json falls through to the month files.
+  for (const [file, days] of [["recent", RECENT_DAYS], ["week", WEEK_DAYS]]) {
+    if (!info?.last || start.getTime() < Date.parse(info.last) + 1000 - days * 864e5) continue;
+    const recent = await getJSON(stat(`points/${key}/${file}.json`)).catch(() => null);
+    if (recent?.points && (!recent.recent_from || Date.parse(recent.recent_from) <= start.getTime())) {
       const points = recent.points.filter((p) => { const t = Date.parse(p[0]); return t >= start.getTime() && t < end.getTime(); });
       return { series: key, unit: recent.unit, interval_s: recent.interval_s, kind: recent.kind, points, is_demo: !!recent.is_demo };
     }
@@ -135,6 +137,7 @@ export async function getDaily(key, startDay, endDay) {
 
 /** A list GSO publishes as rows (e.g. its power stations), with the changes the archive has seen. */
 const RECENT_DAYS = 3; // gso_archive/export_static.py RECENT_DAYS
+const WEEK_DAYS = 8; // gso_archive/export_static.py WEEK_DAYS
 
 /** MYT days with LSS solar farm readings, newest first. */
 export async function getFarmDays() {

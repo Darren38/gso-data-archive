@@ -1,5 +1,10 @@
 # Changelog
 
+## 20 November 2026 (sixty-second update) — GSO Grid Archive 7.4
+
+- **Faster pages:** the "7 days" view (the starting view on the Demand, Solar, Tie-Line, Generation, BESS and Explorer pages) now downloads one small file of the newest 8 days for each figure instead of whole months: 40-60% less today, and up to four times less late in a month. The figures shown are the same.
+- **Faster, steadier collection runs:** the daily backup and the hourly site check now decide whether they have anything to do before installing anything, and the installs that are needed come from GitHub's cache. Today one backup job spent 5 minutes downloading packages for nothing; that slow job, together with the bug fixed in 7.1.1, is what paused collection for an hour.
+
 ## 20 November 2026 (sixty-first update) — GSO Grid Archive 7.3.1
 
 - **The Solar page's menu follows GSO's Solar page:** All solar, then Grid, Distribution, NEM, FiT and SELCO, in GSO's order. "Transmission Solar" was listed separately as well, but it is GSO's Generation page's name for the same farms as "Grid" (from another GSO system, so its figures differ slightly). The menu now says "Grid (Transmission Solar)" so both names are recognised, Transmission Solar stays on the Generation page and the Overview where GSO shows it, and the Short forms box explains the two names.

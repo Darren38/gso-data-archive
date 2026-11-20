@@ -27,6 +27,7 @@ from .sealing import PUBLIC_DAYS, lock_info, passphrase, seal_bytes, site_key
 from .timeutil import MYT, UTC, ensure_utc, to_utc_iso
 
 RECENT_DAYS = 3  # data/points/<key>/recent.json: the newest days of every series in one small file
+WEEK_DAYS = 8  # data/points/<key>/week.json: enough for the "7 days" views (data.js WEEK_DAYS), not whole months
 
 MARKER = ".gso-static-export"
 
@@ -149,6 +150,11 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
             _write(data / "points" / info.key / "recent.json",
                    {**analytics.points(conn, info, t_hi - timedelta(days=RECENT_DAYS), t_hi + timedelta(days=3), max_points=10**9),
                     "recent_from": to_utc_iso(t_hi - timedelta(days=RECENT_DAYS))})
+            # The "7 days" views (the default on Demand, Solar, Tie-Line, the Explorer) read this one file instead of
+            # one or two whole months: on the 31st a month file is about four times as big.
+            week = {**analytics.points(conn, info, t_hi - timedelta(days=WEEK_DAYS), t_hi + timedelta(days=3), max_points=10**9),
+                    "recent_from": to_utc_iso(t_hi - timedelta(days=WEEK_DAYS))}
+            put(f"points/{info.key}/week.json", week, recent_points(week) if key else ...)
             files += 1
         # LSS solar farms, one file per day: every farm's output at every collected moment (Solar page, "a moment"
         # and capacity factor views).
