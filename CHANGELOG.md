@@ -2,7 +2,7 @@
 
 ## 20 November 2026 (sixty-third update) — GSO Grid Archive 7.4.1
 
-- **The site looks after itself for longer:** it now measures its own size every few minutes, and the hourly check emails the owner well before GitHub's 1 GB limit for websites is reached (from 700 MB; it was about 56 MB today and grows about 1.5-2 MB a day), so there is plenty of time to decide what to do.
+- **The site looks after itself for longer:** it now measures its own size every few minutes, and the hourly check emails the owner well before GitHub's 1 GB limit for websites is reached (from 700 MB; the live check measured 61 MB today, and it grows about 1.5-2 MB a day), so there is plenty of time to decide what to do.
 - **No surprise breakage from updates:** each run installs its building blocks afresh. They are now held to their current major versions, so a big incompatible update somewhere else can't stop collection on its own.
 
 ## 20 November 2026 (sixty-second update) — GSO Grid Archive 7.4
