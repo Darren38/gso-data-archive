@@ -1,5 +1,9 @@
 # Changelog
 
+## 20 November 2026 (fifty-seventh update) — GSO Grid Archive 7.1
+
+- **No password any more: the full history is open to everyone again.** At the owner's request the history lock from 7.0 is switched off. Every page offers all its ranges again (30 days, 90 days, 1 year, All) without a password, the full archive download is back on the About page, the monthly CSV files are published again, and the daily backups are no longer locked. The locking feature stays in the code, switched off, in case it is wanted again.
+
 ## 20 November 2026 (fifty-sixth update) — GSO Grid Archive 7.0
 
 The full history is now for the owner: everyone sees the newest 7 days, and older readings open with the owner's password.

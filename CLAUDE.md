@@ -21,11 +21,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
   steps in the README; developer instructions live in docs/DEVELOPMENT.md), and credits.
 - GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
-- The owner wants the archive copies (backups and the site's `archive.sqlite3.gz`) kept to themselves: they are locked
-  with the secret `ARCHIVE_PASSPHRASE` (`sealing.py`, docs/BACKUP_RESTORE.md). Never ask for the passphrase in chat,
-  and never write the real one into the repository (tests use a made-up one).
-- The public sees only the newest 7 days (`PUBLIC_DAYS`); the full history opens with the same passphrase in the
-  browser (lesson 63). Keep it that way unless the owner says otherwise.
+- History lock: on 20 Nov 2026 the owner had the full history locked (public: newest 7 days, lesson 63) and the same
+  day asked for the password to be removed. It is switched OFF by not passing `ARCHIVE_PASSPHRASE` to the jobs in
+  `archive.yml` (the line is left there as a comment); the code stays, and everything is public again. Switch it back
+  on only if the owner asks. Never ask for a passphrase in chat or write a real one into the repository.
 - No `Version N/` folders on `main` (the owner asked for them to be hidden). Like Physics Fruit Rush, a substantial
   update gets a new version number (`gso_archive/__init__.py`, the commit message "GSO Grid Archive N.0 - …" and a
   CHANGELOG entry). Versions 1–3 are preserved as they were on the `versions` branch; never change or delete it.

@@ -53,9 +53,9 @@ jobs:
       cancel-in-progress: false
     env:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
-      # Optional secret: when set, the archive copy published with the site is locked with it (owner only; read back
-      # by the next run with the same secret). Unset: published unlocked, as before.
-      ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}
+      # History lock: switched OFF on 20 Nov 2026 at the owner's request (the full history is public). To switch it
+      # back on, add this line here and in the backup job (docs/BACKUP_RESTORE.md, "Locking the copies"):
+      #   ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}
       # Collecting from gso.org.my is on (the owner's decision); set repository variable GSO_LIVE_ENABLED=false to pause.
       GSO_LIVE_ENABLED: ${{ vars.GSO_LIVE_ENABLED || 'true' }}
       WEATHER_ENABLED: ${{ vars.WEATHER_ENABLED || 'true' }}  # Open-Meteo sunshine forecasts for the LSS regions, every 3 hours
@@ -339,7 +339,7 @@ jobs:
       EXTERNAL_DB: ${{ secrets.DATABASE_URL }}
       GH_TOKEN: ${{ github.token }}
       BACKUP_S3_URI: ${{ secrets.BACKUP_S3_URI }}
-      ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}
+      # History lock switched off (see the build job); add ARCHIVE_PASSPHRASE back here to lock the backups again.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -374,7 +374,7 @@ jobs:
             openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -pass env:ARCHIVE_PASSPHRASE -in "$F.enc" | cmp - "$F"  # opens again
             rm "$F"
           else
-            echo "::warning::Backups are published unlocked: anyone can download them. Add the repository secret ARCHIVE_PASSPHRASE to lock them."
+            echo "Backup published unlocked (the history lock is switched off)."
           fi
       - name: Check-up figures (readings per source and day, collection stops; for docs/MAINTENANCE.md)
         if: steps.today.outputs.done != 'true'

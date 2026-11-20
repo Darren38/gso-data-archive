@@ -41,8 +41,7 @@
 | Weather forecast at the LSS farms (Open-Meteo, not GSO) | Every 3 hours |
 | Measured sunshine at the LSS farms (Himawari-9 satellite via Open-Meteo, not GSO) | Every hour, about an hour behind |
 | System constraints (GSO's Existing Constraints and Constraints Due to Outage, from its home page) | Every 30 minutes; every row GSO adds or removes is kept |
-| Backup of the whole archive | Once a day, to the `archive-backups` release, locked with the owner's password |
-| History | The newest 7 days are open to everyone; older readings are kept in full and open with the owner's password |
+| Backup of the whole archive | Once a day, to the `archive-backups` release |
 | An open page | Checks for new readings every minute and updates itself |
 | The site itself | Every visit checks for newer files, so an update shows on the next refresh |
 

@@ -15,6 +15,10 @@ Raw source responses (`RAW_STORE_DIR`) are a fourth, independent record. Sync th
 
 ## Locking the copies (owner only)
 
+**Switched off since 20 Nov 2026 (the owner's choice): everything is public.** To switch it on again, put
+`ARCHIVE_PASSPHRASE: ${{ secrets.ARCHIVE_PASSPHRASE }}` back into the `env:` of the build and backup jobs in
+`archive.yml` (it is left there as a comment) and set the secret. What it then does:
+
 The repository is public, so the published copy and the release backups can be downloaded by anyone unless they are
 locked. Add the repository secret `ARCHIVE_PASSPHRASE` (Settings > Secrets and variables > Actions > New repository
 secret) and from the next run:
