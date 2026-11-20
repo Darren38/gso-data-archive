@@ -13,6 +13,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
 - Keep the owner updated while working: short progress notes with a text progress bar (e.g. `▓▓▓▓▓░░░░░ 50% · step 3 of 6`).
+- The owner's first rule: the site must keep collecting by itself whenever GSO publishes. Any change to `archive.yml`
+  (above all the `next` job) must pass `tests/test_workflow_next.py`, and after pushing, watch several runs on GitHub
+  follow each other every 2-3 minutes before calling it done.
 - From time to time the owner asks for a maintenance check-up: follow docs/MAINTENANCE.md.
 - After every check, end with the possible improvements to the current version that need the owner's decision
   (what each would do, its cost or risk, and a recommendation), even when everything passed.
