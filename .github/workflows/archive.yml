@@ -115,10 +115,20 @@ jobs:
         with:
           path: archive-store
           key: ${{ steps.store.outputs.key }}
+      # The last hourly check's comparison with GSO, shown on the Status page ("Proof against GSO").
+      - name: What the last hourly check found
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: health-state
+          key: health-state-none
+          restore-keys: health-state-
       - name: Build the site
         run: |
           python -m gso_archive export-static --out _site $([ "$ALLOW_DEMO" = "true" ] && echo --demo-if-empty)
           touch _site/.nojekyll
+        env:
+          HEALTH_STATE: health-state/state.json
       - id: site
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

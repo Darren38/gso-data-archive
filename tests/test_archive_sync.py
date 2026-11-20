@@ -168,9 +168,8 @@ def test_health_check(two_archives, settings, tmp_path):
                                 "latest_obs_time": (now - timedelta(hours=5)).isoformat().replace("+00:00", "Z")}]
         (site / "data" / "status.json").write_text(json.dumps(status))
         problems = check_site(base)["problems"]
-        assert len(problems) == 2
-        assert "disagree" in problems[0] and "3000 vs 2900" in problems[0]
-        assert "newest GSO reading is 300 min old" in problems[1]
+        assert len(problems) == 1 and "disagree" in problems[0] and "3000 vs 2900" in problems[0]
+        assert any("newest GSO reading is 300 min old" in n for n in check_site(base)["notes"])  # GSO's side: no email
         status["cross_checks"][0].update(state="passed", agreeing=40)
         status["freshness"][0]["latest_obs_time"] = (now - timedelta(minutes=20)).isoformat()
         (site / "data" / "status.json").write_text(json.dumps(status))
@@ -183,10 +182,11 @@ def test_health_check(two_archives, settings, tmp_path):
         assert result["ok"] and any("GSO not answering for 3.0 h" in n for n in result["notes"])
         status["adapters"][0]["last_success_at"] = (now - timedelta(hours=13)).isoformat()
         (site / "data" / "status.json").write_text(json.dumps(status))
-        assert any("GSO not answering for 13 h" in p for p in check_site(base)["problems"])
+        r13 = check_site(base)
+        assert r13["ok"] and any("GSO not answering for 13.0 h" in n for n in r13["notes"])  # GSO's side: never emails
         status["adapters"][0].update(last_error="http_error: HTTP 503", last_success_at=None)
         (site / "data" / "status.json").write_text(json.dumps(status))
-        assert any("never answered" in p for p in check_site(base)["problems"])
+        assert any("never answered" in n for n in check_site(base)["notes"])
         # A failure on this archive's side (GSO changed its answer) still raises the alarm at once.
         status["adapters"][0].update(last_error="parse_error: unexpected TypeError",
                                      last_success_at=(now - timedelta(hours=1)).isoformat())
@@ -218,20 +218,6 @@ def test_alarm_when_gso_publishes_nothing_for_6_daytime_hours():
     status["freshness"][0]["latest_obs_time"] = iso(8, 50, 2)
     status["freshness"][3]["latest_obs_time"] = iso(8, 50, 2)
     assert silent_sources(status, datetime(2026, 11, 2, 9, 0, tzinfo=myt)) == []
-
-
-def test_silence_emails_once_then_once_a_day():
-    # The owner asked for one email when GSO goes quiet, then one a day while it lasts (not one every hour).
-    from gso_archive.health import silence_email_due
-
-    myt = timezone(timedelta(hours=8))
-    newest = datetime(2026, 11, 1, 8, 30, tzinfo=myt)  # GSO's solar data stopped here; 6 daytime hours pass at 14:30
-    at = lambda d, h, m: datetime(2026, 11, d, h, m, tzinfo=myt)  # noqa: E731
-    due = [t for t in (at(1, h, 2) for h in range(9, 24)) if silence_email_due(newest, t)]
-    assert due == [at(1, 15, 2)]  # the 15:00 check, the first after 14:30; not again that day
-    # Day two: 10.5 daytime hours on day one, so the next 12 are reached at 14:30 on day two: one more email, at 15:00.
-    due2 = [t for t in (at(2, h, 2) for h in range(0, 24)) if silence_email_due(newest, t)]
-    assert due2 == [at(2, 15, 2)]
 
 
 def test_locked_archive(two_archives, settings, tmp_path, monkeypatch):
@@ -288,5 +274,5 @@ def test_site_size_is_recorded_and_watched(two_archives, settings, tmp_path):
     ten = nine + timedelta(hours=1)
     assert site_size_alert(60_000_000, ten) is None
     assert site_size_alert(400_000_000, nine)[1] is False  # noted only
-    assert site_size_alert(750_000_000, nine)[1] and not site_size_alert(750_000_000, ten)[1]  # once a day
+    assert not site_size_alert(750_000_000, nine)[1]  # listed only
     assert site_size_alert(950_000_000, ten)[1]  # every hour

@@ -21,6 +21,27 @@ export async function render(main, { isCurrent }) {
     ${kpi({ label: "Last backup", value: st.backup ? fmtAge(ageOf(st.backup.at)) : null, meta: st.backup ? `${esc(st.backup.kind)} · ${esc(st.backup.file)}` : "No backup recorded by this database" })}
   </div>`));
 
+  // Proof against GSO (lesson 67): every hour the check compares each GSO source's current answer with the archive.
+  const pr = st.proof;
+  if (pr && typeof pr.at === "string") {
+    const lost = Array.isArray(pr.map_lost) ? pr.map_lost : [];
+    const n = (v) => (Number.isFinite(v) ? v : 0);
+    const ok = !n(pr.missing) && !lost.length;
+    const pill = ok ? '<span class="pill ok">all archived</span>'
+      : n(pr.missing_confirmed) || lost.length >= 3 ? '<span class="pill bad">readings missing</span>'
+      : '<span class="pill warn">checking again</span>';
+    const lines = [
+      ok ? `Every reading GSO showed was already in the archive (${fmtNum(n(pr.sources) - n(pr.unreadable))} of ${fmtNum(n(pr.sources))} sources compared${n(pr.unreadable) ? "; GSO did not answer for the others" : ""}).`
+        : `${fmtNum(n(pr.missing))} readings GSO showed were not in the archive yet${n(pr.missing_confirmed) ? `, ${fmtNum(n(pr.missing_confirmed))} of them for over an hour` : "; checked again next hour"}.`,
+      lost.length ? `Solar farm map not read at ${esc(lost.slice(0, 8).join(", "))} MYT today (the map shows only the present moment).` : "",
+      n(pr.map_skipped_by_gso) ? `GSO's own solar map skipped ${fmtNum(n(pr.map_skipped_by_gso))} moments today.` : "",
+    ].filter(Boolean);
+    main.appendChild(h(card({ title: "Proof against GSO",
+      desc: "Once an hour (and at about 23:40, before GSO starts the next day's lists) GSO's current answer for every source is fetched and compared with this archive.",
+      right: pill,
+      body: `<p class="small">Last proof: ${fmtDateTime(pr.at)} MYT (${fmtAge(ageOf(pr.at))}).</p>${lines.map((l) => `<p>${l}</p>`).join("")}` })));
+  }
+
   // Cross-checks: two figures GSO publishes on two pages must agree, or numbers are being filed under the wrong name.
   const checks = st.cross_checks || [];
   if (checks.length) {

@@ -12,6 +12,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - In the owner's other projects changes are committed straight to `main` with no pull requests.
 - Commits are authored by Darren38 only, with no co-author or session lines, so Darren38 stays the only contributor.
 - Commit messages, the README and the CHANGELOG are written in plain, friendly words for people who are not developers.
+- Email the owner only for critical problems (20 Nov 2026), through the hourly check (lesson 67). Never add a
+  job that fails a run for anything else.
 - Keep the owner updated while working: short progress notes with a text progress bar (e.g. `▓▓▓▓▓░░░░░ 50% · step 3 of 6`).
 - **The owner's rule for this website (20 Nov 2026): it must fetch every new piece of GSO data automatically, store
   all of it from time to time (nothing GSO publishes may be lost), load it properly and display it correctly, and the
@@ -183,7 +185,7 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     lost connections and GSO's 5xx answers as a note until the collector has had no success for 12 hours; any other
     error (a changed answer, a 4xx) still fails after 12 in a row. Separately, a source with nothing new for 6 hours
     of daytime (07:00-19:00 MYT, `silent_sources`) fails the check once, then once a day (each further 12 daytime
-    hours): `silence_email_due` ties each alert to the clock hour it falls in, so one hourly check emails it. Visitors see the delay through freshness and the
+    hours) was emailed once a day until 20 Nov 2026; now it is only listed (lesson 67: only critical problems email). Visitors see the delay through freshness and the
     "Readings are delayed" note. The same day GitHub answered 502 to the `next` job's `gh workflow run` and collection
     stopped for 80 minutes, so that step now tries again before giving up. The probe also tries each address once
     (`run_probe`): with four tries it ran out of its 10 minutes on a slow night and printed nothing.
@@ -365,8 +367,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 
 66. **A site that grows every day needs an alarm before it hits a limit, not a note in a checklist.** GitHub Pages
     allows 1 GB and this site grows about 1.5-2 MB a day (full within about 18 months). `export_static` records
-    `site_bytes` in meta.json; `health.site_size_alert` notes it from 350 MB, emails once a day (09:00 MYT) from
-    700 MB and every hour from 900 MB. Package versions are capped below their next major version (`requirements.txt`,
+    `site_bytes` in meta.json; `health.site_size_alert` lists it from 350 MB (⚠️ from 700 MB) and emails from 900 MB
+    (critical: about 50 days left). Package versions are capped below their next major version (`requirements.txt`,
     `pyproject.toml`): every run installs afresh, so an incompatible release would otherwise stop collection by itself.
     Switching the lock on (lesson 62) once deleted every unlocked daily backup; each backup holds the whole archive,
     so nothing was lost, but only that day's copies were left.
@@ -381,7 +383,12 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     run makes sure it happens. Emails (owner, 20 Nov 2026: "only meaningful and important"): only the check may fail a
     run (the other jobs have `continue-on-error`; what keeps failing in them shows in the check as an old site or an old
     backup), and `alerts.decide` emails a problem when it is new and then at most once a day while it lasts
-    (`problem_id` ignores the figures in it); its memory is the `health-state-` Actions cache.
+    (`problem_id` ignores the figures in it); its memory is the `health-state-` Actions cache. The owner then asked
+    for email ONLY when something is critical: the site or collection down, a collector broken on our side, GSO's
+    figures filed under wrong names, readings GSO shows missing from the archive, 3+ solar map moments lost in a day,
+    no backup for 2 days, the site near 1 GB. GSO's own outages and silences are listed with ⚠️ and never email.
+    The check's comparison (`proof` in its saved notes) is restored by the next build (`HEALTH_STATE`) and shown on
+    the Status page as "Proof against GSO".
 
 ## How to check a change
 

@@ -103,7 +103,9 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
         if key is not None:
             meta["lock"] = lock_info(key, cut_day, min(_myt_day(x) for x in firsts).isoformat() if firsts else None)
         _write(data / "meta.json", meta)
-        _write(data / "status.json", analytics.status(conn, settings.adapters, settings.gso_live_enabled))
+        status = analytics.status(conn, settings.adapters, settings.gso_live_enabled)
+        status["proof"] = _proof()
+        _write(data / "status.json", status)
         files += 2
         for tkey in analytics.TABLES:
             tab = analytics.table(conn, tkey)
@@ -200,3 +202,16 @@ def collection_info(settings: Settings, conn=None) -> dict:
     if conn is not None:
         info["observed_interval_seconds"] = analytics.observed_interval(conn)
     return info
+
+
+def _proof() -> dict | None:
+    """The last hourly comparison with GSO (verify.py), from the check's saved notes (HEALTH_STATE, set by the build
+    job), for the Status page. None when there is none (a local build, or before the first check)."""
+    import os
+
+    path = os.environ.get("HEALTH_STATE")
+    try:
+        proof = json.loads(Path(path).read_text(encoding="utf-8")).get("proof") if path else None
+    except (OSError, ValueError, AttributeError):
+        return None
+    return proof if isinstance(proof, dict) and isinstance(proof.get("at"), str) else None

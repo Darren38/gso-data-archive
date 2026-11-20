@@ -260,6 +260,8 @@ def cmd_health_check(args, settings):
         result["problems"] += v["problems"]
         result["notes"] += v["notes"]
         state["missing"] = v["missing"][:2000]
+        if v.get("proof"):
+            state["proof"] = v["proof"]
     send, quiet, state = alerts.decide(result["problems"], state, now) if state_path else (result["problems"], [], state)
     alerts.save(state_path, state)
     result.update(ok=not result["problems"], emailed=send, already_emailed=quiet)

@@ -116,5 +116,5 @@ def test_satellite_sunshine_never_hides_a_gso_outage(monkeypatch):
                             {"series": "irradiance.north_ghi", "kind": "actual", "latest_obs_time": iso(now - timedelta(minutes=50))}]}
     pages = {"": b"GSO Grid Archive", "data/meta.json": b"{}", "data/status.json": _json.dumps(status).encode()}
     monkeypatch.setattr(health, "_get", lambda url, timeout=30: pages[url.split("example.test/", 1)[1]])
-    problems = health.check_site("https://example.test/")["problems"]
-    assert any("newest GSO reading is 300 min old" in p for p in problems)
+    notes = health.check_site("https://example.test/")["notes"]  # listed (GSO's side), never emailed
+    assert any("newest GSO reading is 300 min old" in n for n in notes)

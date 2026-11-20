@@ -1,18 +1,14 @@
 """Check-up of the published site, run after every deployment (like Tech Comparison Hub's health_check.py).
 
-It only reads the site. It fails (so GitHub marks the run red and emails the owner) when:
-  * the page or its data files don't load,
-  * live collection is switched on but the collector hasn't run recently,
-  * an enabled source has failed many times in a row (when GSO itself is not answering, only after half a day:
-    GSO's pages time out for hours at a time and the owner can't fix that, while visitors already see the delay),
-  * GSO's own pages no longer agree on the figures they both publish (crosscheck.py: a sign that GSO changed its
-    lists and numbers are being filed under the wrong names), or
-  * the newest reading is hours old although the collector runs (GSO answering with old data), or
-  * one of GSO's sources has published nothing new for 6 hours of daytime (07:00-19:00 MYT), e.g. 1 Nov 2026 when
-    GSO's solar data (Solar page, forecast, solar map, other renewables split) stopped from 08:30. Night doesn't count:
-    some figures keep their sunset time all night. The owner asked for one email, then one a day while it lasts: the
-    check fails only in the hour the silence passes 6 daytime hours, and again each further 12 (one day's daytime);
-    the other hourly checks only note it.
+It only reads the site. Only CRITICAL problems fail it (GitHub then emails the owner; owner, 20 Nov 2026: "only send
+me email when there is critical thing"), and alerts.py sends each at most once a day:
+  * the page or its data files don't load, or live collection is on but the collector hasn't run recently,
+  * a source keeps failing on this archive's side (GSO changed its answer and the collector can't read it),
+  * GSO's own pages no longer agree on the figures they both publish (crosscheck.py: numbers filed under wrong names),
+  * the published site is close to GitHub Pages' 1 GB limit (SITE_URGENT_BYTES),
+  * and, from cli.py, an old backup or readings GSO shows that the archive lacks (verify.py).
+Things on GSO's side (its site timing out, publishing nothing new for hours, e.g. 1 Nov 2026) are listed on the check's
+page with a ⚠️ but never email: the owner can't fix them, collection catches up, and visitors see the delay banner.
 """
 
 from __future__ import annotations
@@ -39,8 +35,8 @@ def _gso_not_answering(error: str | None) -> bool:
 
 MYT = timezone(timedelta(hours=8))
 DAY_START, DAY_END = 7, 19  # daytime hours, MYT
-# GitHub Pages publishes sites up to 1 GB. Past SITE_WARN_BYTES the check emails once a day (at 09:00 MYT) so there
-# are months left to decide what to publish differently (docs/MAINTENANCE.md, "Storage"); past SITE_URGENT_BYTES, hourly.
+# GitHub Pages publishes sites up to 1 GB. Past SITE_WARN_BYTES the check lists it; past SITE_URGENT_BYTES (about 50
+# days before the limit at today's growth) it is critical and emails (docs/MAINTENANCE.md, "Storage").
 SITE_WARN_BYTES, SITE_URGENT_BYTES = 700_000_000, 900_000_000
 
 
@@ -51,8 +47,8 @@ def site_size_alert(site_bytes: int | None, now: datetime) -> tuple[str, bool] |
     said = f"the published site is {site_bytes / 1e6:.0f} MB of GitHub Pages' 1,000 MB"
     if site_bytes >= SITE_URGENT_BYTES:
         return said + ": publish less now (docs/MAINTENANCE.md, Storage)", True
-    if site_bytes >= SITE_WARN_BYTES:
-        return said + ": plan what to publish less of (docs/MAINTENANCE.md, Storage)", now.astimezone(MYT).hour == 9
+    if site_bytes >= SITE_WARN_BYTES:  # listed on the check only; the email comes at SITE_URGENT_BYTES
+        return "⚠️ " + said + ": plan what to publish less of (docs/MAINTENANCE.md, Storage)", False
     return said, False
 
 
@@ -80,18 +76,6 @@ def silent_sources(status: dict, now: datetime, max_daytime_hours: float = 6) ->
         if hours > max_daytime_hours:
             out.append((source, iso, hours))
     return out
-
-
-def silence_alerts(hours: float, max_daytime_hours: float = 6) -> int:
-    """How many silence emails are due after `hours` of daytime: one at 6 hours, then one per 12 more (daily)."""
-    return 0 if hours <= max_daytime_hours else int((hours - max_daytime_hours) // 12) + 1
-
-
-def silence_email_due(newest: datetime, now: datetime) -> bool:
-    """True when the silence passed 6 daytime hours (or a further day) during the previous whole clock hour. The check
-    runs in the first minutes of each hour, so each such moment belongs to exactly one hourly check: one email."""
-    hour = now.replace(minute=0, second=0, microsecond=0)
-    return silence_alerts(daytime_hours(newest, hour)) > silence_alerts(daytime_hours(newest, hour - timedelta(hours=1)))
 
 
 def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12,
@@ -126,12 +110,13 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                     continue
                 said = f"{a['adapter']} has failed {a['consecutive_failures']} times in a row: {a.get('last_error')}"
                 if _gso_not_answering(a.get("last_error")):
+                    # GSO's own site is down or slow: nothing the owner can fix, and collection catches up when GSO
+                    # answers again, so never an email (owner, 20 Nov 2026: "only critical"); listed on the check.
                     ok_at = a.get("last_success_at")
                     hours = (now - datetime.fromisoformat(ok_at.replace("Z", "+00:00"))).total_seconds() / 3600 if ok_at else None
-                    if hours is not None and hours < max_outage_hours:
-                        notes.append(f"{said} (GSO not answering for {hours:.1f} h; an alarm after {max_outage_hours:g} h)")
-                        continue
-                    said += f" (GSO not answering for {hours:.0f} h)" if hours is not None else " (never answered)"
+                    notes.append(f"⚠️ {said} (GSO not answering for {hours:.1f} h)" if hours is not None
+                                 else f"⚠️ {said} (GSO never answered)")
+                    continue
                 problems.append(said)
             for c in status.get("cross_checks", []):
                 notes.append(f"cross-check {c['key']}: {c['state']} ({c['agreeing']} of {c['compared']} readings agree)")
@@ -146,15 +131,14 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
                           default=None)
             if newest:
                 age = (now - datetime.fromisoformat(newest.replace("Z", "+00:00"))).total_seconds() / 60
-                if age > max_reading_age_minutes:
-                    problems.append(f"the newest GSO reading is {age:.0f} min old although the collector runs")
+                if age > max_reading_age_minutes:  # GSO publishing nothing new: GSO's side, visitors see a banner
+                    notes.append(f"⚠️ the newest GSO reading is {age:.0f} min old although the collector runs")
             for source, iso, hours in silent_sources(status, now):
                 newest_at = datetime.fromisoformat(iso.replace("Z", "+00:00"))
                 when = newest_at.astimezone(MYT).strftime("%d %b %H:%M")
                 said = (f"GSO has published nothing new for {source} for {hours:.0f} daytime hours "
                         f"(newest reading {when} MYT): check GSO's own page")
-                # Email (fail) once when it passes 6 daytime hours, then once a day; the other hours only note it.
-                (problems if silence_email_due(newest_at, now) else notes).append(said)
+                notes.append("⚠️ " + said)  # GSO's side: listed, never emailed (owner, 20 Nov 2026)
             stale = [f["series"] for f in status.get("freshness", []) if f.get("stale")]
             if stale:
                 notes.append(f"{len(stale)} series without a new reading lately: {', '.join(stale[:6])}")

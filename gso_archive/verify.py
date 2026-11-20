@@ -33,6 +33,7 @@ OLD_ENOUGH = timedelta(minutes=45)  # GSO's readings normally reach the archive 
 MAP_GRACE = timedelta(minutes=25)  # a map moment is read within minutes of the Solar page reaching that time
 SOLAR_LIST = "solar_profile"  # GSO's Solar page list: one time every 10 minutes from sunrise
 FARMS = "solar_farms"
+LOST_CRITICAL = 3  # map moments lost in a day before it is critical (half an hour: collection has really stalled)
 
 
 def before_reset(now: datetime) -> bool:
@@ -108,6 +109,9 @@ def verify(engine: Engine, settings: Settings, now: datetime, previous_missing: 
     last_call = before_reset(now)
     shared: dict = {}
     solar_times: list[datetime] = []
+    checked = unreadable = 0
+    ours: list[str] = []
+    gsos: list[str] = []
     own = client is None
     client = client or GsoClient(settings)
     try:
@@ -119,7 +123,9 @@ def verify(engine: Engine, settings: Settings, now: datetime, previous_missing: 
                 payload, result, details = fetch_parse(client, settings, spec, day, shared)
             except Exception as exc:  # noqa: BLE001 - a check must never stop on one source
                 payload, result, details = None, "could not check", {"error": f"{type(exc).__name__}: {exc}"}
+            checked += 1
             if payload is None:
+                unreadable += 1
                 notes.append(f"{key}: {result} ({(details or {}).get('error', '')[:120]})")
                 continue
             if key == SOLAR_LIST:
@@ -142,15 +148,21 @@ def verify(engine: Engine, settings: Settings, now: datetime, previous_missing: 
                      "checked again next hour")
     if solar_times:
         ours, gsos = lost_map_moments(engine, solar_times, now, day)
-        if ours:
+        if len(ours) >= LOST_CRITICAL:
             problems.append(f"the solar farm map was not read at {len(ours)} moments today ({', '.join(ours[:6])} MYT): "
                             "GSO shows only the present moment, so these are lost")
+        if 0 < len(ours) < LOST_CRITICAL:
+            notes.append(f"⚠️ the solar farm map was not read at {', '.join(ours)} MYT today (lost)")
         if gsos:
             notes.append(f"GSO's solar map skipped {len(gsos)} moments today ({', '.join(gsos[:6])} MYT); "
                          "the map was asked then and showed another moment, or nothing")
     if not problems:
         notes.append("every reading GSO shows now is in the archive" + (" (last check before midnight)" if last_call else ""))
-    return {"problems": problems, "notes": notes, "missing": missing_now}
+    # Shown on the site's Status page ("Proof against GSO"), through the check's saved notes (cli.py, export_static).
+    proof = {"at": now.isoformat(), "sources": checked, "unreadable": unreadable, "missing": len(missing_now),
+             "missing_confirmed": len(confirmed), "map_lost": ours, "map_skipped_by_gso": len(gsos),
+             "before_midnight": last_call}
+    return {"problems": problems, "notes": notes, "missing": missing_now, "proof": proof}
 
 
 def _plain(m: str) -> str:

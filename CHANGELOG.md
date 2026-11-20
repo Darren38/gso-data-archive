@@ -1,5 +1,18 @@
 # Changelog
 
+## 20 November 2026 (sixty-fifth update) — GSO Grid Archive 7.5.1
+
+- **Emails only for critical problems.** You'll get an email only when something needs fixing or data is at risk:
+  - the site or collection has stopped;
+  - a source can no longer be read because GSO changed its format;
+  - GSO's figures are being filed under the wrong names;
+  - readings GSO shows are missing from the archive;
+  - half an hour or more of solar farm map readings was lost in a day;
+  - no backup for two days;
+  - the site is nearly out of room.
+- **GSO's own problems no longer email you**, for example its site being slow or publishing nothing new for hours. They're still listed on the hourly check's page on GitHub, and visitors still see the "Readings are delayed" note. Each critical problem emails once, then at most once a day while it lasts.
+- **The Status page shows the latest proof:** a new "Proof against GSO" box says when the last hourly comparison with GSO ran and what it found ("all archived", or what is missing), so you can see it working without opening GitHub.
+
 ## 20 November 2026 (sixty-fourth update) — GSO Grid Archive 7.5
 
 - **Every hour the site now proves it has everything GSO shows.** The hourly check fetches each of GSO's figures once, the same way collection does, and compares them with the archive. A missing reading is found within the hour, while GSO still shows it. Solar gets extra care: GSO's solar farm map shows only the present moment, so each daylight moment on GSO's Solar page must also have a map reading, and any moment that was not read is reported. GSO starts a new list for every source at midnight, so there is an extra check at about 23:40 Malaysia time, before that happens.
