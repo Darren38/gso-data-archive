@@ -306,6 +306,20 @@ jobs:
             --json id --jq '.[3:][].id' | xargs -r -n1 gh cache delete --repo "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ github.token }}
+      # A run GitHub never starts can sit "queued" for days (run 10811, 16 Nov 2026) and refuses a normal cancel
+      # ("has not been queued yet"). Left alone it could start late and publish old code, so any run of this workflow
+      # still waiting after an hour is force-cancelled. No real run waits that long: they start within minutes.
+      - name: Cancel runs GitHub never started
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?status=queued&per_page=100" \
+            --jq '.workflow_runs[] | select((now - (.created_at | fromdateiso8601)) > 3600) | .id' |
+          while read -r id; do
+            echo "Run $id has waited over an hour without starting; force-cancelling it."
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$id/force-cancel" >/dev/null \
+              || echo "::warning::Could not cancel run $id."
+          done
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Daily copy of the whole archive to the "archive-backups" release: release files live outside the git history and
   # are kept until deleted. The newest 14 days are kept, plus the copy from the 1st of every month, forever.

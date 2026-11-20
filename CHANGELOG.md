@@ -1,5 +1,9 @@
 # Changelog
 
+## 20 November 2026 (fifty-fourth update) — GSO Grid Archive 6.5.2
+
+- **Runs GitHub never starts are cleared away automatically:** the run GitHub left waiting on 16 November could not be cancelled, either from the website or otherwise. If GitHub ever started it late, it would have published the 16 November version of the site. Every collection now force-cancels any run that has waited over an hour without starting (real runs start within minutes).
+
 ## 20 November 2026 (fifty-third update) — GSO Grid Archive 6.5.1
 
 - **Collection now restarts itself when GitHub fails to start a run:** collection runs in a chain, each run starting the next one. Twice GitHub broke the chain on its side: on 12 November it couldn't start a run (2 h 45 min without collection), and on 16 November it left a run waiting forever without starting it (4 hours, 11:40 to 15:45 MYT). Its backup schedules, meant to restart the chain, didn't fire in either case. Each run now watches the next one for about four minutes; if it hasn't begun, it cancels it and starts another (twice at most). Most of GSO's figures for those hours were filled in afterwards, because GSO publishes them as whole-day lists. Its "now only" figures (the home page headline boxes, Generation Availability and the solar farm map) can't be fetched later, so those hours stay blank.
