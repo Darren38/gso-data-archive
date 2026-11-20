@@ -1,5 +1,10 @@
 # Changelog
 
+## 20 November 2026 (fifty-third update) — GSO Grid Archive 6.5.1
+
+- **Collection now restarts itself when GitHub fails to start a run:** collection runs in a chain, each run starting the next one. Twice GitHub broke the chain on its side: on 12 November it couldn't start a run (2 h 45 min without collection), and on 16 November it left a run waiting forever without starting it (4 hours, 11:40 to 15:45 MYT). Its backup schedules, meant to restart the chain, didn't fire in either case. Each run now watches the next one for about four minutes; if it hasn't begun, it cancels it and starts another (twice at most). Most of GSO's figures for those hours were filled in afterwards, because GSO publishes them as whole-day lists. Its "now only" figures (the home page headline boxes, Generation Availability and the solar farm map) can't be fetched later, so those hours stay blank.
+- **Checked:** every source collects in full (144 readings a day for the 10-minute figures, 48 for the half-hourly tie-lines and CBPE), and all 238,673 archived readings are on the website with the same times and values.
+
 ## 19 November 2026 (fifty-second update) — GSO Grid Archive 6.5
 
 - **◀ ▶ for periods:** in "LSS Farms: Any Moment or Period", the "Capacity factor over a period" and "Day by day" views now have ◀ ▶ buttons that move the whole period back or forward by its own length (7 days → the 7 days before), so you can go period by period. The map keeps your zoom and position as you step, and each button turns grey at the start or end of the archive.

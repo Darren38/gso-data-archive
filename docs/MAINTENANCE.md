@@ -6,7 +6,10 @@ list, fix what is wrong (CLAUDE.md lessons first), and end with the improvements
 ## 1. Is collection running?
 
 - Latest runs of `archive.yml`: build, deploy and check green? Any gap of more than ~10 minutes between runs
-  (the `next` job failing, GitHub skipping schedules)?
+  (the `next` job failing, GitHub skipping schedules)? List them from the backup's `collection_runs` (gaps of more than
+  12 minutes between `system_demand` runs) and, for each, look at the run just before it on GitHub: "queued" for hours
+  or "startup_failure" means GitHub never started it (lesson 61). Count readings per source and day too: 144 a day
+  for the 10-minute sources, 48 for the tie-lines and CBPE, 142 for the home page lists (no 23:40 and 23:50).
 - The hourly check's notes: last collection age, collectors failing in a row and why (GSO timeouts are notes for
   12 hours; anything else is a bug here), series without new readings.
 

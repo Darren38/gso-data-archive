@@ -246,24 +246,48 @@ jobs:
     needs: build
     if: always() && github.ref == 'refs/heads/main' && needs.build.result != 'cancelled' && vars.GSO_LIVE_ENABLED != 'false'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 12
     permissions:
       actions: write
     steps:
-      - name: Start the next collection in about a minute
+      - name: Start the next collection in about a minute, and make sure it really starts
         run: |
-          sleep 60
-          newer=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?per_page=30" \
-            --jq "[.workflow_runs[] | select(.id > ${{ github.run_id }} and (.status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\" or .status == \"pending\"))] | length")
-          if [ "${newer:-0}" -gt 0 ]; then echo "A newer run is already on its way."; exit 0; fi
+          api="repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?per_page=30"
+          me=${{ github.run_id }}
           # GitHub sometimes answers 502 here (30 Oct 2026: the chain stopped for 80 minutes until a schedule
           # picked it up), so try a few times before giving up.
-          for wait in 5 15 30 60; do
-            if gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main; then echo "Next run started."; exit 0; fi
-            echo "GitHub did not start the next run; trying again in $wait s."; sleep "$wait"
+          start() {
+            for wait in 5 15 30 60; do
+              if gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main; then echo "Next run started."; return 0; fi
+              echo "GitHub did not start the next run; trying again in $wait s."; sleep "$wait"
+            done
+            gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main && echo "Next run started."
+          }
+          # Collection is running when another run is under way, or a newer one has finished properly.
+          running() {
+            gh api "$api" --jq "[.workflow_runs[] | select(.id != $me and (.status == \"in_progress\" or (.id > $me and .status == \"completed\" and .conclusion != \"startup_failure\" and .conclusion != \"cancelled\")))] | length" || echo 0
+          }
+          # Newer runs that are waiting but have not begun.
+          waiting() {
+            gh api "$api" --jq "[.workflow_runs[] | select(.id > $me and (.status == \"queued\" or .status == \"pending\" or .status == \"waiting\" or .status == \"requested\")) | .id] | join(\" \")" || true
+          }
+          sleep 60
+          if [ -n "$(waiting)" ] || [ "$(running)" -gt 0 ]; then echo "A newer run is already on its way."; else start; fi
+          # A started run can stay "queued" for hours without ever getting a machine (16 Nov 2026: 4 hours) or end
+          # as "startup_failure" (12 Nov 2026: 2 h 45 min), and GitHub's backup schedules may not fire meanwhile.
+          # So watch for about 4 minutes; if nothing has begun, cancel what is stuck and start again (twice at most).
+          for attempt in 1 2 3; do
+            for i in $(seq 8); do
+              if [ "$(running)" -gt 0 ]; then echo "The next collection is running."; exit 0; fi
+              sleep 30
+            done
+            [ "$attempt" = 3 ] && break
+            stuck=$(waiting)
+            echo "::warning::The next collection had not begun after 4 minutes (waiting: ${stuck:-none}); starting it again."
+            for id in $stuck; do gh run cancel "$id" --repo "$GITHUB_REPOSITORY" || true; done
+            start
           done
-          gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main
-          echo "Next run started."
+          echo "::warning::The next collection still has not begun; GitHub's backup schedules will restart it."
         env:
           GH_TOKEN: ${{ github.token }}
 

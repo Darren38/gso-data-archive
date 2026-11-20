@@ -293,6 +293,14 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     totals and CSVs keep GSO's figures (MRLS 111 of 106 MW on 17 Nov). The period views' ◀ ▶ (`pstep` in lss.js) move
     the period by its own length within the archive and keep the map's zoom (read from the old map before redrawing).
 
+61. **A run GitHub never starts breaks the collection chain, and the backup schedules may not help.** Run 10811
+    (16 Nov 2026, 03:40 UTC) stayed "queued" for good and 8310 (11 Nov, 20:17 UTC) ended "startup_failure"; no schedule
+    fired for 4 h and 2 h 45 min. Whole-day lists were refilled later, but "now only" answers (headlines,
+    availability, solar_farms) were lost. The `next` job now watches for about 4 minutes after starting a run: if no
+    other run is in progress and no newer one finished properly, it cancels the waiting newer runs and starts again
+    (twice at most; it never fails the run, lesson 42). The logic was tried with a stand-in `gh` (healthy, stuck once,
+    stuck always). Find stops with gaps between `collection_runs` (docs/MAINTENANCE.md step 1).
+
 ## How to check a change
 
 ```bash
