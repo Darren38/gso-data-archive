@@ -15,7 +15,10 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - Keep the owner updated while working: short progress notes with a text progress bar (e.g. `▓▓▓▓▓░░░░░ 50% · step 3 of 6`).
 - **The owner's rule for this website (20 Nov 2026): it must fetch every new piece of GSO data automatically, store
   all of it from time to time (nothing GSO publishes may be lost), load it properly and display it correctly, and the
-  website must be kept fast.** Every change is judged against this first.
+  website must be kept fast. On top of that it must sustain itself: keep running for months with nobody looking
+  after it (collection restarts itself, storage stays inside GitHub's limits with an alarm well before, packages
+  can't jump to a breaking new version, and anything only a person can do sends an email in time).**
+  Every change is judged against this first.
 - The owner's first rule: the site must keep collecting by itself whenever GSO publishes. Any change to `archive.yml`
   (above all the `next` job) must pass `tests/test_workflow_next.py`, and after pushing, watch several runs on GitHub
   follow each other every 2-3 minutes before calling it done.
@@ -359,6 +362,14 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     `genmix_live` now keeps r[0] coal, r[1] gas, r[2] cogen, r[3] oil, r[5] hydro, r[6] solar, and overview.js
     `HOME_FUEL` uses them for the ring when present. The System Demand Profile still stacks the Generation page's
     fuels (they have the full history). Ring labels show from 380 px (smaller ring and text under 560 px).
+
+66. **A site that grows every day needs an alarm before it hits a limit, not a note in a checklist.** GitHub Pages
+    allows 1 GB and this site grows about 1.5-2 MB a day (full within about 18 months). `export_static` records
+    `site_bytes` in meta.json; `health.site_size_alert` notes it from 350 MB, emails once a day (09:00 MYT) from
+    700 MB and every hour from 900 MB. Package versions are capped below their next major version (`requirements.txt`,
+    `pyproject.toml`): every run installs afresh, so an incompatible release would otherwise stop collection by itself.
+    Switching the lock on (lesson 62) once deleted every unlocked daily backup; each backup holds the whole archive,
+    so nothing was lost, but only that day's copies were left.
 
 ## How to check a change
 

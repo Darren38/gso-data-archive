@@ -180,7 +180,12 @@ def export_site(engine: Engine, settings: Settings, out_dir: Path, months: int |
         else:
             archive_bytes = write_snapshot(settings.database_url, data / ARCHIVE_FILE)
         files += 1
-    return {"out_dir": str(out_dir), "files": files, "archive_bytes": archive_bytes,
+    # The published site's own size, so the hourly check can warn long before GitHub Pages' 1 GB limit (the site grows
+    # about 1.5-2 MB a day; health.SITE_WARN_BYTES). Counted last, when every file is written.
+    site_bytes = sum(f.stat().st_size for f in out_dir.rglob("*") if f.is_file())
+    meta_path = data / "meta.json"
+    _write(meta_path, {**json.loads(meta_path.read_text(encoding="utf-8")), "site_bytes": site_bytes})
+    return {"out_dir": str(out_dir), "files": files, "archive_bytes": archive_bytes, "site_bytes": site_bytes,
             "generated_for": date.today().isoformat()}
 
 

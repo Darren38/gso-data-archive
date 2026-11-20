@@ -273,3 +273,20 @@ def test_unlocked_site_still_read_after_passphrase_added(two_archives, settings,
         assert counts(make_engine(fresh_url)) == counts(a)
     finally:
         httpd.shutdown()
+
+
+def test_site_size_is_recorded_and_watched(two_archives, settings, tmp_path):
+    """GitHub Pages allows 1 GB: the site records its size and the hourly check warns long before it fills."""
+    from gso_archive.health import site_size_alert
+
+    a, _, a_url, _ = two_archives
+    site = tmp_path / "site"
+    out = export_site(a, replace(settings, database_url=a_url), site, include_archive=False)
+    meta = json.loads((site / "data" / "meta.json").read_text())
+    assert meta["site_bytes"] == out["site_bytes"] > 0
+    nine = datetime(2026, 11, 21, 1, 5, tzinfo=timezone.utc)  # 09:05 MYT
+    ten = nine + timedelta(hours=1)
+    assert site_size_alert(60_000_000, ten) is None
+    assert site_size_alert(400_000_000, nine)[1] is False  # noted only
+    assert site_size_alert(750_000_000, nine)[1] and not site_size_alert(750_000_000, ten)[1]  # once a day
+    assert site_size_alert(950_000_000, ten)[1]  # every hour

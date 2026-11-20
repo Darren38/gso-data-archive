@@ -51,7 +51,9 @@ download the newest `archive-backups` asset (github.com release downloads work f
   "Final size is N bytes" (upload-pages-artifact) is the compressed size; the site itself was 46 MB on 16 Nov 2026
   and grew about 1.5-2 MB a day (monthly CSVs about half of it, the whole-archive download a third). Plan a change
   (e.g. stop publishing monthly CSVs, or publish the full archive file only in the backups) before it passes 700 MB.
-  The Actions cache allows 10 GB per repository; the daily backups are separate release files.
+  The Actions cache allows 10 GB per repository; the daily backups are separate release files. The site records
+  its own size (meta.json `site_bytes`) and the hourly check emails from 700 MB (lesson 66): read the size from
+  the check's notes.
 
 ## 3. Do the pages show it right?
 

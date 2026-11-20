@@ -39,6 +39,21 @@ def _gso_not_answering(error: str | None) -> bool:
 
 MYT = timezone(timedelta(hours=8))
 DAY_START, DAY_END = 7, 19  # daytime hours, MYT
+# GitHub Pages publishes sites up to 1 GB. Past SITE_WARN_BYTES the check emails once a day (at 09:00 MYT) so there
+# are months left to decide what to publish differently (docs/MAINTENANCE.md, "Storage"); past SITE_URGENT_BYTES, hourly.
+SITE_WARN_BYTES, SITE_URGENT_BYTES = 700_000_000, 900_000_000
+
+
+def site_size_alert(site_bytes: int | None, now: datetime) -> tuple[str, bool] | None:
+    """(what to say, whether to email) about the published site's size, or None while it is small."""
+    if not site_bytes or site_bytes < SITE_WARN_BYTES // 2:
+        return None
+    said = f"the published site is {site_bytes / 1e6:.0f} MB of GitHub Pages' 1,000 MB"
+    if site_bytes >= SITE_URGENT_BYTES:
+        return said + ": publish less now (docs/MAINTENANCE.md, Storage)", True
+    if site_bytes >= SITE_WARN_BYTES:
+        return said + ": plan what to publish less of (docs/MAINTENANCE.md, Storage)", now.astimezone(MYT).hour == 9
+    return said, False
 
 
 def daytime_hours(start: datetime, end: datetime) -> float:
@@ -146,6 +161,11 @@ def check_site(base_url: str, max_age_minutes: int = 120, max_failures: int = 12
         else:
             notes.append("live collection is off (GSO_LIVE_ENABLED); the site shows the archive as it is")
     if meta:
+        size = site_size_alert(meta.get("site_bytes"), datetime.now(timezone.utc))
+        if size:
+            (problems if size[1] else notes).append(size[0])
+        elif meta.get("site_bytes"):
+            notes.append(f"published site {meta['site_bytes'] / 1e6:.0f} MB (GitHub Pages allows 1,000 MB)")
         notes.append(f"{len(meta.get('series', []))} series published" + (" (demonstration data)" if meta.get("is_demo") else ""))
     result = {"ok": not problems, "problems": problems, "notes": notes, "site": base}
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
