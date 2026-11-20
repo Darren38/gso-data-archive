@@ -1,5 +1,10 @@
 # Changelog
 
+## 20 November 2026 (sixty-first update) — GSO Grid Archive 7.3.1
+
+- **The Solar page's menu follows GSO's Solar page:** All solar, then Grid, Distribution, NEM, FiT and SELCO, in GSO's order. "Transmission Solar" was listed separately as well, but it is GSO's Generation page's name for the same farms as "Grid" (from another GSO system, so its figures differ slightly). The menu now says "Grid (Transmission Solar)" so both names are recognised, Transmission Solar stays on the Generation page and the Overview where GSO shows it, and the Short forms box explains the two names.
+- **The solar farm maps can be dragged from anywhere:** before, a drag only moved the map when it started inside the peninsula's own frame; now a drag that starts on the empty area beside it moves the map too.
+
 ## 20 November 2026 (sixtieth update) — GSO Grid Archive 7.3
 
 - **The Generation Mix ring now adds up exactly as GSO's does.** At 15:00 today GSO's ring showed 21,047 MW and this site's 21,088 MW. GSO's own page code (read on GitHub today) draws the ring from its home page's figures, while this site took coal, gas and hydro from GSO's Generation page, which carries slightly different numbers. The archive now also keeps the home page's own coal, gas, co-gen, oil, hydro and solar figures, and the ring uses them, so the slices and total match GSO's ring.

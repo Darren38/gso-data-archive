@@ -15,8 +15,13 @@ const nice = (s) => (s.derived ? "All solar" : [...FUELS, ...SOLAR_PARTS].find((
 export async function render(main, { meta, isCurrent }) {
   // Solar farms (60+ series) have their own table; they are not offered as the page's main series.
   const solarSeries = meta.series.filter((s) => (s.category === "solar" && s.dataset !== "solar_farms") || s.key === "generation_mix.solar");
-  const actuals = solarSeries.filter((s) => s.kind === "actual");
   const PROFILE = ["grid", "distribution", "nem", "fit", "selco"].map((k) => meta.series.find((s) => s.key === `solar_profile.${k}`)).filter(Boolean);
+  // The menu follows GSO's Solar page: Grid, Distribution, NEM, FiT, SELCO, in GSO's order. "Transmission Solar" is the
+  // Generation page's name for nearly the same figure as Grid (from another GSO system, revised differently: lesson 35),
+  // so it is shown where GSO shows it (Generation page, Overview), not here; only an archive without the Solar page's
+  // parts falls back to it.
+  const others = solarSeries.filter((s) => s.kind === "actual" && !s.key.startsWith("solar_profile.") && (!PROFILE.length || s.key !== "generation_mix.solar"));
+  const actuals = [...PROFILE, ...others];
   const forecasts = solarSeries.filter((s) => s.kind === "forecast");
   const demand = meta.series.find((s) => s.key === "system_demand.demand");
 
@@ -62,7 +67,7 @@ export async function render(main, { meta, isCurrent }) {
 
   const sourceBar = h(`<div class="toolbar">
       <label class="inline">Primary solar series
-        <select name="primary">${actuals.map((s) => `<option value="${esc(s.key)}" ${s.key === primary.key ? "selected" : ""}>${esc(s.derived ? "All solar (Grid + Distribution + NEM + FiT + SELCO)" : nice(s))}</option>`).join("")}</select></label>
+        <select name="primary">${actuals.map((s) => `<option value="${esc(s.key)}" ${s.key === primary.key ? "selected" : ""}>${esc(s.derived ? "All solar (Grid + Distribution + NEM + FiT + SELCO)" : s.key === "solar_profile.grid" ? "Grid (Transmission Solar)" : nice(s))}</option>`).join("")}</select></label>
       <label class="inline"><input type="checkbox" name="demand" ${!demand ? "disabled" : getParam("demand") === "0" ? "" : "checked"}> Overlay system demand</label>
       <span class="grow"></span>
       <span id="solar-tags" class="small"></span>

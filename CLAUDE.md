@@ -295,6 +295,8 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     `hideOverlap` labels stayed as laid out at the whole-peninsula view (24 of 54 shown at any zoom). `solarMap` redraws
     them on `georoam` (debounced) and at the end of a button glide; zoom goes to 40x. Nudging labels apart
     (`moveOverlap: "shiftY"`) was tried and made clusters unreadable. The demo browser check zooms with a `geoRoam`.
+    ECharts also pans a geo only from inside its own box, so `solarMap` turns a drag that starts on the empty area
+    (no target, outside `containPixel({geoIndex: 0})`) into `geoRoam` dx/dy itself.
 
 60. **The farm map corrects figures the way GSO's does; the data never changes.** GSO's `getData` (Solar.v19.js, "Data
     correction") shows a share below 0 as 0 and above 100 as 100, and output above capacity as the capacity. `solarMap`'s

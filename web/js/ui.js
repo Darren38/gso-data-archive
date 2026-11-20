@@ -288,7 +288,7 @@ export const SHORT_FORMS = {
   MWh: "megawatt-hour: energy over time (1 GWh = 1,000 MWh; 1 TWh = 1,000 GWh)",
   "MW/min": "change in MW per minute",
   MYT: "Malaysia time (UTC+8)",
-  Grid: "solar farms connected to the high-voltage transmission grid",
+  Grid: "solar farms connected to the high-voltage transmission grid. GSO's Generation page and home page call the same farms \"Transmission Solar\"; their figures come from another GSO system and differ slightly from the Solar page's",
   Distribution: "solar connected to the local distribution network",
   NEM: "Net Energy Metering: rooftop solar that offsets the owner's bill (GSO estimate)",
   FiT: "Feed-in Tariff: solar sold to the grid at a fixed price (GSO estimate)",

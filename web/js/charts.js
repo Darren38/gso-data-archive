@@ -370,6 +370,23 @@ export async function solarMap(el, { farms, demo = false, metric = "now" }) {
   });
   if (!chart) return null;
   chart.__solarMetric = metric;
+  // Drag from anywhere on the map, not only inside the peninsula's own frame (ECharts pans a geo only from inside its
+  // box). A drag that starts on the empty area moves the map the same way; inside the box ECharts' own panning is left
+  // to do it, and a press on a farm, the zoom buttons or the colour bar is not a drag.
+  const zr = chart.getZr();
+  let drag = null;
+  zr.on("mousedown", (e) => {
+    drag = !e.target && !chart.containPixel({ geoIndex: 0 }, [e.offsetX, e.offsetY]) ? { x: e.offsetX, y: e.offsetY } : null;
+  });
+  zr.on("mousemove", (e) => {
+    if (!drag) return;
+    const dx = e.offsetX - drag.x, dy = e.offsetY - drag.y;
+    drag = { x: e.offsetX, y: e.offsetY };
+    if (dx || dy) chart.dispatchAction({ type: "geoRoam", componentType: "geo", geoIndex: 0, dx, dy });
+  });
+  const stop = () => { drag = null; };
+  zr.on("mouseup", stop);
+  zr.on("globalout", stop);
   // Labels follow the zoom, as on GSO's map: a label that would overlap another is hidden, and zooming in spreads the
   // farms apart so more appear. ECharts works this out only when the chart is redrawn, not after a mouse-wheel, pinch
   // or drag zoom, so each zoom ends with a redraw of the labels (CLAUDE.md lesson 59).
