@@ -339,6 +339,15 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     and does nothing otherwise, so it never doubles a healthy chain. It is started every 10 minutes by cron-job.org
     and by its own schedule; `keepalive` keeps both workflows switched on. `tests/test_workflow_next.py` covers it.
 
+65. **GSO's Generation Mix ring is drawn from its home page's own fuel figures, not the Generation page's.**
+    LoadGenMixData (LandingPage.aspx) pops GetGenMixData's last parts: r[13] last Thursday, r[14] time, r[15] the
+    ring's slices (JSON, = the newest values of r[0]..r[7]), r[16] Distribution Solar total, r[17] slice names, r[18]
+    midnight flag; its middle figure is the sum of the slices (DrawGenMixPieChart line 1444). On 20 Nov 2026 at 15:00
+    GSO showed 21,047 MW and this site 21,088 MW, because the ring took coal/gas/hydro from the Generation page.
+    `genmix_live` now keeps r[0] coal, r[1] gas, r[2] cogen, r[3] oil, r[5] hydro, r[6] solar, and overview.js
+    `HOME_FUEL` uses them for the ring when present. The System Demand Profile still stacks the Generation page's
+    fuels (they have the full history). Ring labels show from 380 px (smaller ring and text under 560 px).
+
 ## How to check a change
 
 ```bash

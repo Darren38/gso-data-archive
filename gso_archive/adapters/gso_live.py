@@ -177,8 +177,11 @@ def _solar_forecast(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
 # SolarLandingPage.v5.js, DrawGenMixChart(r): r[0] Coal r[1] Gas r[2] CoGen r[3] Oil r[4] TieLine r[5] Hydro
 #   r[6] Solar r[7] NonSolar (plotted as 'Other RE') r[8] TotGen (plotted as 'Grid Demand') r[9] DistSolar
 #   r[10] nullexist r[11] BessDischarge r[12] BessCharge (negative); r[14] = "Wednesday, 28 October 2026 1:20 PM"
-GENMIX_PARTS = {4: "tie_line_total", 7: "other_re", 8: "total_generation", 9: "distribution_solar",
-                11: "bess_discharge", 12: "bess_charge"}
+#   r[15] the Generation Mix ring's slices as JSON (LandingPage.aspx LoadGenMixData: genMixData = data.pop()), which
+#   are the newest values of r[0]..r[7]. The home page's fuels are kept too: they differ a little from the Generation
+#   page's (20 Nov 2026 15:00: the ring added up to 21,047 MW at GSO and 21,088 MW here), and GSO's ring uses these.
+GENMIX_PARTS = {0: "coal", 1: "gas", 2: "cogen", 3: "oil", 4: "tie_line_total", 5: "hydro", 6: "solar", 7: "other_re",
+                8: "total_generation", 9: "distribution_solar", 11: "bess_discharge", 12: "bess_charge"}
 
 
 def _genmix(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
@@ -367,10 +370,17 @@ GENMIX_LIVE = AdapterSpec(
     page="LandingPage.aspx",
     method="GetGenMixData",
     verification="verified",
-    description="From GSO's home page chart, every 10 minutes, today only: total tie-line flow, other renewables "
+    description="From GSO's home page chart, every 10 minutes, today only: its own coal, gas, co-gen, oil, hydro and "
+                "transmission solar figures (the ones GSO's Generation Mix ring uses), total tie-line flow, other renewables "
                 "(biogas, biomass, mini hydro), total generation (GSO's 'Grid Demand' line), distribution solar, and "
                 "battery (BESS) discharge and charge.",
     fields={
+        "coal": FieldSpec("coal", "Coal (home page)", "MW", "actual", 0.0, MAX),
+        "gas": FieldSpec("gas", "Gas (home page)", "MW", "actual", 0.0, MAX),
+        "cogen": FieldSpec("cogen", "Co-Gen (home page)", "MW", "actual", 0.0, MAX),
+        "oil": FieldSpec("oil", "Oil/DF (home page)", "MW", "actual", 0.0, MAX),
+        "hydro": FieldSpec("hydro", "Hydro (home page)", "MW", "actual", 0.0, MAX),
+        "solar": FieldSpec("solar", "Transmission solar (home page)", "MW", "actual", 0.0, MAX, daylight_only=True),
         "tie_line_total": FieldSpec("tie_line_total", "Tie-line total (as published)", "MW", "actual", -5000.0, 5000.0),
         "other_re": FieldSpec("other_re", "Other renewables (biogas, biomass, mini hydro)", "MW", "actual", 0.0, MAX),
         "total_generation": FieldSpec("total_generation", "Total generation (GSO 'Grid Demand')", "MW", "actual", 0.0, MAX),

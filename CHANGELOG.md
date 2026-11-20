@@ -1,5 +1,10 @@
 # Changelog
 
+## 20 November 2026 (sixtieth update) — GSO Grid Archive 7.3
+
+- **The Generation Mix ring now adds up exactly as GSO's does.** At 15:00 today GSO's ring showed 21,047 MW and this site's 21,088 MW. GSO's own page code (read on GitHub today) draws the ring from its home page's figures, while this site took coal, gas and hydro from GSO's Generation page, which carries slightly different numbers. The archive now also keeps the home page's own coal, gas, co-gen, oil, hydro and solar figures, and the ring uses them, so the slices and total match GSO's ring.
+- **Percentages beside the rings, as on GSO's page:** the Generation Availability and Generation Mix rings now label their slices in medium-sized windows too (from about 380 px wide), with slightly smaller text and ring when space is tight.
+
 ## 20 November 2026 (fifty-ninth update) — GSO Grid Archive 7.2
 
 - **A watchdog restarts collection within about 10 minutes if it ever stalls.** Collection normally starts its own next run, with GitHub's schedules as a backup, but both failed together for up to 4 hours this month. A small new "Watchdog" checks every 10 minutes and starts a collection whenever none has run in the last 8 minutes. While collection is healthy it does nothing. It is started by a free scheduler outside GitHub (so it works even when GitHub's own schedule doesn't) and by GitHub's schedule as well. Setting up the outside scheduler takes the owner about 5 minutes (docs/DEVELOPMENT.md, "Watchdog").

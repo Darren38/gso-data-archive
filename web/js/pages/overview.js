@@ -10,6 +10,11 @@ const FUEL = Object.fromEntries(FUELS.map((f) => [f.label, f]));
 const MIX = [FUEL.Coal, FUEL.Gas, FUEL["Co-Gen"], FUEL["Oil/DF"], { key: "genmix_live.tie_line_total", label: "Tie-Line", color: COLORS.tieline },
   FUEL.Hydro, FUEL["Transmission Solar"], { key: "genmix_live.bess_discharge", label: "BESS", color: COLORS.bessDischarge },
   FUEL["Distribution Solar"], FUEL["Other RE"]];
+// GSO draws the ring from its home page's own fuel figures (GetGenMixData r[15] = the newest of r[0]..r[7]), which
+// differ a little from the Generation page's (20 Nov 2026 15:00: 21,047 MW at GSO, 21,088 MW from the Generation page).
+// So the ring uses them whenever the archive has them (collected since 20 Nov 2026).
+const HOME_FUEL = { Coal: "genmix_live.coal", Gas: "genmix_live.gas", "Co-Gen": "genmix_live.cogen", "Oil/DF": "genmix_live.oil",
+  Hydro: "genmix_live.hydro", "Transmission Solar": "genmix_live.solar" };
 // Its outer ring, opened by tapping a slice, with GSO's names and colours for the parts.
 const BREAKDOWN = {
   "Distribution Solar": [["solar_profile.distribution", "LSS", "rgb(209, 176, 46)"], ["solar_profile.nem", "NEM", "rgb(255, 199, 138)"],
@@ -91,7 +96,8 @@ export async function render(main, { meta, isCurrent }) {
 
   // ---- as GSO's home page draws it. The last 24 hours rather than "today", so the chart is never empty after midnight.
   const now = new Date(), start = new Date(now.getTime() - 864e5);
-  const mixSeries = MIX.filter((m) => by[m.key]);
+  const homeFuels = !!(by["genmix_live.coal"]?.last && Date.parse(by["genmix_live.coal"].last) > start.getTime());
+  const mixSeries = MIX.map((m) => (homeFuels && HOME_FUEL[m.label] && by[HOME_FUEL[m.label]] ? { ...m, key: HOME_FUEL[m.label] } : m)).filter((m) => by[m.key]);
   const avSeries = AVAIL.filter((a) => by[a.key] && by[a.key].latest_value != null);
   const profCard = h(card({ title: "System Demand Profile for Peninsular Malaysia", sub: "Last 24 hours",
     desc: "As on GSO's home page: each colour is a source of electricity, stacked, so the top edge is what the grid generates, with Grid Demand (solid) and System Demand (dashed) on top. Where a source has no reading for up to 30 minutes (GSO's home page misses 23:40 and 23:50 every night), the drawing joins across it, as GSO's chart does; the tooltip says \"no reading\". Longer gaps are shaded and marked 'No readings from GSO', and a figure GSO only repeated from a stalled feed is left out.",

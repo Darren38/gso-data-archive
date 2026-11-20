@@ -68,7 +68,15 @@ def test_solar_forecast():
 def test_genmix_extras_and_bess():
     p = parse(get_adapter("genmix_live"), fixture_bytes("real/landing_genmix.json"), DAY, {})
     s = by_series(p)
-    assert set(s) == {"tie_line_total", "other_re", "total_generation", "distribution_solar", "bess_discharge", "bess_charge"}
+    assert set(s) == {"coal", "gas", "cogen", "oil", "hydro", "solar", "tie_line_total", "other_re", "total_generation",
+                      "distribution_solar", "bess_discharge", "bess_charge"}
+    # GSO's Generation Mix ring is drawn from r[15] (LoadGenMixData: genMixData = data.pop()); its slices are the newest
+    # home page figures we keep, so our ring adds up to GSO's total.
+    import json as _json
+    raw = _json.loads(fixture_bytes("real/landing_genmix.json"))
+    ring = {x["drilldown"]["name"]: x["y"] for x in _json.loads((raw.get("d", raw) if isinstance(raw, dict) else raw).split("$")[15])}
+    names = {"Coal": "coal", "Gas": "gas", "Co-Gen": "cogen", "Hydro": "hydro", "Transmission Solar": "solar", "Other RE": "other_re"}
+    assert ring and all(s[names[k]][-1].value == v for k, v in ring.items())
     assert s["total_generation"][-1].value == 18356
     assert s["total_generation"][-1].obs_time == datetime(2026, 10, 28, 13, 20, tzinfo=MYT).astimezone(UTC)
     assert min(r.value for r in s["bess_charge"]) < 0 <= max(r.value for r in s["bess_discharge"])

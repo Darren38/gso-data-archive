@@ -207,6 +207,7 @@ export function pieChart(el, { items, demo = false, unit = "MWh", total = false 
   const cy = roomy ? 45 : 45 - lg.rows * 3;
   const sum = items.reduce((t, i) => t + (i.value || 0), 0);
   const wide = el.clientWidth >= 480;
+  const labels = el.clientWidth >= 380, compact = el.clientWidth < 560; // labels from 380 px (GSO shows them too)
   return mount(el, {
     ...b,
     tooltip: { trigger: "item", backgroundColor: css("--surface"), borderColor: css("--border"), textStyle: { color: css("--text") },
@@ -214,11 +215,13 @@ export function pieChart(el, { items, demo = false, unit = "MWh", total = false 
     legend: { ...lg.legend, top: "bottom" },
     title: total ? { text: unit === "MWh" ? energyText(sum) : `${fmtNum(sum, 0)} ${unit}`, left: "center", top: `${cy}%`, textVerticalAlign: "middle",
       textStyle: { color: css("--gso-green"), fontSize: wide ? 24 : 17, fontWeight: 600 } } : undefined,
-    series: [{ id: "fuel", type: "pie", radius: roomy ? ["50%", "72%"] : ["44%", "64%"], center: ["50%", `${cy}%`], avoidLabelOverlap: true,
+    series: [{ id: "fuel", type: "pie", radius: labels && compact ? (roomy ? ["40%", "58%"] : ["36%", "52%"]) : roomy ? ["50%", "72%"] : ["44%", "64%"], center: ["50%", `${cy}%`], avoidLabelOverlap: true,
       itemStyle: { borderColor: css("--surface"), borderWidth: 1.5 },
-      // Slice labels only where they fit; on phones the legend and tooltip name the slices.
-      label: { show: wide, color: css("--text"), fontWeight: 500, lineHeight: 15, overflow: "break", width: 96,
-        formatter: (p) => `${p.name}: ${p.percent.toFixed(1)}%` }, labelLine: { show: wide, length: 10, length2: 8 },
+      // Slice labels wherever they fit, as on GSO's rings (smaller in a narrow card); on phones the legend and tooltip
+      // name the slices.
+      label: { show: labels, color: css("--text"), fontWeight: 500, lineHeight: compact ? 13 : 15, fontSize: compact ? 11 : 12,
+        overflow: "break", width: compact ? 76 : 96,
+        formatter: (p) => `${p.name}: ${p.percent.toFixed(1)}%` }, labelLine: { show: labels, length: compact ? 6 : 10, length2: compact ? 5 : 8 },
       data: items.map((i) => ({ name: i.name, value: i.value, itemStyle: { color: i.color } })) }],
   });
 }
@@ -230,7 +233,7 @@ export function mixRing(el, { items, breakdowns = {}, demo = false, unit = "MW" 
   const chart = pieChart(el, { items, demo, unit, total: true });
   if (!chart) return chart;
   const inner = chart.getOption().series[0];
-  const wide = el.clientWidth >= 480;
+  const wide = el.clientWidth >= 380, compact = el.clientWidth < 560;
   const r1 = parseFloat(inner.radius[1]);
   let open = null;
   const outer = (name) => items.map((it) => (it.name === name ? breakdowns[name].map((b) => ({ ...b, part: true }))
@@ -244,7 +247,7 @@ export function mixRing(el, { items, breakdowns = {}, demo = false, unit = "MW" 
       { id: "breakdown", type: "pie", radius: [`${r1 + 2}%`, `${r1 + 12}%`], center: inner.center, silent: !open, z: 3,
         showEmptyCircle: false, legendHoverLink: false,
         itemStyle: { borderColor: "rgba(0,0,0,0)", borderWidth: 0 },
-        label: { show: !!open && wide, color: css("--text"), fontWeight: 500, formatter: (p) => (p.name.startsWith("\u200b") ? "" : `${p.name}: ${p.percent.toFixed(1)}%`), overflow: "break", width: 96 },
+        label: { show: !!open && wide, color: css("--text"), fontWeight: 500, fontSize: compact ? 11 : 12, formatter: (p) => (p.name.startsWith("\u200b") ? "" : `${p.name}: ${p.percent.toFixed(1)}%`), overflow: "break", width: compact ? 76 : 96 },
         labelLine: { show: !!open && wide, length: 8, length2: 6 },
         data: open ? outer(open) : [] },
     ],
