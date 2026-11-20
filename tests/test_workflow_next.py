@@ -67,3 +67,40 @@ def test_next_job_keeps_collection_going(name, tmp_path):
     r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
     assert (tmp_path / "log").read_text().split("\n")[:-1] == expected, (tmp_path / "log").read_text()
+
+
+# --- watchdog.yml: started every 10 minutes from outside GitHub; starts a collection only when none ran lately.
+WATCHDOG_CASES = {
+    # situation: (archive.yml runs as (minutes ago, status), should it start a collection?)
+    "healthy: a run 2 minutes ago": ([(2, "completed"), (5, "completed")], False),
+    "a long run still under way": ([(12, "in_progress")], False),
+    "a new run waiting its turn": ([(1, "pending"), (11, "completed")], False),
+    "stalled for 25 minutes": ([(25, "completed"), (28, "completed")], True),
+    "stalled, old run stuck in queued (16 Nov)": ([(25, "completed"), (4 * 24 * 60, "queued")], True),
+    "nothing listed at all": ([], True),
+}
+
+
+@pytest.mark.skipif(not (shutil.which("bash") and shutil.which("jq")), reason="bash and jq needed")
+@pytest.mark.parametrize("name", WATCHDOG_CASES)
+def test_watchdog_starts_collection_only_when_stalled(name, tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    runs, should_start = WATCHDOG_CASES[name]
+    now = datetime.now(timezone.utc)
+    listed = [{"id": 200 - i, "status": st, "conclusion": "success" if st == "completed" else None,
+               "created_at": (now - timedelta(minutes=m)).strftime("%Y-%m-%dT%H:%M:%SZ")} for i, (m, st) in enumerate(runs)]
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "watchdog.yml").read_text())
+    (tmp_path / "step.sh").write_text(wf["jobs"]["check"]["steps"][0]["run"])
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "gh").write_text(FAKE_GH)
+    (bin_dir / "gh").chmod(0o755)
+    (tmp_path / "runs.json").write_text(json.dumps(listed or [{"id": 1, "status": "completed", "conclusion": "success",
+                                                               "created_at": "2026-01-01T00:00:00Z"}]))
+    (tmp_path / "log").write_text("")
+    env = {**os.environ, "T": str(tmp_path), "SCEN": "ok", "GITHUB_REPOSITORY": "x/y", "PATH": f"{bin_dir}:{os.environ['PATH']}"}
+    r = subprocess.run(["bash", "-e", str(tmp_path / "step.sh")], env=env, capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    started = "start" in (tmp_path / "log").read_text()
+    assert started == should_start, r.stdout

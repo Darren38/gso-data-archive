@@ -1,5 +1,9 @@
 # Changelog
 
+## 20 November 2026 (fifty-ninth update) — GSO Grid Archive 7.2
+
+- **A watchdog restarts collection within about 10 minutes if it ever stalls.** Collection normally starts its own next run, with GitHub's schedules as a backup, but both failed together for up to 4 hours this month. A small new "Watchdog" checks every 10 minutes and starts a collection whenever none has run in the last 8 minutes. While collection is healthy it does nothing. It is started by a free scheduler outside GitHub (so it works even when GitHub's own schedule doesn't) and by GitHub's schedule as well. Setting up the outside scheduler takes the owner about 5 minutes (docs/DEVELOPMENT.md, "Watchdog").
+
 ## 20 November 2026 (fifty-eighth update) — GSO Grid Archive 7.1.1
 
 - **Fixed: collection paused for an hour today (14:06 to 15:09 MYT).** The check added on 20 November to restart collection when GitHub doesn't start a run mistook an earlier run that was still finishing its backup for the next collection, so no new run was started. Only a newer run now counts. GSO's whole-day figures for that hour were filled in on the next run; its "now only" figures (the home page headline boxes, Generation Availability and the solar farm map) for that hour can't be fetched again.

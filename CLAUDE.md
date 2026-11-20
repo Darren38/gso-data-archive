@@ -22,7 +22,9 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
 - READMEs follow the owner's format: centred title, bold one-line description, green "OPEN THE SITE" badge, a clickable
   screenshot, then "What it is", "How current is it?", "Open it" (the site is online only: no install or local-run
   steps in the README; developer instructions live in docs/DEVELOPMENT.md), and credits.
-- GitHub only: Actions and Pages, no paid server or database service. Don't commit the archive database or raw data
+- GitHub only: Actions and Pages, no paid server or database service. One exception the owner approved (20 Nov 2026):
+  a free outside scheduler (cron-job.org) starts `watchdog.yml` every 10 minutes with a token limited to this
+  repository's Actions (docs/DEVELOPMENT.md, "Watchdog"). Don't commit the archive database or raw data
   to git: the archive lives in the Actions cache, the published site and the `archive-backups` release.
 - History lock: on 20 Nov 2026 the owner had the full history locked (public: newest 7 days, lesson 63) and the same
   day asked for the password to be removed. It is switched OFF by not passing `ARCHIVE_PASSPHRASE` to the jobs in
@@ -331,6 +333,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     hides 30d/90d/1y, sets the date inputs' min and re-writes `setData`'s text when the check finishes after it.
     Tested: Python/JS round trip (`check_lock.mjs`), the unlock flow at 320 and 1280 px (`check_lock_ui.cjs`), and a
     sweep of every page on the real archive, locked and unlocked.
+
+64. **A watchdog outside GitHub covers GitHub's own schedule failing.** `watchdog.yml` starts `archive.yml` when no run
+    started in the last 8 minutes and none under way started in the last 30 (an old stuck "queued" run doesn't count),
+    and does nothing otherwise, so it never doubles a healthy chain. It is started every 10 minutes by cron-job.org
+    and by its own schedule; `keepalive` keeps both workflows switched on. `tests/test_workflow_next.py` covers it.
 
 ## How to check a change
 

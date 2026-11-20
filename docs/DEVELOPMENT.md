@@ -48,3 +48,28 @@ TEST_DATABASE_URL=postgresql://… python -m pytest --ignore=tests/test_frontend
 ```
 
 See also: [deployment](DEPLOYMENT.md) · [backups](BACKUP_RESTORE.md) · [architecture](ARCHITECTURE.md)
+
+## Watchdog (restarts collection if it stalls)
+
+Collection runs as a chain (each `archive.yml` run starts the next) with GitHub's schedules as backup. Both failed
+together for up to 4 hours in November 2026, so `.github/workflows/watchdog.yml` checks every 10 minutes and starts a
+collection when none has started in the last 8 minutes (it does nothing while collection is healthy, and never fails).
+GitHub's own schedule runs it too, but that is the part that fails, so it is also started from outside GitHub:
+
+1. **A token that can only run this repository's workflows.** GitHub > Settings (your profile) > Developer settings >
+   Personal access tokens > Fine-grained tokens > Generate new token. Name "gso watchdog", expiration up to 1 year,
+   Repository access: *Only select repositories* > `gso-data-archive`, Permissions > Repository > **Actions: Read and
+   write** (nothing else). Copy the token (it is shown once).
+2. **A free scheduler.** At https://cron-job.org (free account) > Create cronjob:
+   - URL: `https://api.github.com/repos/Darren38/gso-data-archive/actions/workflows/watchdog.yml/dispatches`
+   - Schedule: every 10 minutes
+   - Advanced > Request method: **POST**; Request body: `{"ref":"main"}`
+   - Headers: `Authorization` = `Bearer <the token>`, `Accept` = `application/vnd.github+json`,
+     `X-GitHub-Api-Version` = `2022-11-28`
+   - Save, then "Test run": the answer should be **204** (no content). The repository's Actions tab then shows a
+     "Watchdog" run within a minute.
+3. **Renew the token before it expires** (GitHub emails a week before): generate a new one and paste it into the
+   cronjob's Authorization header.
+
+The token can only start this repository's workflows: if it leaked, someone could start extra collections, nothing
+more. Revoke it on the same GitHub page to stop the outside scheduler at once.

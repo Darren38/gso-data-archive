@@ -1,0 +1,40 @@
+# Watchdog: restarts collection if it has stalled. Collection normally runs as a chain (each run of archive.yml starts
+# the next), and GitHub's own schedules are its backup; both failed together for up to 4 hours in November 2026.
+# This small workflow is started every 10 minutes from outside GitHub (a free scheduler such as cron-job.org, with a
+# token that can only run this repository's workflows; docs/DEVELOPMENT.md, "Watchdog"), and by its own schedule.
+# When a collection has started in the last 8 minutes, or one is under way, it does nothing. Otherwise it starts one.
+# It never fails: a failed watchdog must not email the owner about something GitHub will sort out (lesson 42).
+name: Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7,17,27,37,47,57 * * * *"  # GitHub's own backup for the outside scheduler (it may also run late)
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Start a collection if none has run lately
+        run: |
+          api="repos/$GITHUB_REPOSITORY/actions/workflows/archive.yml/runs?per_page=20"
+          # A run counts if it started in the last 8 minutes, or is under way and started in the last 30 minutes
+          # (an old run stuck in "queued", like 16 Nov 2026's, is not collection).
+          alive=$(gh api "$api" --jq '[.workflow_runs[] | ((now - (.created_at | fromdateiso8601)) / 60) as $age
+            | select($age < 8 or ($age < 30 and (.status == "in_progress" or .status == "queued" or .status == "pending" or .status == "waiting")))] | length' || echo error)
+          if [ "$alive" = "error" ] || [ -z "$alive" ]; then echo "Could not read the runs; trying again next time."; exit 0; fi
+          if [ "$alive" -gt 0 ]; then echo "Collection is running ($alive recent runs)."; exit 0; fi
+          echo "No collection in the last 8 minutes: starting one."
+          gh workflow run archive.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::GitHub did not start the collection; trying again next time."
+        env:
+          GH_TOKEN: ${{ github.token }}
