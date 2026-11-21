@@ -55,6 +55,13 @@ const every10 = (from, n, value) => Array.from({ length: n }, (_, i) =>
   const nightly = [[t(3, "23:20"), 5], [t(3, "23:30"), 5], [t(4, "00:00"), 5]];
   const gen = [[t(3, "23:20"), 1], [t(3, "23:30"), 1], [t(3, "23:40"), 1], [t(3, "23:50"), 1], [t(4, "00:00"), 1]];
   assert.deepEqual(A.stackGaps(A.alignStack([gen, nightly], 600e3, { bridge: 3 })), []);
+  // 21 Nov 2026: GSO's Solar page published nothing after 08:10. Still going on at 17:20: shaded up to now; at 08:40
+  // (30 minutes on, readings normally arrive 15-25 minutes late) not yet.
+  const solar = [[t(1, "07:50"), 10], [t(1, "08:00"), 40], [t(1, "08:10"), 90]];
+  const now = Date.parse(t(1, "17:20"));
+  assert.deepEqual(A.stackGaps(A.alignStack([solar, solar], 600e3), 30 * 60e3, { until: now }),
+    [[isoUtc(t(1, "08:10")), new Date(now).toISOString()]]);
+  assert.deepEqual(A.stackGaps(A.alignStack([solar], 600e3), 30 * 60e3, { until: Date.parse(t(1, "08:40")) }), []);
 }
 
 // Capacity factor: a 100 MW farm at a steady 25 MW for 2 hours is 25%, over 2 covered hours; a gap longer than

@@ -396,6 +396,11 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     matches nothing yet is now remembered (`AdapterSpec.keeps_state`: the collector loads `ctx["state"]` and saves
     `ParsedPayload.state` in system_state "adapter:<key>") and filed when the chart's next reading, within 20 minutes,
     has the same total. Look for this kind of loss by counting readings per source and day (`gso-archive checkup`).
+    The same check-up missed that GSO's Solar page had published nothing since 08:10 that day: the hourly check listed it
+    with ⚠️ and it was read as healthy because everything GSO did show was archived. Read the ⚠️ notes in a check-up.
+    The owner saw the outage on a phone as "missing data", so the Solar Profile chart now shades GSO's gaps too, with
+    `stackGaps(..., { until })` also marking a gap still going on (no reading for 45+ minutes up to now), and the
+    "No readings from GSO" label shows from 280 px.
 
 ## How to check a change
 

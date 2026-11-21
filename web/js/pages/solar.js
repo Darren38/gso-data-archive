@@ -2,7 +2,7 @@
 import { lssExplorer } from "../lss.js";
 import { getDaily, getFarmsDay, getPoints, exportUrl, rollup } from "../data.js";
 import { COLORS, FUELS, SOLAR_PARTS, solarMap, categoryChart, profileChart, timeChart } from "../charts.js";
-import { combine, dailyFromPoints, extent, forecastError, implausibleSolar, intradayProfiles, ramps, sumSeries } from "../analysis.js";
+import { alignStack, combine, dailyFromPoints, extent, forecastError, implausibleSolar, intradayProfiles, ramps, stackGaps, sumSeries } from "../analysis.js";
 import {
   addDays, card, downloadText, emptyState, errorState, esc, fmtDate, fmtDateTime, fmtEnergy, fmtLong, fmtNum, fmtTime,
   freshnessPill, getParam, h, kpi, loading, mytDayStart, pointsToCsv, rangePicker, renderTable, section, setParams, shortForms, staleNote, verificationTag,
@@ -171,14 +171,17 @@ export async function render(main, { meta, isCurrent }) {
     const profileTotal = prof.length === 5 ? sumSeries(prof.map((x) => x.points)) : [];
     const gsoCard = h(card({ title: "Solar Profile",
       sub: "From GSO's Solar page",
-      desc: "Each colour is one kind of solar, stacked so the top edge is total solar. Grid and Distribution are measured; NEM, FiT and SELCO are GSO's estimates. Dashed green line: GSO's Forecast. GSO sometimes revises these figures later in the day, so Grid can differ by a few percent from the solar on GSO's Generation page, which keeps its first figures.",
+      desc: "Each colour is one kind of solar, stacked so the top edge is total solar. Grid and Distribution are measured; NEM, FiT and SELCO are GSO's estimates. Dashed green line: GSO's Forecast. GSO sometimes revises these figures later in the day, so Grid can differ by a few percent from the solar on GSO's Generation page, which keeps its first figures. Shaded: times GSO published nothing.",
       body: '<div class="chart tall"></div>' }));
     body.appendChild(gsoCard);
     if (prof.length && prof.some((x) => x.points.some((q) => q[1] != null))) {
       const part = (k) => SOLAR_PARTS.find((x) => x.key === k) || { label: k, color: COLORS.solar };
       const series = prof.map((x, i) => ({ name: part(PROFILE[i].key).label, points: x.points, color: part(PROFILE[i].key).color, area: true, areaOpacity: 0.85, stack: "gso", width: 0.6 }));
       if (fc.length) series.push({ name: "Forecast", points: fc[0].points, color: COLORS.forecast, dashed: true, width: 2 });
-      timeChart(gsoCard.querySelector(".chart"), { series, demo });
+      // Stretches GSO's Solar page published nothing (15, 19 and 21 Nov 2026), including one still going on now: shaded
+      // and named "No readings from GSO", as on the System Demand Profile, so a blank isn't taken for this site's fault.
+      const gaps = stackGaps(alignStack(prof.map((x) => x.points), 600e3), 30 * 60e3, { until: Math.min(Date.now(), mytDayStart(addDays(range.endDay, 1))) });
+      timeChart(gsoCard.querySelector(".chart"), { series, demo, gaps });
     } else {
       gsoCard.querySelector(".card-b").innerHTML = emptyState(rawOk ? "No readings from GSO's Solar page in this range" : "Shorten the range",
         "GSO's Solar page only publishes today's values, so this archive has them from the day collection started.", "◌");

@@ -160,7 +160,8 @@ export function timeChart(el, { series, yAxes = [{ name: "MW" }], demo = false, 
       data: s.points.map((p) => [shift(p[0]), p[1], p[2]]),
       // Long stretches GSO published nothing for: shaded and named, so a blank isn't taken for a fault of this site.
       markArea: gaps.length && s === series[0] ? { silent: true, itemStyle: { color: css("--text-3"), opacity: 0.08 },
-        label: { show: el.clientWidth >= 400, position: "insideTop", color: css("--text-3"), fontSize: 11, formatter: "No readings\nfrom GSO" },
+        // Named on phones too (21 Nov 2026: the owner saw GSO's solar outage on a phone as "missing data").
+        label: { show: el.clientWidth >= 280, position: "insideTop", color: css("--text-3"), fontSize: el.clientWidth < 400 ? 10 : 11, formatter: "No readings\nfrom GSO" },
         data: gaps.map(([a, b]) => [{ xAxis: shift(a) }, { xAxis: shift(b) }]) } : undefined,
       markLine: markNow && s === series[0] ? { silent: true, symbol: "none", lineStyle: { color: css("--text-3"), type: "dotted" }, label: { formatter: "now", color: css("--text-3") }, data: [{ xAxis: Date.now() + MYT_OFFSET_MS }] } : undefined,
     })),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 21 November 2026 (sixty-seventh update) — GSO Grid Archive 7.5.3
+
+- **The Solar Profile chart now shows when GSO stopped publishing.** Today GSO's Solar page published nothing after 8:10 am, so the chart simply stopped and looked like missing data. Stretches with no solar figures from GSO are now shaded and labelled "No readings from GSO", including one still going on, as the System Demand Profile already does. The label now shows on phones too.
+
 ## 21 November 2026 (sixty-sixth update) — GSO Grid Archive 7.5.2
 
 - **Maintenance check-up:** collection ran every 2 to 3 minutes all night, with every run successful. The hourly check found everything GSO shows already in the archive, and today's backup is in place.

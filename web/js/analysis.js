@@ -124,12 +124,17 @@ export function alignStack(list, slotMs = 600e3, { bridge = 0 } = {}) {
 }
 
 /** Stretches longer than `minMs` with no complete moment in an aligned stack (alignStack's output): GSO published
- * nothing for at least one source, beyond what the drawing joins. [[startIso, endIso], ...] between the readings. */
-export function stackGaps(aligned, minMs = 30 * 60e3) {
+ * nothing for at least one source, beyond what the drawing joins. [[startIso, endIso], ...] between the readings.
+ * With `until` (ms, e.g. now): also the stretch from the newest complete moment to `until` when it is longer than
+ * `trailMs` (45 min: GSO's readings normally arrive 15-25 minutes late), i.e. GSO has stopped and not resumed yet
+ * (21 Nov 2026: its Solar page published nothing after 08:10). */
+export function stackGaps(aligned, minMs = 30 * 60e3, { until = null, trailMs = 45 * 60e3 } = {}) {
   if (!aligned.length) return [];
   const ok = aligned[0].map((_, i) => aligned.every((s) => s[i][1] != null)).map((good, i) => (good ? aligned[0][i][0] : null)).filter(Boolean);
   const out = [];
   for (let i = 1; i < ok.length; i += 1) if (Date.parse(ok[i]) - Date.parse(ok[i - 1]) > minMs) out.push([ok[i - 1], ok[i]]);
+  const last = ok.length ? Date.parse(ok[ok.length - 1]) : NaN;
+  if (Number.isFinite(until) && Number.isFinite(last) && until - last > trailMs) out.push([ok[ok.length - 1], new Date(until).toISOString()]);
   return out;
 }
 
