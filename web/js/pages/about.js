@@ -49,6 +49,9 @@ export async function render(main, { meta }) {
         They are listed as GSO publishes them, marked “GSO figures look wrong”, and left out of maps and totals.</li>
       <li><b>GSO revises its solar figures.</b> The Solar page sometimes re-sends earlier readings, up to 8.5% lower (29 October 2026). The newest value is shown;
         every earlier value is kept and can be seen in the Explorer.</li>
+      <li><b>The other renewables split runs one step ahead.</b> GSO's split of “Other RE” into biogas, biomass and mini hydro has no time of its own,
+        and GSO updates it about one reading before its home page chart (18-21 November 2026). It is filed at the chart's reading with the same total;
+        a split that is ahead waits for the chart's next reading. Until 21 November such splits were not kept, so about 10-20% of each day's splits are missing before then.</li>
       <li><b>Two different “demand” figures.</b> GSO's home page Grid Demand and its System Demand page's figure are usually 0-60 MW apart. They are different
         figures, so this site names them separately instead of treating one as the other.</li>
       <li><b>Tie-line direction.</b> GSO's Tie-Line page counts power going out (export) as positive; its home page counts the same flow the other way round.

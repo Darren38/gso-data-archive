@@ -1,5 +1,11 @@
 # Changelog
 
+## 21 November 2026 (sixty-sixth update) — GSO Grid Archive 7.5.2
+
+- **Maintenance check-up:** collection ran every 2 to 3 minutes all night, with every run successful. The hourly check found everything GSO shows already in the archive, and today's backup is in place.
+- **More of GSO's "other renewables" split is kept.** GSO's split of Other RE into biogas, biomass and mini hydro has no time of its own, so it is filed at the home page reading with the same total. The check-up found that GSO updates the split about one reading before its chart, so 10–20% of each day's splits were not kept. A split that is ahead now waits for the chart's next reading and is filed there. Days before today stay as they were.
+- The satellite sunshine figures (Weather page) have had nothing new from Open-Meteo since 20 November, 7 am. Their service still answers, just with nothing newer. The Weather page uses the forecast meanwhile, and GSO collection is not affected.
+
 ## 20 November 2026 (sixty-fifth update) — GSO Grid Archive 7.5.1
 
 - **Emails only for critical problems.** You'll get an email only when something needs fixing or data is at risk:

@@ -390,6 +390,13 @@ publishes the site to GitHub Pages: https://darren38.github.io/gso-data-archive/
     The check's comparison (`proof` in its saved notes) is restored by the next build (`HEALTH_STATE`) and shown on
     the Status page as "Proof against GSO".
 
+68. **GSO's Other RE split runs one step ahead of its home page chart.** The 21 Nov 2026 check-up counted only 113-138
+    `other_re` readings a day: the split (no time of its own, lesson 38) was refused whenever its total differed from
+    the chart's newest reading, and 189 of 205 such totals equalled the chart's NEXT reading exactly. A split that
+    matches nothing yet is now remembered (`AdapterSpec.keeps_state`: the collector loads `ctx["state"]` and saves
+    `ParsedPayload.state` in system_state "adapter:<key>") and filed when the chart's next reading, within 20 minutes,
+    has the same total. Look for this kind of loss by counting readings per source and day (`gso-archive checkup`).
+
 ## How to check a change
 
 ```bash

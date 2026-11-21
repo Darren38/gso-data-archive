@@ -17,8 +17,11 @@ UTC = timezone.utc
 T = datetime(2026, 10, 30, 12, 20, tzinfo=MYT).astimezone(UTC)  # the home page's newest reading at the time
 
 
-def _other_re(shared):
-    return parse(get_adapter("other_re"), fixture_bytes("real/landing_other_re.json"), T.date(), {"shared": shared})
+def _other_re(shared, state=None):
+    ctx = {"shared": shared}
+    if state is not None:
+        ctx["state"] = state
+    return parse(get_adapter("other_re"), fixture_bytes("real/landing_other_re.json"), T.date(), ctx)
 
 
 def test_other_re_split_is_filed_at_the_home_page_time():
@@ -28,10 +31,31 @@ def test_other_re_split_is_filed_at_the_home_page_time():
 
 
 def test_other_re_split_from_another_moment_is_not_kept():
-    p = _other_re({"genmix_other_re": (T, 171.0)})  # the home page had already moved on: no guessing
-    assert not p.readings and "different moments" in p.rejected[0]
+    p = _other_re({"genmix_other_re": (T, 171.0)})  # the split belongs to another moment: no guessing
+    assert not p.readings and "kept back" in p.rejected[-1]
     p = _other_re({})  # no home page reading in this run
     assert not p.readings and p.rejected
+
+
+def test_a_split_ahead_of_the_chart_is_filed_at_its_next_reading():
+    """GSO updates the split one step before its chart (189 of 205 mismatches, 18-21 Nov 2026, equalled the chart's
+    next reading). The fixture's split totals 175 (101 + 24 + 50)."""
+    before = T - timedelta(minutes=10)
+    first = _other_re({"genmix_other_re": (before, 173.0)}, {})  # chart at 173: the split (175) is ahead
+    assert not first.readings and first.state["total"] == 175.0
+    # Next run: the chart reached 175 at T, but GSO's split has already moved on to the next moment.
+    nxt = parse(get_adapter("other_re"), json.dumps({"d": json.dumps([{"y": 178, "drilldown": {"name": "Other RE",
+                "categories": ["Biogas", "Biomass", "Mini Hydro"], "data": [104, 24, 50]}}])}).encode(), T.date(),
+                {"shared": {"genmix_other_re": (T, 175.0)}, "state": first.state})
+    assert {r.series: r.value for r in nxt.readings} == {"biogas": 101, "biomass": 24, "mini_hydro": 50}
+    assert {r.obs_time for r in nxt.readings} == {T} and nxt.state["total"] == 178.0
+    # A remembered split is never filed at a reading of another value, or one more than 20 minutes on.
+    assert not _other_re({"genmix_other_re": (T, 171.0)}, first.state).readings
+    late = {**first.state, "chart_newest": (T - timedelta(minutes=30)).isoformat()}
+    assert not parse(get_adapter("other_re"), json.dumps({"d": json.dumps([{"y": 178, "drilldown": {"name": "Other RE",
+                     "categories": ["Biogas", "Biomass", "Mini Hydro"], "data": [104, 24, 50]}}])}).encode(), T.date(),
+                     {"shared": {"genmix_other_re": (T, 175.0)}, "state": late}).readings
+    assert _other_re({"genmix_other_re": (T, 175.0)}, first.state).state == {}  # matched directly: nothing waits
 
 
 def test_empty_answers_mean_gso_published_nothing():
@@ -256,3 +280,18 @@ def test_a_gso_address_that_keeps_failing_is_tried_less_often(engine, settings, 
     assert by["headlines"].status == "success"
     clock[0] = datetime(2026, 10, 30, 9, 26, tzinfo=timezone.utc)
     assert "headlines" in [spec.key for spec, _, _ in collector.plan_cycle(engine, s, clock[0])]  # back to every round
+
+
+def test_collector_remembers_a_split_waiting_for_its_reading(engine, settings, client, fake, monkeypatch):
+    monkeypatch.setattr("gso_archive.collector.utcnow", lambda: datetime(2026, 10, 28, 13, 31, tzinfo=MYT).astimezone(UTC))
+    raw = json.loads(fixture_bytes("real/landing_genmix.json"))["d"].split("$")
+    ahead = float(raw[7].split(",")[-1]) + 2  # one step ahead of the chart's newest reading
+    other = json.dumps({"d": json.dumps([{"y": ahead, "drilldown": {"name": "Other RE", "categories": [
+        "Biogas", "Biomass", "Mini Hydro"], "data": [ahead - 74, 24, 50]}}])})
+    fake.add("LandingPage.aspx/GetGenMixData", "real/landing_genmix.json")
+    fake.add("LandingPage.aspx/GetOtherREData", other.encode())
+    collect_one(engine, client, settings, get_adapter("genmix_live"), T.date())
+    r = collect_one(engine, client, settings, get_adapter("other_re"), T.date())
+    assert r.status == "success" and r.records_new == 0
+    with engine.connect() as c:
+        assert store.get_state(c, "adapter:other_re")["total"] == ahead

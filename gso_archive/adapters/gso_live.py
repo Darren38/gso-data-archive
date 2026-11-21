@@ -235,15 +235,34 @@ def _other_re(spec: AdapterSpec, d: object, ctx: dict) -> ParsedPayload:
         out.rejected.append("no home page reading in this run to date it by; not kept")
         return out
     t, value = newest
-    if abs(value - total) > 0.5:
-        out.rejected.append(f"total {total} is not the home page's newest Other RE ({value}): different moments, not kept")
+    if abs(value - total) <= 0.5:
+        _other_re_readings(spec, out, split, t)
+        out.state = {}  # nothing waiting
         return out
+    # GSO updates this split one step before its home page chart: on 18-21 Nov 2026, 189 of the 205 splits whose total
+    # differed from the chart's newest reading equalled the chart's NEXT reading exactly. So a split that matches
+    # nothing yet is remembered, and filed when the chart's next reading (within 20 minutes) has the same total.
+    waiting = ctx.get("state") or {}
+    try:
+        w_total, w_split = float(waiting["total"]), {k: float(v) for k, v in waiting["split"].items()}
+        w_seen = datetime.fromisoformat(waiting["chart_newest"])
+    except (KeyError, TypeError, ValueError, AttributeError):
+        w_total = None
+    if w_total is not None and abs(w_total - value) <= 0.5 and w_seen < t <= w_seen + timedelta(minutes=20):
+        _other_re_readings(spec, out, w_split, t)
+        out.rejected.append(f"filed the split seen earlier (total {w_total:g}) at the chart's next reading")
+    out.state = {"total": total, "split": split, "chart_newest": t.isoformat()}
+    out.rejected.append(f"total {total} is not the home page's newest Other RE ({value}): kept back until the "
+                        "chart's next reading")
+    return out
+
+
+def _other_re_readings(spec: AdapterSpec, out: ParsedPayload, split: dict, t: datetime) -> None:
     for name, v in split.items():
         slug = re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
         fspec = spec.fields.get(slug)
         out.readings.append(Reading(slug, name, t, v, quality=assess_quality(fspec, v, t) if fspec else "ok",
                                     name=None if fspec else f"Other renewables — {name}", unit="MW"))
-    return out
 
 
 # --- LandingPage.aspx/GetSysAVData ------------------------------------------------------------------------------
@@ -528,7 +547,8 @@ OTHER_RE = AdapterSpec(
     verification="verified",
     description="From GSO's home page: the 'Other RE' total split into biogas, biomass and mini hydro, as labelled by "
                 "GSO. GSO gives no time with it, so it is filed at the time of the home page's newest 'Other RE' "
-                "reading, and only when the totals agree.",
+                "reading, and only when the totals agree (a split one step ahead of the chart waits for the "
+                "chart's next reading).",
     fields={
         "biogas": FieldSpec("biogas", "Other renewables — Biogas", "MW", "actual", 0.0, 2000.0),
         "biomass": FieldSpec("biomass", "Other renewables — Biomass", "MW", "actual", 0.0, 2000.0),
@@ -536,6 +556,7 @@ OTHER_RE = AdapterSpec(
     },
     takes_date=False,
     raw_transform=_other_re,
+    keeps_state=True,
 )
 
 AVAILABILITY = AdapterSpec(

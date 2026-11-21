@@ -43,6 +43,8 @@ download the newest `archive-backups` asset (github.com release downloads work f
 - **Measured sunshine:** the Status page's `irradiance` collector ran within the last 2 hours; the probe's
   `irradiance-trial` shows the newest hour about 1 hour behind. If Open-Meteo's Himawari feed breaks (it did from
   6 Jan to 4 Mar 2026), the Weather page falls back to the forecast; nothing else depends on it.
+- **Other renewables split:** `other_re` readings per day should be close to the home page's (about 142). Before
+  21 Nov 2026 a split one step ahead of GSO's chart was not kept (lesson 68), so older days have 110-140.
 - **Weather:** the Status page's `weather` collector ran within the last 3 hours (a few "429 Too Many Requests"
   failures are normal: Open-Meteo's free limits are per address and GitHub's machines share addresses), and the Weather page's sunshine
   follows the farms' output on clear days. It is Open-Meteo's, never GSO's: it must never stop GSO collection.
@@ -55,8 +57,8 @@ download the newest `archive-backups` asset (github.com release downloads work f
   and grew about 1.5-2 MB a day (monthly CSVs about half of it, the whole-archive download a third). Plan a change
   (e.g. stop publishing monthly CSVs, or publish the full archive file only in the backups) before it passes 700 MB.
   The Actions cache allows 10 GB per repository; the daily backups are separate release files. The site records
-  its own size (meta.json `site_bytes`) and the hourly check emails from 700 MB (lesson 66): read the size from
-  the check's notes.
+  its own size (meta.json `site_bytes`) and the hourly check lists it from 350 MB and emails from 900 MB (lesson 66):
+  read the size from the check's notes.
 
 ## 3. Do the pages show it right?
 

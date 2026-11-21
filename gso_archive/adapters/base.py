@@ -71,6 +71,8 @@ class ParsedPayload:
     table: list[dict] | None = None
     # Several such lists from one answer (e.g. GSO's two constraint tables), each kept as "<adapter>_<name>".
     tables: dict[str, list[dict]] | None = None
+    # For collectors with `keeps_state`: what to remember for the next run (None = leave it as it is).
+    state: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -101,6 +103,9 @@ class AdapterSpec:
     # For data GSO writes into the page itself rather than a PageMethod (e.g. its constraint tables): the page is
     # fetched with GET and its HTML text handed over, with the same context. Takes precedence over the others.
     html_transform: Callable[["AdapterSpec", str, dict], ParsedPayload] | None = None
+    # The collector loads this collector's remembered state into ctx["state"] before reading the answer and saves
+    # ParsedPayload.state after it (system_state "adapter:<key>"), e.g. an Other RE split waiting for its reading.
+    keeps_state: bool = False
 
     def url(self, base_url: str) -> str:
         return f"{base_url}/{self.page}/{self.method}"

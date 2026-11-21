@@ -140,6 +140,8 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                 return fail(exc.error_type, f"time of latest reading: {exc}", t_res.status)
         with engine.connect() as conn:
             failing = store.failure_streak(conn, spec.key)[0] >= BACKOFF_AFTER
+            if spec.keeps_state:
+                context["state"] = store.get_state(conn, f"adapter:{spec.key}") or {}
         # While it keeps failing: one try, every BACKOFF_SECONDS, but waiting longer (GSO may be slow rather than down).
         if spec.html_transform:
             fetched = client.get(url, accept="text/html,*/*;q=0.8", retries=0 if failing else None,
@@ -184,6 +186,8 @@ def collect_one(engine: Engine, client: GsoClient, settings: Settings, spec: Ada
                 store.keep_table(conn, spec.key, payload.table, fetched_at)
             for name, rows in (payload.tables or {}).items():
                 store.keep_table(conn, f"{spec.key}_{name}", rows, fetched_at)
+            if spec.keeps_state and payload.state is not None:
+                store.set_state(conn, f"adapter:{spec.key}", payload.state)
             previous_sig = store.last_signature(conn, spec.key)
             schema_changed = bool(previous_sig and payload.signature and previous_sig != payload.signature)
             store.finish_run(
